@@ -4,6 +4,15 @@ All notable changes to this project are tracked in this file chronologically by 
 
 ---
 
+## [`b606a49`](https://github.com/mordeak/immersive-footwear-pov/commit/b606a49cb55877f6b9ce82fe7f000305f6e80b2d) — 2026-08-27
+### `feat(photomode): add native attribute 37 platform elevation, stance neutralization, and CET toggle`
+* **Locomotion Neutralization:** Automatically eases first-person locomotion height blend to neutral (0.0m) in Photo Mode, restoring smoothly upon exit.
+* **Native Attribute 37 Elevation:** Drives native REDengine Photo Mode Attribute 37 (`upDown`) to elevate character root by equipped platform sole thickness.
+* **CET Controls:** Added `Auto-Elevate Platform Sole in Photo Mode` toggle in CET overlay (persisted across sessions in `user_shoe_overrides.json`).
+* **Standalone Architecture:** Operates on native REDengine APIs with zero dependencies on third-party Photo Mode mods.
+
+---
+
 ## [`ffd4d73`](https://github.com/mordeak/immersive-footwear-pov/commit/ffd4d73c7eef78b9ec437c35f2d7a2fa5b7f7fbb) — 2026-08-27
 ### `refactor(integrations): reorganize IFP integration into dedicated REDscript and CET modules`
 * **REDscript Structure:** Created `Integrations/ImmersiveFootwearPOV_IFP.reds` to isolate the `ifp_height_blend` animgraph variable driver in `Integrations/` and removed the old root `ImmersiveFootwearPOV_HeightController.reds`.
