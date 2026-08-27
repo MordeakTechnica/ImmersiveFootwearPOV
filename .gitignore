@@ -4,6 +4,10 @@ packed
 *.zip
 *.bat
 
+# Examples & test folders
+examples/
+examples
+
 # User logs & caches
 *.log
 install_log.xml
