@@ -1,0 +1,24 @@
+# Immersive Footwear POV - Example TweakXL Configuration
+# Height adjustments are applied exclusively for platform footwear (shoes/boots with elevated soles).
+# Note: Non-platform high heels (where the ball of the foot remains on the ground) do not lift the character body.
+#
+# Platform tag formats:
+#   PlatformHeight_<MM>   -> e.g. PlatformHeight_006 (+0.06m / 6cm sole), PlatformHeight_010 (+0.10m / 10cm sole)
+#   PlatformHeight_<F.FF> -> e.g. PlatformHeight_0.06 (+0.06m sole)
+#   ShoePlatform_<MM>     -> e.g. ShoePlatform_008 (+0.08m / 8cm sole)
+#   ShoeHeight_<MM>       -> e.g. ShoeHeight_005 (+0.05m / 5cm sole)
+
+# Example 1: Chunky Platform Boots (+6cm / 0.06m sole elevation)
+# Items.Custom_Platform_Boots_01:
+#   $base: Items.GenericFootClothing
+#   tags: !append-once [ "PlatformHeight_006" ]
+
+# Example 2: Extreme Cyber-Platform Stompers (+10cm / 0.10m sole elevation)
+# Items.Custom_Heavy_Platforms_01:
+#   $base: Items.GenericFootClothing
+#   tags: !append-once [ "PlatformHeight_010" ]
+
+# Example 3: Modest Platform Sneakers (+3cm / 0.03m sole elevation)
+# Items.Custom_Platform_Sneakers_01:
+#   $base: Items.GenericFootClothing
+#   tags: !append-once [ "PlatformHeight_003" ]

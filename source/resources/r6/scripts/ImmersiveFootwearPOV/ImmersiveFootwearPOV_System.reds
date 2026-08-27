@@ -1,0 +1,337 @@
+module ImmersiveFootwearPOV
+
+public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
+
+  private let m_currentHeelHeight: Float;      // Active FPP elevation height
+  private let m_currentPlatformHeight: Float;  // Secondary platform height (reserved for PM)
+  private let m_effectiveOffset: Float;
+  private let m_equippedFootwearID: ItemID;
+  private let m_activeSource: String;
+  private let m_hasOfficialTags: Bool;
+  private let m_hasCustomOverride: Bool;
+  private let m_customHeelHeight: Float;
+  private let m_customPlatformHeight: Float;
+  private let m_isInVehicle: Bool;
+  private let m_isInWorkspot: Bool;
+  private let m_isSuppressed: Bool;
+  private let m_suppressionReason: String;
+  private let m_isInitialized: Bool;
+
+  public static func GetInstance(gameInstance: GameInstance) -> ref<ImmersiveFootwearPOVSystem> {
+    let system: ref<ImmersiveFootwearPOVSystem> = GameInstance.GetScriptableSystemsContainer(gameInstance).Get(n"ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem") as ImmersiveFootwearPOVSystem;
+    return system;
+  }
+
+  private final func OnPlayerAttach(request: ref<PlayerAttachRequest>) -> Void {
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(request.owner.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) {
+      this.m_isInitialized = false;
+      this.UpdateEquippedFootwear(player);
+    };
+  }
+
+  public final func OnRestored(saveVersion: Int32, gameVersion: Int32) -> Void {
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) {
+      this.m_isInitialized = false;
+      this.UpdateEquippedFootwear(player);
+    };
+  }
+
+  // Updates current shoe heights via the FootwearResolver pipeline
+  // Prioritizes official TweakDB tags over custom overrides
+  public func UpdateEquippedFootwear(player: ref<PlayerPuppet>) -> Void {
+    if !IsDefined(player) {
+      return;
+    };
+
+    let result: ref<FootwearResolutionResult> = FootwearResolver.ResolveFootwear(player);
+
+    // If item changed or not yet initialized
+    if !this.m_isInitialized || NotEquals(result.itemID, this.m_equippedFootwearID) {
+      this.m_isInitialized = true;
+      this.m_equippedFootwearID = result.itemID;
+      this.m_activeSource = result.sourceName;
+      this.m_hasCustomOverride = false;
+      this.m_customHeelHeight = 0.0;
+      this.m_customPlatformHeight = 0.0;
+
+      if ItemID.IsValid(result.itemID) {
+        let heightData: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(result.itemID);
+        
+        // Check if official TweakDB tags exist
+        if heightData.heelHeight > 0.0 || heightData.platformHeight > 0.0 {
+          this.m_hasOfficialTags = true;
+          this.m_currentHeelHeight = heightData.heelHeight;
+          this.m_currentPlatformHeight = heightData.platformHeight;
+        } else {
+          this.m_hasOfficialTags = false;
+          this.m_currentHeelHeight = 0.0;
+          this.m_currentPlatformHeight = 0.0;
+        };
+      } else {
+        this.m_hasOfficialTags = false;
+        this.m_currentHeelHeight = 0.0;
+        this.m_currentPlatformHeight = 0.0;
+      };
+
+      this.RecalculateEffectiveOffset(player);
+      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV] Footwear -> [\(this.m_activeSource)] ID=\(TDBID.ToStringDEBUG(ItemID.GetTDBID(result.itemID))), Official=\(this.m_hasOfficialTags), Heel=\(this.m_currentHeelHeight)m, Platform=\(this.m_currentPlatformHeight)m, Applied=\(this.m_effectiveOffset)m");
+    } else {
+      this.RecalculateEffectiveOffset(player);
+    };
+  }
+
+  // Applies a custom user override when no official TweakDB tags are present
+  public func SetCustomHeightOverride(player: ref<PlayerPuppet>, heel: Float, platform: Float) -> Void {
+    // If shoe has official TweakDB tags, ignore custom override
+    if this.m_hasOfficialTags {
+      return;
+    };
+
+    this.m_hasCustomOverride = true;
+    this.m_customHeelHeight = ShoeHeightParser.ClampHeight(heel);
+    this.m_customPlatformHeight = ShoeHeightParser.ClampHeight(platform);
+    this.m_currentHeelHeight = this.m_customHeelHeight;
+    this.m_currentPlatformHeight = this.m_customPlatformHeight;
+
+    this.RecalculateEffectiveOffset(player);
+    LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV] Custom Override Applied -> Heel=\(this.m_currentHeelHeight)m, Platform=\(this.m_currentPlatformHeight)m, Applied=\(this.m_effectiveOffset)m");
+  }
+
+  // Clears active custom override
+  public func ClearCustomHeightOverride(player: ref<PlayerPuppet>) -> Void {
+    if !this.m_hasOfficialTags {
+      this.m_hasCustomOverride = false;
+      this.m_customHeelHeight = 0.0;
+      this.m_customPlatformHeight = 0.0;
+      this.m_currentHeelHeight = 0.0;
+      this.m_currentPlatformHeight = 0.0;
+      this.RecalculateEffectiveOffset(player);
+    };
+  }
+
+  public func SetVehicleState(player: ref<PlayerPuppet>, inVehicle: Bool) -> Void {
+    if Equals(this.m_isInVehicle, inVehicle) {
+      return;
+    };
+    this.m_isInVehicle = inVehicle;
+    this.RecalculateEffectiveOffset(player);
+  }
+
+  public func SetWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
+    if Equals(this.m_isInWorkspot, inWorkspot) {
+      return;
+    };
+    this.m_isInWorkspot = inWorkspot;
+    this.RecalculateEffectiveOffset(player);
+  }
+
+  // Evaluates all suppression contexts (vehicles, workspots, high scene tiers, traversal states)
+  public func EvaluateSuppressionState(player: ref<PlayerPuppet>) -> Bool {
+    if !IsDefined(player) {
+      return false;
+    };
+
+    // 1. Vehicles
+    if this.m_isInVehicle || VehicleComponent.IsMountedToVehicle(player.GetGame(), player) {
+      this.m_isSuppressed = true;
+      this.m_suppressionReason = "Vehicle Occupancy";
+      return true;
+    };
+
+    // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
+    if this.m_isInWorkspot || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
+      this.m_isSuppressed = true;
+      this.m_suppressionReason = "Authored Workspot";
+      return true;
+    };
+
+    // 3. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
+    let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
+    if IsDefined(psmBlackboard) {
+      let sceneTier: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.SceneTier);
+      if sceneTier >= 3 || sceneTier <= 0 {
+        this.m_isSuppressed = true;
+        this.m_suppressionReason = "Scripted Scene / Dialogue";
+        return true;
+      };
+
+      // 4. Locomotion Traversal & Special Actions
+      let detailedLocomotion: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.LocomotionDetailed);
+      // Ladders (10..13) or Climb/Vault (8..9)
+      if detailedLocomotion >= 8 && detailedLocomotion <= 13 {
+        this.m_isSuppressed = true;
+        this.m_suppressionReason = "Climb, Vault, or Ladder";
+        return true;
+      };
+
+      // Knockdown / Felled (29, 31)
+      if detailedLocomotion == 29 || detailedLocomotion == 31 {
+        this.m_isSuppressed = true;
+        this.m_suppressionReason = "Knockdown or Forced Reaction";
+        return true;
+      };
+
+      // Swimming (HighLevel == 6 or Swimming > 0)
+      let highLevel: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.HighLevel);
+      let swimmingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Swimming);
+      if highLevel == 6 || swimmingState > 0 {
+        this.m_isSuppressed = true;
+        this.m_suppressionReason = "Swimming";
+        return true;
+      };
+
+      // Takedown / Grapple
+      let takedownState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Takedown);
+      if takedownState > 0 {
+        this.m_isSuppressed = true;
+        this.m_suppressionReason = "Takedown or Grapple";
+        return true;
+      };
+
+      // Body Carrying
+      let carryingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.BodyCarrying);
+      if carryingState > 0 {
+        this.m_isSuppressed = true;
+        this.m_suppressionReason = "Body Carrying";
+        return true;
+      };
+    };
+
+    this.m_isSuppressed = false;
+    this.m_suppressionReason = "";
+    return false;
+  }
+
+  public func RecalculateEffectiveOffset(player: ref<PlayerPuppet>) -> Void {
+    let suppressed: Bool = this.EvaluateSuppressionState(player);
+
+    if suppressed {
+      this.m_effectiveOffset = 0.0;
+    } else {
+      this.m_effectiveOffset = this.m_currentHeelHeight;
+    };
+
+    if IsDefined(player) {
+      HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
+    };
+  }
+
+  public func IsSuppressed() -> Bool {
+    return this.m_isSuppressed;
+  }
+
+  public func GetSuppressionReason() -> String {
+    return this.m_suppressionReason;
+  }
+
+  public func GetCurrentHeelHeight() -> Float {
+    return this.m_currentHeelHeight;
+  }
+
+  public func GetCurrentPlatformHeight() -> Float {
+    return this.m_currentPlatformHeight;
+  }
+
+  public func GetCurrentShoeHeight() -> Float {
+    return this.m_currentHeelHeight;
+  }
+
+  public func GetEffectiveOffset() -> Float {
+    return this.m_effectiveOffset;
+  }
+
+  public func HasOfficialTweakTags() -> Bool {
+    return this.m_hasOfficialTags;
+  }
+
+  public func HasCustomOverride() -> Bool {
+    return this.m_hasCustomOverride;
+  }
+
+  public func GetBodyOffset(player: ref<PlayerPuppet>) -> Float {
+    return this.m_effectiveOffset;
+  }
+
+  public func PrintBodyOffset(player: ref<PlayerPuppet>) -> Float {
+    HeightController.PrintBodyOffsetInfo(player, this.m_effectiveOffset);
+    return this.m_effectiveOffset;
+  }
+
+  public func GetEquippedFootwearID() -> ItemID {
+    return this.m_equippedFootwearID;
+  }
+
+  public func GetResolvedShoeTDBIDString() -> String {
+    if ItemID.IsValid(this.m_equippedFootwearID) {
+      return TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
+    };
+    return "";
+  }
+
+  public func GetResolvedShoeDisplayName() -> String {
+    if ItemID.IsValid(this.m_equippedFootwearID) {
+      let record: ref<Item_Record> = TweakDBInterface.GetItemRecord(ItemID.GetTDBID(this.m_equippedFootwearID));
+      if IsDefined(record) {
+        let locKey: CName = record.DisplayName();
+        if IsNameValid(locKey) {
+          let locName: String = GetLocalizedTextByKey(locKey);
+          if StrLen(locName) > 0 {
+            return locName;
+          };
+        };
+        return TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
+      };
+    };
+    return "None";
+  }
+
+  public func GetActiveSource() -> String {
+    return this.m_activeSource;
+  }
+
+  public func IsInVehicle() -> Bool {
+    return this.m_isInVehicle;
+  }
+
+  public func IsInWorkspot() -> Bool {
+    return this.m_isInWorkspot;
+  }
+
+  public func PrintDebugInfo() -> Void {
+    LogChannel(n"DEBUG", s"========== [ImmersiveFootwearPOV Debug Status] ==========");
+    LogChannel(n"DEBUG", s"Active Source:          \(this.m_activeSource)");
+    LogChannel(n"DEBUG", s"Equipped Shoe Valid:    \(ItemID.IsValid(this.m_equippedFootwearID))");
+    
+    if ItemID.IsValid(this.m_equippedFootwearID) {
+      let tdbid: TweakDBID = ItemID.GetTDBID(this.m_equippedFootwearID);
+      LogChannel(n"DEBUG", s"Shoe TweakDBID:         \(TDBID.ToStringDEBUG(tdbid))");
+      LogChannel(n"DEBUG", s"Official TweakDB Tags:  \(this.m_hasOfficialTags)");
+      LogChannel(n"DEBUG", s"Custom User Override:   \(this.m_hasCustomOverride)");
+      let record: ref<Item_Record> = TweakDBInterface.GetItemRecord(tdbid);
+      if IsDefined(record) {
+        let tags: array<CName> = record.Tags();
+        let count: Int32 = ArraySize(tags);
+        LogChannel(n"DEBUG", s"Shoe Tags Count:        \(count)");
+        let i: Int32 = 0;
+        while i < count {
+          LogChannel(n"DEBUG", s"  Tag[\(i)]:             \(NameToString(tags[i]))");
+          i += 1;
+        };
+      } else {
+        LogChannel(n"DEBUG", s"Shoe Record:            NOT FOUND in TweakDB");
+      };
+    } else {
+      LogChannel(n"DEBUG", s"No footwear currently resolved (\(this.m_activeSource)).");
+    };
+
+    LogChannel(n"DEBUG", s"Current Heel Height:    \(this.m_currentHeelHeight)m (Active FPP Offset)");
+    LogChannel(n"DEBUG", s"Current Platform Height:\(this.m_currentPlatformHeight)m (Reserved for PM)");
+    LogChannel(n"DEBUG", s"Applied Body Offset:    \(this.m_effectiveOffset)m");
+    LogChannel(n"DEBUG", s"Is Suppressed:          \(this.m_isSuppressed) (\(this.m_suppressionReason))");
+    LogChannel(n"DEBUG", s"In Vehicle:             \(this.m_isInVehicle)");
+    LogChannel(n"DEBUG", s"In Workspot:            \(this.m_isInWorkspot)");
+    LogChannel(n"DEBUG", s"=========================================================");
+  }
+}

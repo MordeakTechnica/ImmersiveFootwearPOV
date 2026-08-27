@@ -1,0 +1,9 @@
+# Build outputs and packed archives
+packed/
+packed
+*.zip
+*.bat
+
+# User logs & caches
+*.log
+install_log.xml
