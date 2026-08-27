@@ -1,13 +1,14 @@
 -- =============================================================================
--- Immersive Footwear POV - Cyber Engine Tweaks (CET) Dynamic Bridge
+-- Immersive Footwear POV - Cyber Engine Tweaks (CET) Core Orchestrator
 -- Dynamically combines IFP base height slider + footwear heel height
 -- Features smooth 0.20s transitions and context-aware suppression
--- Supports automatic IFP detection, graceful failure, and seamless window appending
+-- Modular architecture with dedicated integrations in ./integrations/
 -- =============================================================================
+
+local IFPIntegration = require("integrations/ifp")
 
 -- -----------------------------------------------------------------------------
 -- Global Height Configuration Limits (Configurable Enum)
--- Easy access to alter maximum allowed heel and platform limits across the UI
 -- -----------------------------------------------------------------------------
 local FootwearHeightLimits = {
     MAX_HEEL_CM = 25.0,
@@ -15,13 +16,10 @@ local FootwearHeightLimits = {
 }
 
 local mod = {
-    inputName = nil,
     pollTimer = 0.0,
     ifpPollTimer = 0.0,
     ifpBaseHeightCm = 0.0,
     isOverlayOpen = false,
-    isIFPInstalled = false,
-    isIFPHeightAvailable = false,
     overridesFile = "user_shoe_overrides.json",
     overrides = {},
     lastEquippedKey = "",
@@ -90,59 +88,8 @@ local function SaveOverrides()
 end
 
 -- -----------------------------------------------------------------------------
--- Dynamic IFP Detection & Base Height API
+-- Smooth Transition Management
 -- -----------------------------------------------------------------------------
-local function GetIFPState()
-    local ifp = GetMod("ImmersiveFirstPerson") or GetMod("immersive_first_person")
-    if ifp then
-        mod.isIFPInstalled = true
-        if ifp.api and type(ifp.api.GetHeightState) == "function" then
-            local success, state = pcall(ifp.api.GetHeightState)
-            if success and type(state) == "table" then
-                mod.isIFPHeightAvailable = true
-                local height = type(state.effectiveCentimeters) == "number" and state.effectiveCentimeters or 0.0
-                local suppressed = state.suppressedBy
-                return height, suppressed
-            end
-        end
-        mod.isIFPHeightAvailable = false
-        return 0.0, nil
-    end
-
-    mod.isIFPInstalled = false
-    mod.isIFPHeightAvailable = false
-    return 0.0, nil
-end
-
--- -----------------------------------------------------------------------------
--- Animgraph Height Blend Calculation (Additive: Base Height + Footwear Heel)
--- -----------------------------------------------------------------------------
-local function GetInputName()
-    if not mod.inputName then
-        mod.inputName = CName.new("ifp_height_blend")
-    end
-    return mod.inputName
-end
-
-local function CalculateTargetBlend(shoeOffsetMeters, ifpBaseHeightCm, isSuppressed)
-    local totalOffsetMeters = 0.0
-
-    if isSuppressed then
-        -- In suppressed contexts (vehicles, workspots, scenes), return to neutral (0.0m)
-        totalOffsetMeters = 0.0
-    else
-        local baseMeters = (ifpBaseHeightCm or 0.0) / 100.0
-        totalOffsetMeters = baseMeters + (shoeOffsetMeters or 0.0)
-    end
-
-    -- Linear blend mapping: -50cm (-0.50m) to +50cm (+0.50m) -> [0.0, 1.0]
-    -- Neutral (0.0m) -> 0.50
-    local blend = (totalOffsetMeters + 0.50) / 1.00
-    if blend < 0.0 then blend = 0.0 end
-    if blend > 1.0 then blend = 1.0 end
-    return blend, totalOffsetMeters
-end
-
 local function SetTargetBlend(newTarget)
     newTarget = math.max(0.0, math.min(1.0, newTarget))
     if math.abs(newTarget - mod.targetBlend) < 0.0001 then
@@ -186,7 +133,7 @@ local function SyncShoeState(player, sys)
     -- Check suppression from both REDscript system and IFP bridge
     local isRedscriptSuppressed = sys:IsSuppressed()
     local redscriptReason = sys:GetSuppressionReason()
-    local ifpHeight, ifpSuppressedReason = GetIFPState()
+    local ifpHeight, ifpSuppressedReason = IFPIntegration.GetState()
 
     mod.ifpBaseHeightCm = ifpHeight
     local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil)
@@ -249,24 +196,20 @@ end
 -- -----------------------------------------------------------------------------
 registerForEvent("onInit", function()
     LoadOverrides()
-    local height, _ = GetIFPState()
+    local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
-    if mod.isIFPInstalled then
-        print(string.format("[ImmersiveFootwearPOV] Immersive First Person detected. Base Height: %.1f cm", mod.ifpBaseHeightCm))
-    else
-        print("[ImmersiveFootwearPOV] Initialized in Standalone Fallback Mode (IFP not detected).")
-    end
+    print(string.format("[ImmersiveFootwearPOV] Initialized with IFP Base Height: %.1f cm", mod.ifpBaseHeightCm))
 end)
 
 registerForEvent("onOverlayOpen", function()
     mod.isOverlayOpen = true
-    local height, _ = GetIFPState()
+    local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
 end)
 
 registerForEvent("onOverlayClose", function()
     mod.isOverlayOpen = false
-    local height, _ = GetIFPState()
+    local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
 end)
 
@@ -289,137 +232,21 @@ registerForEvent("onUpdate", function(deltaTime)
     mod.ifpPollTimer = mod.ifpPollTimer + deltaTime
     if mod.ifpPollTimer >= 0.10 or mod.isOverlayOpen then
         mod.ifpPollTimer = 0.0
-        local height, _ = GetIFPState()
+        local height, _ = IFPIntegration.GetState()
         mod.ifpBaseHeightCm = height
     end
 
     -- Calculate target blend based on current shoe offset, IFP base slider, and suppression state
     local currentOffset = sys:GetEffectiveOffset()
     local isSuppressed = mod.currentShoeState.isSuppressed
-    local targetBlend, totalMeters = CalculateTargetBlend(currentOffset, mod.ifpBaseHeightCm, isSuppressed)
+    local targetBlend, totalMeters = IFPIntegration.CalculateTargetBlend(currentOffset, mod.ifpBaseHeightCm, isSuppressed)
     
     SetTargetBlend(targetBlend)
     local activeBlend = UpdateTransition(deltaTime)
     
     mod.currentShoeState.totalStanceCm = (activeBlend * 1.00 - 0.50) * 100.0
-    AnimationControllerComponent.SetInputFloat(player, GetInputName(), activeBlend)
+    IFPIntegration.ApplyBlend(player, activeBlend)
 end)
-
--- -----------------------------------------------------------------------------
--- Core Footwear UI Component
--- -----------------------------------------------------------------------------
-local function DrawFootwearUI(isAppended)
-    local player = Game.GetPlayer()
-    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
-
-    if isAppended then
-        ImGui.Spacing()
-        ImGui.Separator()
-        ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV Extension]")
-    end
-
-    -- Graceful Fallback Warning Banner
-    if not mod.isIFPInstalled then
-        ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
-        ImGui.TextWrapped("⚠️ Immersive First Person (IFP) is not installed.")
-        ImGui.PopStyleColor(1)
-        ImGui.TextDisabled("Install IFP (Nexus: 2675) to enable physical first-person eye elevation.")
-        ImGui.Spacing()
-        ImGui.Separator()
-    elseif not mod.isIFPHeightAvailable then
-        ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
-        ImGui.TextWrapped("⚠️ IFP Height Extension archive is not active.")
-        ImGui.PopStyleColor(1)
-        ImGui.TextDisabled("Ensure ImmersiveFirstPersonHeight.archive is installed in archive/pc/mod.")
-        ImGui.Spacing()
-        ImGui.Separator()
-    end
-
-    if not mod.currentShoeState.hasShoe or #mod.currentShoeState.key == 0 then
-        ImGui.TextDisabled("Equipped Footwear: Barefoot / None (Flat 0.0 cm)")
-        if not mod.currentShoeState.isSuppressed and mod.ifpBaseHeightCm ~= 0.0 then
-            ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(mod.ifpBaseHeightCm + 0.5)))
-        end
-    else
-        ImGui.Text(string.format("Equipped: %s", mod.currentShoeState.displayName))
-        ImGui.TextDisabled(string.format("Source: %s | ID: %s", mod.currentShoeState.source, mod.currentShoeState.key))
-
-        if mod.currentShoeState.isOfficial then
-            -- Official TweakDB tags found -> Read-only display
-            ImGui.TextColored(0.2, 0.9, 0.3, 1.0, "Tags: Official TweakDB Metadata (Locked)")
-            ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP)", mod.currentShoeState.heelCm))
-            if mod.currentShoeState.platformCm > 0.0 then
-                ImGui.Text(string.format("Platform Sole:   +%.1f cm (Reserved for PM)", mod.currentShoeState.platformCm))
-            end
-        else
-            -- Untagged shoe -> Interactive custom override sliders
-            ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
-
-            local shoeKey = mod.currentShoeState.key
-            local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (cm)##ifp_custom_heel", mod.currentShoeState.heelCm, 0.0, FootwearHeightLimits.MAX_HEEL_CM, "%.1f cm")
-            if heelChanged and player and sys and #shoeKey > 0 then
-                mod.currentShoeState.heelCm = heelVal
-                if not mod.overrides[shoeKey] then
-                    mod.overrides[shoeKey] = {}
-                end
-                mod.overrides[shoeKey].heel = heelVal
-                mod.overrides[shoeKey].platform = mod.currentShoeState.platformCm
-                SaveOverrides()
-
-                local heelMeters = heelVal / 100.0
-                local platMeters = mod.currentShoeState.platformCm / 100.0
-                sys:SetCustomHeightOverride(player, heelMeters, platMeters)
-                print(string.format("[ImmersiveFootwearPOV] Saved Custom Heel for [%s]: %.1f cm", shoeKey, heelVal))
-            end
-
-            local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", mod.currentShoeState.platformCm, 0.0, FootwearHeightLimits.MAX_PLATFORM_CM, "%.1f cm")
-            if platChanged and player and sys and #shoeKey > 0 then
-                mod.currentShoeState.platformCm = platVal
-                if not mod.overrides[shoeKey] then
-                    mod.overrides[shoeKey] = {}
-                end
-                mod.overrides[shoeKey].heel = mod.currentShoeState.heelCm
-                mod.overrides[shoeKey].platform = platVal
-                SaveOverrides()
-
-                local heelMeters = mod.currentShoeState.heelCm / 100.0
-                local platMeters = platVal / 100.0
-                sys:SetCustomHeightOverride(player, heelMeters, platMeters)
-                print(string.format("[ImmersiveFootwearPOV] Saved Custom Platform for [%s]: %.1f cm", shoeKey, platVal))
-            end
-
-            if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and player and sys and #shoeKey > 0 then
-                mod.currentShoeState.heelCm = 0.0
-                mod.currentShoeState.platformCm = 0.0
-                if mod.overrides[shoeKey] then
-                    mod.overrides[shoeKey] = nil
-                    SaveOverrides()
-                    print(string.format("[ImmersiveFootwearPOV] Reset Custom Height for [%s] to 0.0 cm", shoeKey))
-                end
-                sys:ClearCustomHeightOverride(player)
-            end
-            ImGui.SameLine()
-            ImGui.TextDisabled("(Auto-saved per shoe)")
-        end
-
-        -- Display effective stance breakdown (IFP Base + Footwear Heel)
-        ImGui.Separator()
-        if mod.currentShoeState.isSuppressed then
-            ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
-            ImGui.Text(string.format("First-Person Stance: Temporarily Suppressed (%s)", mod.currentShoeState.suppressionReason))
-            ImGui.PopStyleColor(1)
-            ImGui.TextDisabled("Elevation will smoothly restore upon standing / exiting.")
-        else
-            if mod.isIFPInstalled then
-                ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(mod.ifpBaseHeightCm + 0.5)))
-                ImGui.Text(string.format("Footwear Lift:     +%.1f cm", mod.currentShoeState.effectiveCm))
-                ImGui.TextColored(0.2, 1.0, 0.4, 1.0, string.format("Total Stance Lift: %+d cm (Base + Shoes)", math.floor(mod.currentShoeState.totalStanceCm + 0.5)))
-            else
-                ImGui.Text(string.format("Footwear Heel Height: +%.1f cm", mod.currentShoeState.effectiveCm))
-            end
-        end
-    end
-end
 
 -- -----------------------------------------------------------------------------
 -- Dear ImGui Overlay Event
@@ -428,23 +255,13 @@ registerForEvent("onDraw", function()
     if not mod.isOverlayOpen then return end
 
     -- Update IFP base height in real-time while overlay is open
-    local liveHeight, _ = GetIFPState()
+    local liveHeight, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = liveHeight
 
-    if mod.isIFPInstalled then
-        -- When IFP is present, append directly inside IFP's window seamlessly
-        if ImGui.Begin("Immersive First Person") then
-            DrawFootwearUI(true)
-            ImGui.End()
-        end
-    else
-        -- When IFP is NOT present, display standalone window with graceful notice
-        ImGui.SetNextWindowSize(380, 320, ImGuiCond.FirstUseEver)
-        if ImGui.Begin("Immersive Footwear POV") then
-            DrawFootwearUI(false)
-            ImGui.End()
-        end
-    end
+    local player = Game.GetPlayer()
+    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+
+    IFPIntegration.DrawUI(mod, player, sys, FootwearHeightLimits, SaveOverrides)
 end)
 
 return mod

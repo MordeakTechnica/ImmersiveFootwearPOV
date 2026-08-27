@@ -4,6 +4,12 @@ All notable changes to this project are tracked in this file chronologically by 
 
 ---
 
+## [`1f42193`](https://github.com/mordeak/immersive-footwear-pov/commit/1f42193563914a13e2bb97f7fa2ff82c9e782e4e) — 2026-08-27
+### `docs: add CHANGES.md tracking all changes by git commit id`
+* Initialized project changelog document tracking all historical git commit IDs, dates, and component changes chronologically.
+
+---
+
 ## [`c50ae38`](https://github.com/mordeak/immersive-footwear-pov/commit/c50ae386a75b58111fffe35f289ac2331cf4981e) — 2026-08-27
 ### `feat(height-limits): centralize 25cm limit in enum and raise custom sliders`
 * **REDscript:** Added `FootwearHeightLimit` enum and `FootwearHeightLimits` helper class in `ImmersiveFootwearPOV_TweakReader.reds` defining centralized `MaxHeightCm = 25` and `MaxPlatformCm = 25`.

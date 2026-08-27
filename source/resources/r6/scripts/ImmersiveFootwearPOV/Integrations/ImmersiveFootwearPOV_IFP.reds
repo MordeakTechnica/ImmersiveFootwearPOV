@@ -1,14 +1,14 @@
 module ImmersiveFootwearPOV
 
-// -----------------------------------------------------------------------------
-// Height Controller
-// Manages physical foot elevation for V
-// Directly drives the player animgraph two-branch height blend
+// =============================================================================
+// Immersive Footwear POV - Immersive First Person (IFP) Integration
+// Directly drives the player animgraph two-branch height blend (ifp_height_blend)
 // Strictly does NOT modify FPPCameraComponent or camera parameters
-// -----------------------------------------------------------------------------
+// =============================================================================
+
 public class HeightController {
 
-  // Applies physical platform elevation to V's character model
+  // Applies physical platform elevation to V's character model via IFP animgraph variable
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetZ: Float) -> Bool {
     if !IsDefined(player) {
       return false;
