@@ -102,7 +102,6 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
                 local heelMeters = heelVal / 100.0
                 local platMeters = shoeState.platformCm / 100.0
                 sys:SetCustomHeightOverride(player, heelMeters, platMeters)
-                print(string.format("[ImmersiveFootwearPOV] Saved Custom Heel for [%s]: %.1f cm", shoeKey, heelVal))
             end
 
             local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", shoeState.platformCm, 0.0, heightLimits.MAX_PLATFORM_CM, "%.1f cm")
@@ -118,7 +117,6 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
                 local heelMeters = shoeState.heelCm / 100.0
                 local platMeters = platVal / 100.0
                 sys:SetCustomHeightOverride(player, heelMeters, platMeters)
-                print(string.format("[ImmersiveFootwearPOV] Saved Custom Platform for [%s]: %.1f cm", shoeKey, platVal))
             end
 
             if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and player and sys and #shoeKey > 0 then
@@ -127,12 +125,28 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
                 if modState.overrides[shoeKey] then
                     modState.overrides[shoeKey] = nil
                     saveOverridesCallback()
-                    print(string.format("[ImmersiveFootwearPOV] Reset Custom Height for [%s] to 0.0 cm", shoeKey))
                 end
                 sys:ClearCustomHeightOverride(player)
             end
             ImGui.SameLine()
             ImGui.TextDisabled("(Auto-saved per shoe)")
+        end
+
+        -- Photo Mode Elevation Configuration
+        ImGui.Spacing()
+        local pmChanged
+        modState.autoElevatePMPlatform, pmChanged = ImGui.Checkbox("Auto-Elevate Platform Sole in Photo Mode##ifp_pm_elevate", modState.autoElevatePMPlatform)
+        if pmChanged then
+            saveOverridesCallback()
+        end
+        if modState.isPhotoModeOpen then
+            ImGui.PushStyleColor(ImGuiCol.Text, 0.4, 0.9, 1.0, 1.0)
+            if shoeState.platformCm > 0.0 and modState.autoElevatePMPlatform then
+                ImGui.Text(string.format("Photo Mode: Active (+%.1f cm Platform Sole Elevated)", shoeState.platformCm))
+            else
+                ImGui.Text("Photo Mode: Active (Flat/Stiletto Sole Grounded)")
+            end
+            ImGui.PopStyleColor(1)
         end
 
         -- Display effective stance breakdown (IFP Base + Footwear Heel)

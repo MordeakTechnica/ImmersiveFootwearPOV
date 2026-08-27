@@ -4,6 +4,14 @@ All notable changes to this project are tracked in this file chronologically by 
 
 ---
 
+## [`ffd4d73`](https://github.com/mordeak/immersive-footwear-pov/commit/ffd4d73c7eef78b9ec437c35f2d7a2fa5b7f7fbb) — 2026-08-27
+### `refactor(integrations): reorganize IFP integration into dedicated REDscript and CET modules`
+* **REDscript Structure:** Created `Integrations/ImmersiveFootwearPOV_IFP.reds` to isolate the `ifp_height_blend` animgraph variable driver in `Integrations/` and removed the old root `ImmersiveFootwearPOV_HeightController.reds`.
+* **CET Architecture:** Created `integrations/ifp.lua` encapsulating IFP API polling, additive stance blend math, and window rendering, modularizing `init.lua`.
+* **Suppression Fix:** Cleaned up lifecycle hooks to preserve suppression integrity during normal gameplay.
+
+---
+
 ## [`1f42193`](https://github.com/mordeak/immersive-footwear-pov/commit/1f42193563914a13e2bb97f7fa2ff82c9e782e4e) — 2026-08-27
 ### `docs: add CHANGES.md tracking all changes by git commit id`
 * Initialized project changelog document tracking all historical git commit IDs, dates, and component changes chronologically.

@@ -6,6 +6,7 @@
 -- =============================================================================
 
 local IFPIntegration = require("integrations/ifp")
+local PMIntegration = require("integrations/pm")
 
 -- -----------------------------------------------------------------------------
 -- Global Height Configuration Limits (Configurable Enum)
@@ -31,6 +32,10 @@ local mod = {
     targetBlend = 0.50,
     transitionElapsed = 0.20,
 
+    -- Photo Mode State
+    isPhotoModeOpen = false,
+    autoElevatePMPlatform = true,
+
     currentShoeState = {
         key = "",
         displayName = "None",
@@ -55,7 +60,7 @@ local function smoothstep(t)
 end
 
 -- -----------------------------------------------------------------------------
--- JSON Persistence for Custom Per-Shoe Height Overrides
+-- JSON Persistence for Custom Per-Shoe Height Overrides & Settings
 -- -----------------------------------------------------------------------------
 local function LoadOverrides()
     local file = io.open(mod.overridesFile, "r")
@@ -66,19 +71,30 @@ local function LoadOverrides()
             local success, data = pcall(function() return json.decode(content) end)
             if success and type(data) == "table" then
                 mod.overrides = data
+                if data["__settings"] and data["__settings"].autoElevatePM ~= nil then
+                    mod.autoElevatePMPlatform = data["__settings"].autoElevatePM
+                else
+                    mod.autoElevatePMPlatform = true
+                end
                 local count = 0
-                for _ in pairs(mod.overrides) do count = count + 1 end
+                for k in pairs(mod.overrides) do
+                    if k ~= "__settings" then count = count + 1 end
+                end
                 print(string.format("[ImmersiveFootwearPOV] Loaded %d custom shoe override(s) from %s.", count, mod.overridesFile))
                 return
             end
         end
     end
     mod.overrides = {}
+    mod.autoElevatePMPlatform = true
 end
 
 local function SaveOverrides()
     local file = io.open(mod.overridesFile, "w")
     if file then
+        mod.overrides["__settings"] = {
+            autoElevatePM = (mod.autoElevatePMPlatform ~= false)
+        }
         local success, encoded = pcall(function() return json.encode(mod.overrides) end)
         if success and encoded then
             file:write(encoded)
@@ -136,8 +152,8 @@ local function SyncShoeState(player, sys)
     local ifpHeight, ifpSuppressedReason = IFPIntegration.GetState()
 
     mod.ifpBaseHeightCm = ifpHeight
-    local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil)
-    local suppressionReason = isRedscriptSuppressed and redscriptReason or (ifpSuppressedReason or "")
+    local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil) or mod.isPhotoModeOpen
+    local suppressionReason = isRedscriptSuppressed and redscriptReason or (ifpSuppressedReason or (mod.isPhotoModeOpen and "Photo Mode" or ""))
 
     mod.currentShoeState.hasShoe = hasShoe
     mod.currentShoeState.key = shoeKey
@@ -153,7 +169,6 @@ local function SyncShoeState(player, sys)
             if mod.overrides[shoeKey] then
                 mod.overrides[shoeKey] = nil
                 SaveOverrides()
-                print(string.format("[ImmersiveFootwearPOV] Official TweakDB metadata found for [%s]. Discarded custom override.", shoeKey))
             end
             mod.currentShoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
             mod.currentShoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0
@@ -196,6 +211,7 @@ end
 -- -----------------------------------------------------------------------------
 registerForEvent("onInit", function()
     LoadOverrides()
+    PMIntegration.Init(mod)
     local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
     print(string.format("[ImmersiveFootwearPOV] Initialized with IFP Base Height: %.1f cm", mod.ifpBaseHeightCm))
@@ -238,7 +254,7 @@ registerForEvent("onUpdate", function(deltaTime)
 
     -- Calculate target blend based on current shoe offset, IFP base slider, and suppression state
     local currentOffset = sys:GetEffectiveOffset()
-    local isSuppressed = mod.currentShoeState.isSuppressed
+    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
     local targetBlend, totalMeters = IFPIntegration.CalculateTargetBlend(currentOffset, mod.ifpBaseHeightCm, isSuppressed)
     
     SetTargetBlend(targetBlend)
@@ -246,6 +262,7 @@ registerForEvent("onUpdate", function(deltaTime)
     
     mod.currentShoeState.totalStanceCm = (activeBlend * 1.00 - 0.50) * 100.0
     IFPIntegration.ApplyBlend(player, activeBlend)
+    PMIntegration.OnUpdate(deltaTime)
 end)
 
 -- -----------------------------------------------------------------------------
