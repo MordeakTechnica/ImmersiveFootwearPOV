@@ -5,6 +5,15 @@
 -- Supports automatic IFP detection, graceful failure, and seamless window appending
 -- =============================================================================
 
+-- -----------------------------------------------------------------------------
+-- Global Height Configuration Limits (Configurable Enum)
+-- Easy access to alter maximum allowed heel and platform limits across the UI
+-- -----------------------------------------------------------------------------
+local FootwearHeightLimits = {
+    MAX_HEEL_CM = 25.0,
+    MAX_PLATFORM_CM = 25.0,
+}
+
 local mod = {
     inputName = nil,
     pollTimer = 0.0,
@@ -347,7 +356,7 @@ local function DrawFootwearUI(isAppended)
             ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
 
             local shoeKey = mod.currentShoeState.key
-            local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (cm)##ifp_custom_heel", mod.currentShoeState.heelCm, 0.0, 15.0, "%.1f cm")
+            local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (cm)##ifp_custom_heel", mod.currentShoeState.heelCm, 0.0, FootwearHeightLimits.MAX_HEEL_CM, "%.1f cm")
             if heelChanged and player and sys and #shoeKey > 0 then
                 mod.currentShoeState.heelCm = heelVal
                 if not mod.overrides[shoeKey] then
@@ -363,7 +372,7 @@ local function DrawFootwearUI(isAppended)
                 print(string.format("[ImmersiveFootwearPOV] Saved Custom Heel for [%s]: %.1f cm", shoeKey, heelVal))
             end
 
-            local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", mod.currentShoeState.platformCm, 0.0, 10.0, "%.1f cm")
+            local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", mod.currentShoeState.platformCm, 0.0, FootwearHeightLimits.MAX_PLATFORM_CM, "%.1f cm")
             if platChanged and player and sys and #shoeKey > 0 then
                 mod.currentShoeState.platformCm = platVal
                 if not mod.overrides[shoeKey] then

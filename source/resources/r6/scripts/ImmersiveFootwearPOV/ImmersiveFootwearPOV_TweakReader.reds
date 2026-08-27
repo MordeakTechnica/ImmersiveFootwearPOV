@@ -1,6 +1,33 @@
 module ImmersiveFootwearPOV
 
 // -----------------------------------------------------------------------------
+// Global Height Limits Configuration
+// Easy access to alter maximum allowed heel and platform limits across the mod
+// -----------------------------------------------------------------------------
+public enum FootwearHeightLimit {
+  MaxHeightCm = 25,
+  MaxPlatformCm = 25
+}
+
+public class FootwearHeightLimits {
+  public static func GetMaxHeightCm() -> Float {
+    return Cast<Float>(EnumInt(FootwearHeightLimit.MaxHeightCm));
+  }
+
+  public static func GetMaxHeightMeters() -> Float {
+    return Cast<Float>(EnumInt(FootwearHeightLimit.MaxHeightCm)) / 100.0;
+  }
+
+  public static func GetMaxPlatformCm() -> Float {
+    return Cast<Float>(EnumInt(FootwearHeightLimit.MaxPlatformCm));
+  }
+
+  public static func GetMaxPlatformMeters() -> Float {
+    return Cast<Float>(EnumInt(FootwearHeightLimit.MaxPlatformCm)) / 100.0;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Shoe Height Data Container
 // Holds both Heel Height (for V's FPP elevation) and Platform Height (for PM shifting)
 // -----------------------------------------------------------------------------
@@ -162,14 +189,14 @@ public class ShoeHeightParser {
   // Converts parsed tag value string to meters
   // Supports:
   // - Direct decimal meters: "0.06" -> 0.06m
-  // - Centimeter tags: "006" -> 0.06m, "008" -> 0.08m, "010" -> 0.10m, "6" -> 0.06m, "10" -> 0.10m
-  // - Millimeter tags: "60" -> 0.06m, "80" -> 0.08m, "100" -> 0.10m
+  // - Centimeter tags: "006" -> 0.06m, "008" -> 0.08m, "010" -> 0.10m, "6" -> 0.06m, "25" -> 0.25m
+  // - Millimeter tags: "60" -> 0.06m, "80" -> 0.08m, "250" -> 0.25m
   public static func ConvertValueToMeters(valueStr: String) -> Float {
     if StrLen(valueStr) == 0 {
       return 0.0;
     };
 
-    // If decimal point exists (e.g. "0.06", "0.10")
+    // If decimal point exists (e.g. "0.06", "0.10", "0.25")
     if StrFindFirst(valueStr, ".") >= 0 {
       let rawVal: Float = StringToFloat(valueStr);
       return ShoeHeightParser.ClampHeight(rawVal);
@@ -181,18 +208,19 @@ public class ShoeHeightParser {
     };
 
     let floatVal: Float = Cast<Float>(intVal);
+    let maxCm: Float = FootwearHeightLimits.GetMaxHeightCm();
 
-    // If value is in range 1..25, treat as centimeters (e.g. 6cm = 0.06m, 10cm = 0.10m)
-    if floatVal >= 1.0 && floatVal <= 25.0 {
+    // If value is in range 1..maxCm, treat as centimeters (e.g. 6cm = 0.06m, 25cm = 0.25m)
+    if floatVal >= 1.0 && floatVal <= maxCm {
       return ShoeHeightParser.ClampHeight(floatVal / 100.0);
     };
 
-    // If value is in range 26..250, treat as millimeters (e.g. 60mm = 0.06m, 80mm = 0.08m)
-    if floatVal > 25.0 && floatVal <= 250.0 {
+    // If value is in range (maxCm + 1)..(maxCm * 10), treat as millimeters (e.g. 60mm = 0.06m, 250mm = 0.25m)
+    if floatVal > maxCm && floatVal <= (maxCm * 10.0) {
       return ShoeHeightParser.ClampHeight(floatVal / 1000.0);
     };
 
-    // If value is greater than 250, likely invalid or excessive
+    // If value is greater than max millimeters, return 0.0
     return 0.0;
   }
 
@@ -201,8 +229,9 @@ public class ShoeHeightParser {
     if val < 0.0 {
       return 0.0;
     };
-    if val > 0.25 {
-      return 0.25; // Max 25cm (0.25m) height offset
+    let maxMeters: Float = FootwearHeightLimits.GetMaxHeightMeters();
+    if val > maxMeters {
+      return maxMeters;
     };
     return val;
   }
