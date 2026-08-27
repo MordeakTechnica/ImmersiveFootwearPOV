@@ -2,7 +2,7 @@
 -- Immersive Footwear POV - Cyber Engine Tweaks (CET) Dynamic Bridge
 -- Dynamically combines IFP base height slider + footwear heel height
 -- Features smooth 0.20s transitions, context suppression & Photo Mode support
--- Appends real-time shoe height controls directly into the IFP CET window
+-- Renders both as a standalone CET window and appended inside IFP's window
 -- =============================================================================
 
 local mod = {
@@ -10,7 +10,6 @@ local mod = {
     pollTimer = 0.0,
     ifpPollTimer = 0.0,
     ifpBaseHeightCm = 0.0,
-    isOverlayOpen = false,
     overridesFile = "user_shoe_overrides.json",
     overrides = {},
     lastEquippedKey = "",
@@ -63,9 +62,6 @@ local function LoadOverrides()
             local success, data = pcall(function() return json.decode(content) end)
             if success and type(data) == "table" then
                 mod.overrides = data
-                local count = 0
-                for _ in pairs(mod.overrides) do count = count + 1 end
-                print(string.format("[ImmersiveFootwearPOV] Loaded %d custom shoe override(s) from %s.", count, mod.overridesFile))
                 return
             end
         end
@@ -192,7 +188,6 @@ local function SyncShoeState(player, sys)
             if mod.overrides[shoeKey] then
                 mod.overrides[shoeKey] = nil
                 SaveOverrides()
-                print(string.format("[ImmersiveFootwearPOV] Official TweakDB metadata found for [%s]. Discarded custom override.", shoeKey))
             end
             mod.currentShoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
             mod.currentShoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0
@@ -239,7 +234,6 @@ Observe("gameuiPhotoModeMenuController", "OnShow", function(controller)
     local platformCm = mod.currentShoeState.platformCm or 0.0
     if mod.autoApplyPMHeight and platformCm > 0.0 then
         mod.currentPMPlatformOffsetCm = platformCm
-        print(string.format("[ImmersiveFootwearPOV] Photo Mode opened. Auto-applied Platform Elevation: +%.1f cm (Sole Thickness)", platformCm))
     else
         mod.currentPMPlatformOffsetCm = 0.0
     end
@@ -256,19 +250,6 @@ end)
 -- -----------------------------------------------------------------------------
 registerForEvent("onInit", function()
     LoadOverrides()
-    local height, _ = GetIFPState()
-    mod.ifpBaseHeightCm = height
-    print(string.format("[ImmersiveFootwearPOV] Initialized with IFP Base Height: %.1f cm", mod.ifpBaseHeightCm))
-end)
-
-registerForEvent("onOverlayOpen", function()
-    mod.isOverlayOpen = true
-    local height, _ = GetIFPState()
-    mod.ifpBaseHeightCm = height
-end)
-
-registerForEvent("onOverlayClose", function()
-    mod.isOverlayOpen = false
     local height, _ = GetIFPState()
     mod.ifpBaseHeightCm = height
 end)
@@ -288,9 +269,9 @@ registerForEvent("onUpdate", function(deltaTime)
         SyncShoeState(player, sys)
     end
 
-    -- Poll IFP base height periodically (or every frame in overlay)
+    -- Poll IFP base height periodically
     mod.ifpPollTimer = mod.ifpPollTimer + deltaTime
-    if mod.ifpPollTimer >= 0.10 or mod.isOverlayOpen then
+    if mod.ifpPollTimer >= 0.10 then
         mod.ifpPollTimer = 0.0
         local height, _ = GetIFPState()
         mod.ifpBaseHeightCm = height
@@ -309,121 +290,131 @@ registerForEvent("onUpdate", function(deltaTime)
 end)
 
 -- -----------------------------------------------------------------------------
--- Dear ImGui Window Appending — Renders directly into IFP's CET Window
+-- Core UI Drawer (Used in both standalone window and IFP extension)
 -- -----------------------------------------------------------------------------
-registerForEvent("onDraw", function()
-    if not mod.isOverlayOpen then return end
+local function DrawFootwearUI(isAppended)
+    local player = Game.GetPlayer()
+    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
 
-    -- Update IFP base height in real-time while overlay is open
-    local liveHeight, _ = GetIFPState()
-    mod.ifpBaseHeightCm = liveHeight
-
-    -- Dear ImGui appends new elements to IFP's existing window using the exact title match
-    if ImGui.Begin("Immersive First Person") then
-        local player = Game.GetPlayer()
-        local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
-
+    if isAppended then
         ImGui.Spacing()
         ImGui.Separator()
         ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV Extension]")
+    end
 
-        if not mod.currentShoeState.hasShoe or #mod.currentShoeState.key == 0 then
-            ImGui.TextDisabled("Equipped Footwear: Barefoot / None (Flat 0.0 cm)")
-            if not mod.currentShoeState.isSuppressed and mod.ifpBaseHeightCm ~= 0.0 then
-                ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(mod.ifpBaseHeightCm + 0.5)))
+    if not mod.currentShoeState.hasShoe or #mod.currentShoeState.key == 0 then
+        ImGui.TextDisabled("Equipped Footwear: Barefoot / None (Flat 0.0 cm)")
+        if not mod.currentShoeState.isSuppressed and mod.ifpBaseHeightCm ~= 0.0 then
+            ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(mod.ifpBaseHeightCm + 0.5)))
+        end
+    else
+        ImGui.Text(string.format("Equipped: %s", mod.currentShoeState.displayName))
+        ImGui.TextDisabled(string.format("Source: %s | ID: %s", mod.currentShoeState.source, mod.currentShoeState.key))
+
+        if mod.currentShoeState.isOfficial then
+            -- Official TweakDB tags found -> Read-only display
+            ImGui.TextColored(0.2, 0.9, 0.3, 1.0, "Tags: Official TweakDB Metadata (Locked)")
+            ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP)", mod.currentShoeState.heelCm))
+            if mod.currentShoeState.platformCm > 0.0 then
+                ImGui.Text(string.format("Platform Sole:   +%.1f cm (Auto PM Elevation)", mod.currentShoeState.platformCm))
+            else
+                ImGui.TextDisabled("Platform Sole:    0.0 cm (Naturally Grounded)")
             end
         else
-            ImGui.Text(string.format("Equipped: %s", mod.currentShoeState.displayName))
-            ImGui.TextDisabled(string.format("Source: %s | ID: %s", mod.currentShoeState.source, mod.currentShoeState.key))
+            -- Untagged shoe -> Interactive custom override sliders
+            ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
 
-            if mod.currentShoeState.isOfficial then
-                -- Official TweakDB tags found -> Read-only display
-                ImGui.TextColored(0.2, 0.9, 0.3, 1.0, "Tags: Official TweakDB Metadata (Locked)")
-                ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP)", mod.currentShoeState.heelCm))
-                if mod.currentShoeState.platformCm > 0.0 then
-                    ImGui.Text(string.format("Platform Sole:   +%.1f cm (Auto PM Elevation)", mod.currentShoeState.platformCm))
-                else
-                    ImGui.TextDisabled("Platform Sole:    0.0 cm (Naturally Grounded)")
+            local shoeKey = mod.currentShoeState.key
+            local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (cm)##ifp_custom_heel", mod.currentShoeState.heelCm, 0.0, 15.0, "%.1f cm")
+            if heelChanged and player and sys and #shoeKey > 0 then
+                mod.currentShoeState.heelCm = heelVal
+                if not mod.overrides[shoeKey] then
+                    mod.overrides[shoeKey] = {}
                 end
-            else
-                -- Untagged shoe -> Interactive custom override sliders
-                ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
+                mod.overrides[shoeKey].heel = heelVal
+                mod.overrides[shoeKey].platform = mod.currentShoeState.platformCm
+                SaveOverrides()
 
-                local shoeKey = mod.currentShoeState.key
-                local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (cm)##ifp_custom_heel", mod.currentShoeState.heelCm, 0.0, 15.0, "%.1f cm")
-                if heelChanged and player and sys and #shoeKey > 0 then
-                    mod.currentShoeState.heelCm = heelVal
-                    if not mod.overrides[shoeKey] then
-                        mod.overrides[shoeKey] = {}
-                    end
-                    mod.overrides[shoeKey].heel = heelVal
-                    mod.overrides[shoeKey].platform = mod.currentShoeState.platformCm
+                local heelMeters = heelVal / 100.0
+                local platMeters = mod.currentShoeState.platformCm / 100.0
+                sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+            end
+
+            local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", mod.currentShoeState.platformCm, 0.0, 10.0, "%.1f cm")
+            if platChanged and player and sys and #shoeKey > 0 then
+                mod.currentShoeState.platformCm = platVal
+                if not mod.overrides[shoeKey] then
+                    mod.overrides[shoeKey] = {}
+                end
+                mod.overrides[shoeKey].heel = mod.currentShoeState.heelCm
+                mod.overrides[shoeKey].platform = platVal
+                SaveOverrides()
+
+                local heelMeters = mod.currentShoeState.heelCm / 100.0
+                local platMeters = platVal / 100.0
+                sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+            end
+
+            if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and player and sys and #shoeKey > 0 then
+                mod.currentShoeState.heelCm = 0.0
+                mod.currentShoeState.platformCm = 0.0
+                if mod.overrides[shoeKey] then
+                    mod.overrides[shoeKey] = nil
                     SaveOverrides()
-
-                    local heelMeters = heelVal / 100.0
-                    local platMeters = mod.currentShoeState.platformCm / 100.0
-                    sys:SetCustomHeightOverride(player, heelMeters, platMeters)
-                    print(string.format("[ImmersiveFootwearPOV] Saved Custom Heel for [%s]: %.1f cm", shoeKey, heelVal))
                 end
-
-                local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", mod.currentShoeState.platformCm, 0.0, 10.0, "%.1f cm")
-                if platChanged and player and sys and #shoeKey > 0 then
-                    mod.currentShoeState.platformCm = platVal
-                    if not mod.overrides[shoeKey] then
-                        mod.overrides[shoeKey] = {}
-                    end
-                    mod.overrides[shoeKey].heel = mod.currentShoeState.heelCm
-                    mod.overrides[shoeKey].platform = platVal
-                    SaveOverrides()
-
-                    local heelMeters = mod.currentShoeState.heelCm / 100.0
-                    local platMeters = platVal / 100.0
-                    sys:SetCustomHeightOverride(player, heelMeters, platMeters)
-                    print(string.format("[ImmersiveFootwearPOV] Saved Custom Platform for [%s]: %.1f cm", shoeKey, platVal))
-                end
-
-                if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and player and sys and #shoeKey > 0 then
-                    mod.currentShoeState.heelCm = 0.0
-                    mod.currentShoeState.platformCm = 0.0
-                    if mod.overrides[shoeKey] then
-                        mod.overrides[shoeKey] = nil
-                        SaveOverrides()
-                        print(string.format("[ImmersiveFootwearPOV] Reset Custom Height for [%s] to 0.0 cm", shoeKey))
-                    end
-                    sys:ClearCustomHeightOverride(player)
-                end
-                ImGui.SameLine()
-                ImGui.TextDisabled("(Auto-saved per shoe)")
+                sys:ClearCustomHeightOverride(player)
             end
-
-            -- Photo Mode Elevation Configuration
-            ImGui.Spacing()
-            local pmAutoChanged
-            mod.autoApplyPMHeight, pmAutoChanged = ImGui.Checkbox("Auto-Apply Platform Elevation in Photo Mode##ifp_pm_auto", mod.autoApplyPMHeight)
-            if mod.isPhotoModeOpen then
-                ImGui.PushStyleColor(ImGuiCol.Text, 0.4, 0.9, 1.0, 1.0)
-                if mod.currentShoeState.platformCm > 0.0 then
-                    ImGui.Text(string.format("Photo Mode: Active (+%.1f cm Platform Sole Elevated)", mod.currentShoeState.platformCm))
-                else
-                    ImGui.Text("Photo Mode: Active (Flat/Stiletto Sole Grounded)")
-                end
-                ImGui.PopStyleColor(1)
-            end
-
-            -- Display effective stance breakdown (IFP Base + Footwear Heel)
-            ImGui.Separator()
-            if mod.currentShoeState.isSuppressed then
-                ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
-                ImGui.Text(string.format("First-Person Stance: Temporarily Suppressed (%s)", mod.currentShoeState.suppressionReason))
-                ImGui.PopStyleColor(1)
-                ImGui.TextDisabled("Elevation will smoothly restore upon standing / exiting.")
-            else
-                ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(mod.ifpBaseHeightCm + 0.5)))
-                ImGui.Text(string.format("Footwear Lift:     +%.1f cm", mod.currentShoeState.effectiveCm))
-                ImGui.TextColored(0.2, 1.0, 0.4, 1.0, string.format("Total Stance Lift: %+d cm (Base + Shoes)", math.floor(mod.currentShoeState.totalStanceCm + 0.5)))
-            end
+            ImGui.SameLine()
+            ImGui.TextDisabled("(Auto-saved per shoe)")
         end
 
+        -- Photo Mode Elevation Configuration
+        ImGui.Spacing()
+        local pmAutoChanged
+        mod.autoApplyPMHeight, pmAutoChanged = ImGui.Checkbox("Auto-Apply Platform Elevation in Photo Mode##ifp_pm_auto", mod.autoApplyPMHeight)
+        if mod.isPhotoModeOpen then
+            ImGui.PushStyleColor(ImGuiCol.Text, 0.4, 0.9, 1.0, 1.0)
+            if mod.currentShoeState.platformCm > 0.0 then
+                ImGui.Text(string.format("Photo Mode: Active (+%.1f cm Platform Sole Elevated)", mod.currentShoeState.platformCm))
+            else
+                ImGui.Text("Photo Mode: Active (Flat/Stiletto Sole Grounded)")
+            end
+            ImGui.PopStyleColor(1)
+        end
+
+        -- Display effective stance breakdown (IFP Base + Footwear Heel)
+        ImGui.Separator()
+        if mod.currentShoeState.isSuppressed then
+            ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
+            ImGui.Text(string.format("First-Person Stance: Temporarily Suppressed (%s)", mod.currentShoeState.suppressionReason))
+            ImGui.PopStyleColor(1)
+            ImGui.TextDisabled("Elevation will smoothly restore upon standing / exiting.")
+        else
+            ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(mod.ifpBaseHeightCm + 0.5)))
+            ImGui.Text(string.format("Footwear Lift:     +%.1f cm", mod.currentShoeState.effectiveCm))
+            ImGui.TextColored(0.2, 1.0, 0.4, 1.0, string.format("Total Stance Lift: %+d cm (Base + Shoes)", math.floor(mod.currentShoeState.totalStanceCm + 0.5)))
+        end
+    end
+end
+
+-- -----------------------------------------------------------------------------
+-- Dear ImGui Overlay Event
+-- -----------------------------------------------------------------------------
+registerForEvent("onDraw", function()
+    -- Always update live IFP base height during draw
+    local liveHeight, _ = GetIFPState()
+    mod.ifpBaseHeightCm = liveHeight
+
+    -- 1. Dedicated Standalone Window (listed directly in CET Bindings/Mods)
+    ImGui.SetNextWindowSize(380, 360, ImGuiCond.FirstUseEver)
+    if ImGui.Begin("Immersive Footwear POV") then
+        DrawFootwearUI(false)
+        ImGui.End()
+    end
+
+    -- 2. Direct Window Appending to IFP
+    if ImGui.Begin("Immersive First Person") then
+        DrawFootwearUI(true)
         ImGui.End()
     end
 end)

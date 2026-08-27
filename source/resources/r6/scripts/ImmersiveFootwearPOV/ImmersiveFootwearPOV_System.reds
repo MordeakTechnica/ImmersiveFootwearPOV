@@ -77,7 +77,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       };
 
       this.RecalculateEffectiveOffset(player);
-      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV] Footwear -> [\(this.m_activeSource)] ID=\(TDBID.ToStringDEBUG(ItemID.GetTDBID(result.itemID))), Official=\(this.m_hasOfficialTags), Heel=\(this.m_currentHeelHeight)m, Platform=\(this.m_currentPlatformHeight)m, Applied=\(this.m_effectiveOffset)m");
     } else {
       this.RecalculateEffectiveOffset(player);
     };
@@ -97,7 +96,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_currentPlatformHeight = this.m_customPlatformHeight;
 
     this.RecalculateEffectiveOffset(player);
-    LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV] Custom Override Applied -> Heel=\(this.m_currentHeelHeight)m, Platform=\(this.m_currentPlatformHeight)m, Applied=\(this.m_effectiveOffset)m");
   }
 
   // Clears active custom override
@@ -322,42 +320,5 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func IsInWorkspot() -> Bool {
     return this.m_isInWorkspot;
-  }
-
-  public func PrintDebugInfo() -> Void {
-    LogChannel(n"DEBUG", s"========== [ImmersiveFootwearPOV Debug Status] ==========");
-    LogChannel(n"DEBUG", s"Active Source:          \(this.m_activeSource)");
-    LogChannel(n"DEBUG", s"Equipped Shoe Valid:    \(ItemID.IsValid(this.m_equippedFootwearID))");
-    
-    if ItemID.IsValid(this.m_equippedFootwearID) {
-      let tdbid: TweakDBID = ItemID.GetTDBID(this.m_equippedFootwearID);
-      LogChannel(n"DEBUG", s"Shoe TweakDBID:         \(TDBID.ToStringDEBUG(tdbid))");
-      LogChannel(n"DEBUG", s"Official TweakDB Tags:  \(this.m_hasOfficialTags)");
-      LogChannel(n"DEBUG", s"Custom User Override:   \(this.m_hasCustomOverride)");
-      let record: ref<Item_Record> = TweakDBInterface.GetItemRecord(tdbid);
-      if IsDefined(record) {
-        let tags: array<CName> = record.Tags();
-        let count: Int32 = ArraySize(tags);
-        LogChannel(n"DEBUG", s"Shoe Tags Count:        \(count)");
-        let i: Int32 = 0;
-        while i < count {
-          LogChannel(n"DEBUG", s"  Tag[\(i)]:             \(NameToString(tags[i]))");
-          i += 1;
-        };
-      } else {
-        LogChannel(n"DEBUG", s"Shoe Record:            NOT FOUND in TweakDB");
-      };
-    } else {
-      LogChannel(n"DEBUG", s"No footwear currently resolved (\(this.m_activeSource)).");
-    };
-
-    LogChannel(n"DEBUG", s"Current Heel Height:    \(this.m_currentHeelHeight)m (Active FPP Offset)");
-    LogChannel(n"DEBUG", s"Current Platform Height:\(this.m_currentPlatformHeight)m (PM Elevation Metric)");
-    LogChannel(n"DEBUG", s"Applied Body Offset:    \(this.m_effectiveOffset)m");
-    LogChannel(n"DEBUG", s"Is Suppressed:          \(this.m_isSuppressed) (\(this.m_suppressionReason))");
-    LogChannel(n"DEBUG", s"In Photo Mode:          \(this.m_isInPhotoMode)");
-    LogChannel(n"DEBUG", s"In Vehicle:             \(this.m_isInVehicle)");
-    LogChannel(n"DEBUG", s"In Workspot:            \(this.m_isInWorkspot)");
-    LogChannel(n"DEBUG", s"=========================================================");
   }
 }
