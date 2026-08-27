@@ -3,7 +3,7 @@ module ImmersiveFootwearPOV
 public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   private let m_currentHeelHeight: Float;      // Active FPP elevation height
-  private let m_currentPlatformHeight: Float;  // Secondary platform height (used for PM elevation)
+  private let m_currentPlatformHeight: Float;  // Secondary platform height (reserved for PM)
   private let m_effectiveOffset: Float;
   private let m_equippedFootwearID: ItemID;
   private let m_activeSource: String;
@@ -13,7 +13,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_customPlatformHeight: Float;
   private let m_isInVehicle: Bool;
   private let m_isInWorkspot: Bool;
-  private let m_isInPhotoMode: Bool;
   private let m_isSuppressed: Bool;
   private let m_suppressionReason: String;
   private let m_isInitialized: Bool;
@@ -77,6 +76,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       };
 
       this.RecalculateEffectiveOffset(player);
+      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV] Footwear -> [\(this.m_activeSource)] ID=\(TDBID.ToStringDEBUG(ItemID.GetTDBID(result.itemID))), Official=\(this.m_hasOfficialTags), Heel=\(this.m_currentHeelHeight)m, Platform=\(this.m_currentPlatformHeight)m, Applied=\(this.m_effectiveOffset)m");
     } else {
       this.RecalculateEffectiveOffset(player);
     };
@@ -96,6 +96,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_currentPlatformHeight = this.m_customPlatformHeight;
 
     this.RecalculateEffectiveOffset(player);
+    LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV] Custom Override Applied -> Heel=\(this.m_currentHeelHeight)m, Platform=\(this.m_currentPlatformHeight)m, Applied=\(this.m_effectiveOffset)m");
   }
 
   // Clears active custom override
@@ -126,51 +127,27 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.RecalculateEffectiveOffset(player);
   }
 
-  public func SetPhotoModeState(player: ref<PlayerPuppet>, inPhotoMode: Bool) -> Void {
-    if Equals(this.m_isInPhotoMode, inPhotoMode) {
-      return;
-    };
-    this.m_isInPhotoMode = inPhotoMode;
-    this.RecalculateEffectiveOffset(player);
-  }
-
-  public func IsInPhotoMode() -> Bool {
-    return this.m_isInPhotoMode;
-  }
-
-  // Returns recommended Photo Mode platform height in meters
-  public func GetRecommendedPhotoModeOffset() -> Float {
-    return this.m_currentPlatformHeight;
-  }
-
-  // Evaluates all suppression contexts (vehicles, workspots, high scene tiers, traversal states, photo mode)
+  // Evaluates all suppression contexts (vehicles, workspots, high scene tiers, traversal states)
   public func EvaluateSuppressionState(player: ref<PlayerPuppet>) -> Bool {
     if !IsDefined(player) {
       return false;
     };
 
-    // 1. Photo Mode (FPP locomotion blend suppressed so 3rd-person photo poses are clean)
-    if this.m_isInPhotoMode {
-      this.m_isSuppressed = true;
-      this.m_suppressionReason = "Photo Mode Active";
-      return true;
-    };
-
-    // 2. Vehicles
+    // 1. Vehicles
     if this.m_isInVehicle || VehicleComponent.IsMountedToVehicle(player.GetGame(), player) {
       this.m_isSuppressed = true;
       this.m_suppressionReason = "Vehicle Occupancy";
       return true;
     };
 
-    // 3. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
+    // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
     if this.m_isInWorkspot || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
       this.m_isSuppressed = true;
       this.m_suppressionReason = "Authored Workspot";
       return true;
     };
 
-    // 4. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
+    // 3. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
     let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
     if IsDefined(psmBlackboard) {
       let sceneTier: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.SceneTier);
@@ -180,7 +157,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
         return true;
       };
 
-      // 5. Locomotion Traversal & Special Actions
+      // 4. Locomotion Traversal & Special Actions
       let detailedLocomotion: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.LocomotionDetailed);
       // Ladders (10..13) or Climb/Vault (8..9)
       if detailedLocomotion >= 8 && detailedLocomotion <= 13 {
@@ -320,5 +297,41 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func IsInWorkspot() -> Bool {
     return this.m_isInWorkspot;
+  }
+
+  public func PrintDebugInfo() -> Void {
+    LogChannel(n"DEBUG", s"========== [ImmersiveFootwearPOV Debug Status] ==========");
+    LogChannel(n"DEBUG", s"Active Source:          \(this.m_activeSource)");
+    LogChannel(n"DEBUG", s"Equipped Shoe Valid:    \(ItemID.IsValid(this.m_equippedFootwearID))");
+    
+    if ItemID.IsValid(this.m_equippedFootwearID) {
+      let tdbid: TweakDBID = ItemID.GetTDBID(this.m_equippedFootwearID);
+      LogChannel(n"DEBUG", s"Shoe TweakDBID:         \(TDBID.ToStringDEBUG(tdbid))");
+      LogChannel(n"DEBUG", s"Official TweakDB Tags:  \(this.m_hasOfficialTags)");
+      LogChannel(n"DEBUG", s"Custom User Override:   \(this.m_hasCustomOverride)");
+      let record: ref<Item_Record> = TweakDBInterface.GetItemRecord(tdbid);
+      if IsDefined(record) {
+        let tags: array<CName> = record.Tags();
+        let count: Int32 = ArraySize(tags);
+        LogChannel(n"DEBUG", s"Shoe Tags Count:        \(count)");
+        let i: Int32 = 0;
+        while i < count {
+          LogChannel(n"DEBUG", s"  Tag[\(i)]:             \(NameToString(tags[i]))");
+          i += 1;
+        };
+      } else {
+        LogChannel(n"DEBUG", s"Shoe Record:            NOT FOUND in TweakDB");
+      };
+    } else {
+      LogChannel(n"DEBUG", s"No footwear currently resolved (\(this.m_activeSource)).");
+    };
+
+    LogChannel(n"DEBUG", s"Current Heel Height:    \(this.m_currentHeelHeight)m (Active FPP Offset)");
+    LogChannel(n"DEBUG", s"Current Platform Height:\(this.m_currentPlatformHeight)m (Reserved for PM)");
+    LogChannel(n"DEBUG", s"Applied Body Offset:    \(this.m_effectiveOffset)m");
+    LogChannel(n"DEBUG", s"Is Suppressed:          \(this.m_isSuppressed) (\(this.m_suppressionReason))");
+    LogChannel(n"DEBUG", s"In Vehicle:             \(this.m_isInVehicle)");
+    LogChannel(n"DEBUG", s"In Workspot:            \(this.m_isInWorkspot)");
+    LogChannel(n"DEBUG", s"=========================================================");
   }
 }

@@ -20,22 +20,34 @@ public class EquipmentExHelper {
       return ItemID.None();
     };
 
+    let transactionSystem: ref<TransactionSystem> = GameInstance.GetTransactionSystem(player.GetGame());
+    if !IsDefined(transactionSystem) {
+      return ItemID.None();
+    };
+
     // 1. Check primary OutfitSlots.Feet slot
-    let feetItem: ItemID = outfitSys.GetEquippedItemInSlot(t"OutfitSlots.Feet");
-    if ItemID.IsValid(feetItem) {
-      return feetItem;
+    let feetObject: ref<ItemObject> = transactionSystem.GetItemInSlot(player, t"OutfitSlots.Feet");
+    if IsDefined(feetObject) {
+      let feetID: ItemID = feetObject.GetItemID();
+      if ItemID.IsValid(feetID) {
+        return feetID;
+      };
     };
 
     // 2. Scan all occupied outfit slots in case footwear was assigned to a custom/alternate slot
     let usedSlots: array<TweakDBID> = outfitSys.GetUsedSlots();
     let count: Int32 = ArraySize(usedSlots);
     let i: Int32 = 0;
+    let slotObj: ref<ItemObject>;
     let slotItem: ItemID;
 
     while i < count {
-      slotItem = outfitSys.GetEquippedItemInSlot(usedSlots[i]);
-      if ItemID.IsValid(slotItem) && ShoeHeightParser.ReadShoeHeight(slotItem) > 0.0 {
-        return slotItem;
+      slotObj = transactionSystem.GetItemInSlot(player, usedSlots[i]);
+      if IsDefined(slotObj) {
+        slotItem = slotObj.GetItemID();
+        if ItemID.IsValid(slotItem) && ShoeHeightParser.ReadShoeHeight(slotItem) > 0.0 {
+          return slotItem;
+        };
       };
       i += 1;
     };

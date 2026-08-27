@@ -1,35 +1,50 @@
 module ImmersiveFootwearPOV
 
+// -----------------------------------------------------------------------------
+// Height Controller
+// Manages physical foot elevation for V
+// Directly drives the player animgraph two-branch height blend
+// Strictly does NOT modify FPPCameraComponent or camera parameters
+// -----------------------------------------------------------------------------
 public class HeightController {
 
-  // Applies physical skeletal height offset directly to V's AnimationControllerComponent
-  // Uses REDengine's two-branch animgraph blend ('ifp_height_blend')
-  public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetZ: Float) -> Void {
+  // Applies physical platform elevation to V's character model
+  public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetZ: Float) -> Bool {
+    if !IsDefined(player) {
+      return false;
+    };
+
+    // Calculate animgraph blend:
+    // Range is -50cm (-0.50m) to +50cm (+0.50m)
+    // 0.0m offset (flat shoes) -> blend 0.50
+    // +0.09m offset (9cm boots) -> blend 0.59
+    let blend: Float = (offsetZ + 0.50) / 1.00;
+    if blend < 0.0 {
+      blend = 0.0;
+    };
+    if blend > 1.0 {
+      blend = 1.0;
+    };
+
+    AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", blend);
+    return true;
+  }
+
+  // Resets V's physical platform elevation back to base (0.0m)
+  public static func ResetHeightOffset(player: ref<PlayerPuppet>) -> Void {
+    HeightController.ApplyHeightOffset(player, 0.0);
+  }
+
+  // Debug print of V's world coordinates and physical platform status
+  public static func PrintBodyOffsetInfo(player: ref<PlayerPuppet>, offsetZ: Float) -> Void {
     if !IsDefined(player) {
       return;
     };
 
-    let targetBlend: Float = HeightController.CalculateHeightBlend(offsetZ);
-
-    AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", targetBlend);
-  }
-
-  // Maps physical offset in meters [-0.50m, +0.50m] to normalized animgraph blend [0.0, 1.0]
-  // Neutral baseline (0.0m elevation) -> 0.50
-  public static func CalculateHeightBlend(offsetZ: Float) -> Float {
-    let normalizedBlend: Float = (offsetZ + 0.50) / 1.00;
-
-    if normalizedBlend < 0.0 {
-      normalizedBlend = 0.0;
-    };
-    if normalizedBlend > 1.0 {
-      normalizedBlend = 1.0;
-    };
-
-    return normalizedBlend;
-  }
-
-  public static func PrintBodyOffsetInfo(player: ref<PlayerPuppet>, offsetZ: Float) -> Void {
-    // Routine logging silenced for clean console
+    let worldPos: Vector4 = player.GetWorldPosition();
+    LogChannel(n"DEBUG", s"========== [Player Physical Platform Status] ==========");
+    LogChannel(n"DEBUG", s"Player World Position:   (X=\(worldPos.X), Y=\(worldPos.Y), Z=\(worldPos.Z))");
+    LogChannel(n"DEBUG", s"Platform Block Height:   +\(offsetZ)m");
+    LogChannel(n"DEBUG", s"=======================================================");
   }
 }

@@ -165,10 +165,8 @@ Items.Custom_Chunky_Platforms_01:
     * Swimming (`HighLevel == 6` / `Swimming > 0`)
     * Carrying / dumping bodies (`BodyCarrying > 0`)
     * Executing stealth takedowns and finishers (`Takedown > 0`)
-- [x] **Photo Mode Integration (Automatic Platform Height Elevation):**
-  - Uses `platformHeight` (front sole thickness) as the elevation metric when opening Photo Mode so thick platform soles rest flush on the ground without clipping, while stilettos remain naturally grounded.
-  - Automatically evaluates and applies platform elevation upon entering Photo Mode (`gameuiPhotoModeMenuController.OnShow`), suppressing first-person locomotion blends to ensure pristine 3rd-person photo poses.
-  - Features an interactive CET toggle to customize or disable auto-application.
+- [ ] **Photo Mode Integration (Future PM Height Shifting):**
+  - Use `platformHeight` (and `heelHeight`) for Photo Mode pose height shifting so V's character model maintains accurate sole ground contact and elevated stance across all photo poses.
 
 ### Phase 5: IFP Coexistence, UI Height Readout & Custom Overrides
 - [x] **Direct IFP CET Window Appending (ImGui Extension):**
@@ -184,6 +182,8 @@ Items.Custom_Chunky_Platforms_01:
   - Real-time polling of IFP's native base height slider (`Config.inner.heightAdjustmentAmount`).
   - Stacks additively: $\text{Total Height} = \text{IFP Base Height} + \text{Footwear Heel Height}$.
   - Both IFP's slider and footwear elevation work concurrently without overriding each other.
+- [ ] **Native Settings UI Integration (Optional In-Game Menu):**
+  - Add info display subcategory under `/IFP/Footwear` (or dedicated tab) showing live height breakdown.
 
 ---
 
