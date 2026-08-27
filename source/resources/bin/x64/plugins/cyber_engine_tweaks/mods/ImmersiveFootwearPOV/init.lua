@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Immersive Footwear POV - Cyber Engine Tweaks (CET) Dynamic Bridge
 -- Dynamically combines IFP base height slider + footwear heel height
--- Features smooth 0.20s transitions and context-aware suppression
+-- Features smooth 0.20s transitions, context suppression & Photo Mode support
 -- Appends real-time shoe height controls directly into the IFP CET window
 -- =============================================================================
 
@@ -21,6 +21,12 @@ local mod = {
     startBlend = 0.50,
     targetBlend = 0.50,
     transitionElapsed = 0.20,
+
+    -- Photo Mode Integration
+    isPhotoModeOpen = false,
+    pmController = nil,
+    autoApplyPMHeight = true,
+    currentPMPlatformOffsetCm = 0.0,
 
     currentShoeState = {
         key = "",
@@ -108,7 +114,7 @@ local function CalculateTargetBlend(shoeOffsetMeters, ifpBaseHeightCm, isSuppres
     local totalOffsetMeters = 0.0
 
     if isSuppressed then
-        -- In suppressed contexts (vehicles, workspots, scenes), return to neutral (0.0m)
+        -- In suppressed contexts (vehicles, workspots, scenes, photo mode), return to neutral (0.0m)
         totalOffsetMeters = 0.0
     else
         local baseMeters = (ifpBaseHeightCm or 0.0) / 100.0
@@ -163,14 +169,14 @@ local function SyncShoeState(player, sys)
     local sourceName = sys:GetActiveSource()
     local displayName = sys:GetResolvedShoeDisplayName()
 
-    -- Check suppression from both REDscript system and IFP bridge
+    -- Check suppression from REDscript system, IFP bridge, and Photo Mode
     local isRedscriptSuppressed = sys:IsSuppressed()
     local redscriptReason = sys:GetSuppressionReason()
     local ifpHeight, ifpSuppressedReason = GetIFPState()
 
     mod.ifpBaseHeightCm = ifpHeight
-    local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil)
-    local suppressionReason = isRedscriptSuppressed and redscriptReason or (ifpSuppressedReason or "")
+    local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil) or mod.isPhotoModeOpen
+    local suppressionReason = isRedscriptSuppressed and redscriptReason or (ifpSuppressedReason or (mod.isPhotoModeOpen and "Photo Mode" or ""))
 
     mod.currentShoeState.hasShoe = hasShoe
     mod.currentShoeState.key = shoeKey
@@ -225,6 +231,27 @@ local function SyncShoeState(player, sys)
 end
 
 -- -----------------------------------------------------------------------------
+-- Photo Mode Lifecycle & Automatic Platform Height Integration
+-- -----------------------------------------------------------------------------
+Observe("gameuiPhotoModeMenuController", "OnShow", function(controller)
+    mod.pmController = controller
+    mod.isPhotoModeOpen = true
+    local platformCm = mod.currentShoeState.platformCm or 0.0
+    if mod.autoApplyPMHeight and platformCm > 0.0 then
+        mod.currentPMPlatformOffsetCm = platformCm
+        print(string.format("[ImmersiveFootwearPOV] Photo Mode opened. Auto-applied Platform Elevation: +%.1f cm (Sole Thickness)", platformCm))
+    else
+        mod.currentPMPlatformOffsetCm = 0.0
+    end
+end)
+
+Observe("gameuiPhotoModeMenuController", "OnHide", function()
+    mod.isPhotoModeOpen = false
+    mod.pmController = nil
+    mod.currentPMPlatformOffsetCm = 0.0
+end)
+
+-- -----------------------------------------------------------------------------
 -- CET Lifecycle Events
 -- -----------------------------------------------------------------------------
 registerForEvent("onInit", function()
@@ -271,7 +298,7 @@ registerForEvent("onUpdate", function(deltaTime)
 
     -- Calculate target blend based on current shoe offset, IFP base slider, and suppression state
     local currentOffset = sys:GetEffectiveOffset()
-    local isSuppressed = mod.currentShoeState.isSuppressed
+    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
     local targetBlend, totalMeters = CalculateTargetBlend(currentOffset, mod.ifpBaseHeightCm, isSuppressed)
     
     SetTargetBlend(targetBlend)
@@ -314,7 +341,9 @@ registerForEvent("onDraw", function()
                 ImGui.TextColored(0.2, 0.9, 0.3, 1.0, "Tags: Official TweakDB Metadata (Locked)")
                 ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP)", mod.currentShoeState.heelCm))
                 if mod.currentShoeState.platformCm > 0.0 then
-                    ImGui.Text(string.format("Platform Sole:   +%.1f cm (Reserved for PM)", mod.currentShoeState.platformCm))
+                    ImGui.Text(string.format("Platform Sole:   +%.1f cm (Auto PM Elevation)", mod.currentShoeState.platformCm))
+                else
+                    ImGui.TextDisabled("Platform Sole:    0.0 cm (Naturally Grounded)")
                 end
             else
                 -- Untagged shoe -> Interactive custom override sliders
@@ -365,6 +394,20 @@ registerForEvent("onDraw", function()
                 end
                 ImGui.SameLine()
                 ImGui.TextDisabled("(Auto-saved per shoe)")
+            end
+
+            -- Photo Mode Elevation Configuration
+            ImGui.Spacing()
+            local pmAutoChanged
+            mod.autoApplyPMHeight, pmAutoChanged = ImGui.Checkbox("Auto-Apply Platform Elevation in Photo Mode##ifp_pm_auto", mod.autoApplyPMHeight)
+            if mod.isPhotoModeOpen then
+                ImGui.PushStyleColor(ImGuiCol.Text, 0.4, 0.9, 1.0, 1.0)
+                if mod.currentShoeState.platformCm > 0.0 then
+                    ImGui.Text(string.format("Photo Mode: Active (+%.1f cm Platform Sole Elevated)", mod.currentShoeState.platformCm))
+                else
+                    ImGui.Text("Photo Mode: Active (Flat/Stiletto Sole Grounded)")
+                end
+                ImGui.PopStyleColor(1)
             end
 
             -- Display effective stance breakdown (IFP Base + Footwear Heel)

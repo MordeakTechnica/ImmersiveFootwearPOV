@@ -2,7 +2,7 @@ module ImmersiveFootwearPOV
 
 // =============================================================================
 // Immersive Footwear POV - Lifecycle & State Event Hooks
-// Listens to outfit changes, wardrobe resets, workspots, and vehicle events
+// Listens to outfit changes, wardrobe resets, workspots, vehicles, and Photo Mode
 // =============================================================================
 
 public class FootwearHooksHelper {
@@ -29,6 +29,15 @@ public class FootwearHooksHelper {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
       if IsDefined(sys) {
         sys.SetVehicleState(player, inVehicle);
+      };
+    };
+  }
+
+  public static func NotifyPhotoModeState(player: ref<PlayerPuppet>, inPhotoMode: Bool) -> Void {
+    if IsDefined(player) {
+      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+      if IsDefined(sys) {
+        sys.SetPhotoModeState(player, inPhotoMode);
       };
     };
   }
@@ -113,5 +122,22 @@ protected cb func OnMountingEvent(evt: ref<MountingEvent>) -> Bool {
 protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
   FootwearHooksHelper.NotifyVehicleState(this, false);
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+// Photo Mode Lifecycle Hooks
+// -----------------------------------------------------------------------------
+@wrapMethod(gameuiPhotoModeMenuController)
+protected cb func OnInitialize() -> Bool {
+  let result: Bool = wrappedMethod();
+  FootwearHooksHelper.NotifyPhotoModeState(this.GetPlayerControlledObject() as PlayerPuppet, true);
+  return result;
+}
+
+@wrapMethod(gameuiPhotoModeMenuController)
+protected cb func OnUninitialize() -> Bool {
+  let result: Bool = wrappedMethod();
+  FootwearHooksHelper.NotifyPhotoModeState(this.GetPlayerControlledObject() as PlayerPuppet, false);
   return result;
 }
