@@ -182,8 +182,6 @@ Items.Custom_Chunky_Platforms_01:
   - Real-time polling of IFP's native base height slider (`Config.inner.heightAdjustmentAmount`).
   - Stacks additively: $\text{Total Height} = \text{IFP Base Height} + \text{Footwear Heel Height}$.
   - Both IFP's slider and footwear elevation work concurrently without overriding each other.
-- [ ] **Native Settings UI Integration (Optional In-Game Menu):**
-  - Add info display subcategory under `/IFP/Footwear` (or dedicated tab) showing live height breakdown.
 
 ---
 
