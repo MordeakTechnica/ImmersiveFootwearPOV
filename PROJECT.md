@@ -165,15 +165,18 @@ Items.Custom_Chunky_Platforms_01:
     * Swimming (`HighLevel == 6` / `Swimming > 0`)
     * Carrying / dumping bodies (`BodyCarrying > 0`)
     * Executing stealth takedowns and finishers (`Takedown > 0`)
-- [ ] **Photo Mode Integration (Future PM Height Shifting):**
-  - Use `platformHeight` (and `heelHeight`) for Photo Mode pose height shifting so V's character model maintains accurate sole ground contact and elevated stance across all photo poses.
+- [x] **Photo Mode Integration (Native Attribute 37 Platform Elevation):**
+  - Smoothly eases 1st-person locomotion blend to neutral ($0.0\,\text{m}$) when opening Photo Mode to prevent pose distortion.
+  - Automatically elevates V's 3rd-person puppet via REDengine native Attribute 37 (`V Up/Down`) by equipped platform sole thickness ($+Z$ meters).
+  - Added interactive `Auto-Elevate Platform Sole in Photo Mode` toggle in CET overlay (saved in `user_shoe_overrides.json`).
+  - Smoothly restores 1st-person stance height upon exiting Photo Mode over $0.20\,\text{s}$.
 
 ### Phase 5: IFP Coexistence, UI Height Readout & Custom Overrides
 - [x] **Direct IFP CET Window Appending (ImGui Extension):**
   - Hooked `onDraw` in `init.lua` using `ImGui.Begin("Immersive First Person")` to render live telemetry into IFP's window.
 - [x] **Per-Shoe Custom Height Overrides & Persistence:**
   - Added JSON persistence (`user_shoe_overrides.json`) for untagged shoes.
-  - Interactive sliders for Custom Heel Height ($0\text{--}15\,\text{cm}$) and Custom Platform ($0\text{--}10\,\text{cm}$).
+  - Interactive sliders for Custom Heel Height ($0.0\text{--}25.0\,\text{cm}$) and Custom Platform ($0.0\text{--}25.0\,\text{cm}$).
   - Live shoe switching: updates immediately as V changes footwear across Equipment-EX, Wardrobe, and Inventory.
 - [x] **Official TweakDB Precedence & Auto-Discard:**
   - Official TweakDB tags automatically lock controls to official metadata.
@@ -182,8 +185,37 @@ Items.Custom_Chunky_Platforms_01:
   - Real-time polling of IFP's native base height slider (`Config.inner.heightAdjustmentAmount`).
   - Stacks additively: $\text{Total Height} = \text{IFP Base Height} + \text{Footwear Heel Height}$.
   - Both IFP's slider and footwear elevation work concurrently without overriding each other.
-- [ ] **Native Settings UI Integration (Optional In-Game Menu):**
-  - Add info display subcategory under `/IFP/Footwear` (or dedicated tab) showing live height breakdown.
+- [x] **Modular Architecture Refactoring:**
+  - Reorganized integrations into dedicated modular files (`Integrations/ImmersiveFootwearPOV_IFP.reds`, `integrations/ifp.lua`, `integrations/pm.lua`).
+- [x] **Transition Telemetry & Diagnostics Console API:**
+  - Added optional debug logging covering FPP stance easing and Photo Mode (PM) lifecycle, frame progression, and Attribute 37 (`upDown`) force status.
+  - Added multi-channel controls: CET console methods (`ToggleDebug`, `SetDebug`, `DumpState`), global shortcuts (`ToggleIFPDebug()`, `IFPDebug(bool)`, `IFPStatus()`), and Dear ImGui UI checkbox (persisted in `user_shoe_overrides.json`).
+  - Synchronized debug logging to REDscript `ImmersiveFootwearPOVSystem` with dedicated `LogChannel(n"DEBUG", ...)` messages.
+
+### Phase 6: True First Person (TFP) Integration & Multi-Framework Support
+> [!NOTE]
+> **Design Principle for TFP Users:** Players choose True First Person specifically to avoid Lua/CET scripting overhead. When integrating with TFP, the mod operates in a **100% native REDscript architecture**—we do not inject CET UI controls or force Lua windows when TFP is active. All configuration is handled directly in TFP's native in-game menu.
+
+- [ ] **Step 6.1: Graceful Framework Detection & Fallback Baseline**
+  - Verify and test mod behavior when neither IFP nor TFP are installed (or only one is installed).
+  - Ensure zero compilation errors, zero script crashes, and clean fallback operation in standalone mode.
+- [ ] **Step 6.2: Isolated TFP REDscript Integration Module**
+  - Create `source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_TFP.reds`.
+  - Guard the entire file with `@if(ModuleExists("TrueFirstPerson"))` so it compiles only when TFP is present.
+- [ ] **Step 6.3: Observational Telemetry & State Polling**
+  - Hook TFP camera update events purely for observational logging (log active TFP base Z and footwear offset without altering camera transforms).
+- [ ] **Step 6.4: Additive Camera Z Offset Injection (`IFPCamera.GetBaseZ`)**
+  - Wrap `IFPCamera.GetBaseZ(config: ref<IFPConfig>) -> Float` to inject `ImmersiveFootwearPOVSystem.GetInstance().GetEffectiveOffset()`.
+  - Ensure all context-aware suppression (sitting, ladders, swimming, crouching) naturally applies.
+- [ ] **Step 6.5: Weapon Offset & ADS Alignment Verification**
+  - Test and verify that TFP's `IFPWeapon.reds` automatically applies matching inverse downward compensation (`-cameraHeight`) to maintain perfect iron-sight and optic crosshair centering.
+- [ ] **Step 6.6: Vehicle Entry Suppression & Exit Restoration**
+  - Test vehicle transitions: verify that entering cars drops elevation to `0.0 m` (preventing roof clipping) and stepping out immediately restores footwear height via `IFPCamera`.
+- [ ] **Step 6.7: Silent CET Behavior under TFP**
+  - Ensure CET mod detects when TFP is active and remains completely passive/dormant, avoiding redundant Lua windows or conflicting overlays.
+- [ ] **Step 6.8: TFP "First Person" Tab In-Game Settings Extension**
+  - Extend TFP's native in-game settings schema ([`IFPConfigProvider.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/examples/True_First_Person/r6/scripts/TrueFirstPersonCamera/IFPConfigProvider.reds)) under the **First Person** tab.
+  - Expose native in-game toggles and custom height adjustments directly within TFP's native menu via REDscript without requiring CET.
 
 ---
 

@@ -4,6 +4,17 @@ All notable changes to this project are tracked in this file chronologically by 
 
 ---
 
+## [`eda70a0`](https://github.com/mordeak/immersive-footwear-pov/commit/eda70a0) — 2026-08-28
+### `feat(debug): add optional FPP and Photo Mode transition debug logging via CET console`
+* **Photo Mode Transition Telemetry:** Detailed logging of controller validity, active footwear tags, platform sole queuing, frame progression, and Attribute 37 (`upDown`) force status on PM `OnShow`, `OnUpdate`, and `OnHide`.
+* **FPP Stance Transition Telemetry:** Detailed logging of mathematical linear/smoothstep blend transitions with start/target heights, elapsed time, and trigger reasons (e.g. suppression, shoe switch, Photo Mode).
+* **Console-Only Control Architecture:**
+  * **CET Console Methods & Shortcuts:** Added `ToggleIFPDebug()`, `IFPDebug(true/false)`, `IFPStatus()`, `GetMod("ImmersiveFootwearPOV"):SetDebug(bool)`, `ToggleDebug()`, `GetDebug()`, and `DumpState()`.
+  * **Persistence:** Debug preference persisted across sessions in `user_shoe_overrides.json` under `__settings.debugLogs`.
+* **REDscript Synchronization:** Synchronized debug mode to `ImmersiveFootwearPOVSystem` with dedicated `LogChannel(n"DEBUG", ...)` logging for state suppression changes and shoe resolution.
+
+---
+
 ## [`b606a49`](https://github.com/mordeak/immersive-footwear-pov/commit/b606a49cb55877f6b9ce82fe7f000305f6e80b2d) — 2026-08-27
 ### `feat(photomode): add native attribute 37 platform elevation, stance neutralization, and CET toggle`
 * **Locomotion Neutralization:** Automatically eases first-person locomotion height blend to neutral (0.0m) in Photo Mode, restoring smoothly upon exit.

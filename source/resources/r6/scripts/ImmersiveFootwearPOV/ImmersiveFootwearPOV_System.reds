@@ -16,10 +16,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_isSuppressed: Bool;
   private let m_suppressionReason: String;
   private let m_isInitialized: Bool;
+  private let m_debugLogging: Bool;
 
   public static func GetInstance(gameInstance: GameInstance) -> ref<ImmersiveFootwearPOVSystem> {
     let system: ref<ImmersiveFootwearPOVSystem> = GameInstance.GetScriptableSystemsContainer(gameInstance).Get(n"ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem") as ImmersiveFootwearPOVSystem;
     return system;
+  }
+
+  public func SetDebugLogging(enable: Bool) -> Void {
+    this.m_debugLogging = enable;
+  }
+
+  public func IsDebugLogging() -> Bool {
+    return this.m_debugLogging;
   }
 
   private final func OnPlayerAttach(request: ref<PlayerAttachRequest>) -> Void {
@@ -75,6 +84,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
         this.m_currentPlatformHeight = 0.0;
       };
 
+      if this.m_debugLogging {
+        LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Footwear resolved: '\(this.GetResolvedShoeDisplayName())' | Source: \(this.m_activeSource) | Heel: +\(this.m_currentHeelHeight)m | Platform: +\(this.m_currentPlatformHeight)m | Official: \(this.m_hasOfficialTags)");
+      };
+
       this.RecalculateEffectiveOffset(player);
     } else {
       this.RecalculateEffectiveOffset(player);
@@ -93,6 +106,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_customPlatformHeight = ShoeHeightParser.ClampHeight(platform);
     this.m_currentHeelHeight = this.m_customHeelHeight;
     this.m_currentPlatformHeight = this.m_customPlatformHeight;
+
+    if this.m_debugLogging {
+      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Custom override set: Heel=+\(this.m_customHeelHeight)m, Platform=+\(this.m_customPlatformHeight)m");
+    };
 
     this.RecalculateEffectiveOffset(player);
   }
@@ -131,75 +148,72 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       return false;
     };
 
+    let wasSuppressed: Bool = this.m_isSuppressed;
+    let oldReason: String = this.m_suppressionReason;
+    let newSuppressed: Bool = false;
+    let newReason: String = "";
+
     // 1. Vehicles
     if this.m_isInVehicle || VehicleComponent.IsMountedToVehicle(player.GetGame(), player) {
-      this.m_isSuppressed = true;
-      this.m_suppressionReason = "Vehicle Occupancy";
-      return true;
-    };
-
-    // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
-    if this.m_isInWorkspot || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
-      this.m_isSuppressed = true;
-      this.m_suppressionReason = "Authored Workspot";
-      return true;
-    };
-
-    // 3. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
-    let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
-    if IsDefined(psmBlackboard) {
-      let sceneTier: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.SceneTier);
-      if sceneTier >= 3 || sceneTier <= 0 {
-        this.m_isSuppressed = true;
-        this.m_suppressionReason = "Scripted Scene / Dialogue";
-        return true;
-      };
-
-      // 4. Locomotion Traversal & Special Actions
-      let detailedLocomotion: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.LocomotionDetailed);
-      // Ladders (10..13) or Climb/Vault (8..9)
-      if detailedLocomotion >= 8 && detailedLocomotion <= 13 {
-        this.m_isSuppressed = true;
-        this.m_suppressionReason = "Climb, Vault, or Ladder";
-        return true;
-      };
-
-      // Knockdown / Felled (29, 31)
-      if detailedLocomotion == 29 || detailedLocomotion == 31 {
-        this.m_isSuppressed = true;
-        this.m_suppressionReason = "Knockdown or Forced Reaction";
-        return true;
-      };
-
-      // Swimming (HighLevel == 6 or Swimming > 0)
-      let highLevel: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.HighLevel);
-      let swimmingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Swimming);
-      if highLevel == 6 || swimmingState > 0 {
-        this.m_isSuppressed = true;
-        this.m_suppressionReason = "Swimming";
-        return true;
-      };
-
-      // Takedown / Grapple
-      let takedownState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Takedown);
-      if takedownState > 0 {
-        this.m_isSuppressed = true;
-        this.m_suppressionReason = "Takedown or Grapple";
-        return true;
-      };
-
-      // Body Carrying
-      let carryingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.BodyCarrying);
-      if carryingState > 0 {
-        this.m_isSuppressed = true;
-        this.m_suppressionReason = "Body Carrying";
-        return true;
+      newSuppressed = true;
+      newReason = "Vehicle Occupancy";
+    } else if this.m_isInWorkspot || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
+      // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
+      newSuppressed = true;
+      newReason = "Authored Workspot";
+    } else {
+      let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
+      if IsDefined(psmBlackboard) {
+        // 3. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
+        let sceneTier: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.SceneTier);
+        if sceneTier >= 3 || sceneTier <= 0 {
+          newSuppressed = true;
+          newReason = "Scripted Scene / Dialogue";
+        } else {
+          // 4. Locomotion Traversal & Special Actions
+          let detailedLocomotion: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.LocomotionDetailed);
+          if detailedLocomotion >= 8 && detailedLocomotion <= 13 {
+            newSuppressed = true;
+            newReason = "Climb, Vault, or Ladder";
+          } else if detailedLocomotion == 29 || detailedLocomotion == 31 {
+            newSuppressed = true;
+            newReason = "Knockdown or Forced Reaction";
+          } else {
+            let highLevel: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.HighLevel);
+            let swimmingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Swimming);
+            if highLevel == 6 || swimmingState > 0 {
+              newSuppressed = true;
+              newReason = "Swimming";
+            } else {
+              let takedownState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Takedown);
+              if takedownState > 0 {
+                newSuppressed = true;
+                newReason = "Takedown or Grapple";
+              } else {
+                let carryingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.BodyCarrying);
+                if carryingState > 0 {
+                  newSuppressed = true;
+                  newReason = "Body Carrying";
+                };
+              };
+            };
+          };
+        };
       };
     };
 
-    this.m_isSuppressed = false;
-    this.m_suppressionReason = "";
-    return false;
+    this.m_isSuppressed = newSuppressed;
+    this.m_suppressionReason = newReason;
+
+    if this.m_debugLogging && (NotEquals(wasSuppressed, this.m_isSuppressed) || NotEquals(oldReason, this.m_suppressionReason)) {
+      if this.m_isSuppressed {
+        LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Stance SUPPRESSED -> Reason: '\(this.m_suppressionReason)'");
+      } else {
+        LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Stance RESTORED -> Normal Gameplay");
+      };
+    };
+
+    return this.m_isSuppressed;
   }
 
   public func RecalculateEffectiveOffset(player: ref<PlayerPuppet>) -> Void {
