@@ -80,16 +80,17 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
         if shoeState.isOfficial then
             -- Official TweakDB tags found -> Read-only display
             ImGui.TextColored(0.2, 0.9, 0.3, 1.0, "Tags: Official TweakDB Metadata (Locked)")
-            ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP)", shoeState.heelCm))
+            ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP Eye Lift)", shoeState.heelCm))
             if shoeState.platformCm > 0.0 then
-                ImGui.Text(string.format("Platform Sole:   +%.1f cm (Reserved for PM)", shoeState.platformCm))
+                ImGui.Text(string.format("Platform Sole:   +%.1f cm (Photo Mode Puppet Lift)", shoeState.platformCm))
             end
         else
             -- Untagged shoe -> Interactive custom override sliders
             ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
 
             local shoeKey = shoeState.key
-            local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (cm)##ifp_custom_heel", shoeState.heelCm, 0.0, heightLimits.MAX_HEEL_CM, "%.1f cm")
+            local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (FPP)##ifp_custom_heel", shoeState.heelCm, 0.0, heightLimits.MAX_HEEL_CM, "%.1f cm")
+            ImGui.TextDisabled("  -> Total heel lift: elevates V's 1st-person camera in gameplay")
             if heelChanged and player and sys and #shoeKey > 0 then
                 shoeState.heelCm = heelVal
                 if not modState.overrides[shoeKey] then
@@ -104,7 +105,9 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
                 sys:SetCustomHeightOverride(player, heelMeters, platMeters)
             end
 
-            local platVal, platChanged = ImGui.SliderFloat("Custom Platform (cm)##ifp_custom_plat", shoeState.platformCm, 0.0, heightLimits.MAX_PLATFORM_CM, "%.1f cm")
+            ImGui.Spacing()
+            local platVal, platChanged = ImGui.SliderFloat("Custom Platform (PM)##ifp_custom_plat", shoeState.platformCm, 0.0, heightLimits.MAX_PLATFORM_CM, "%.1f cm")
+            ImGui.TextDisabled("  -> Front sole thickness: lifts character puppet in Photo Mode")
             if platChanged and player and sys and #shoeKey > 0 then
                 shoeState.platformCm = platVal
                 if not modState.overrides[shoeKey] then
@@ -119,6 +122,7 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
                 sys:SetCustomHeightOverride(player, heelMeters, platMeters)
             end
 
+            ImGui.Spacing()
             if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and player and sys and #shoeKey > 0 then
                 shoeState.heelCm = 0.0
                 shoeState.platformCm = 0.0
@@ -130,6 +134,21 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
             end
             ImGui.SameLine()
             ImGui.TextDisabled("(Auto-saved per shoe)")
+        end
+
+        -- Collapsible In-Game Height & Measuring Guide
+        ImGui.Spacing()
+        if ImGui.TreeNode("Shoe Height Guide & Anatomy##ifp_height_guide") then
+            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "Heel Height (FPP Gameplay):")
+            ImGui.TextWrapped("Total vertical elevation from the ground to V's heel inside the shoe. Elevates 1st-person camera and skeleton stance.")
+            ImGui.Spacing()
+            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "Platform Height (Photo Mode):")
+            ImGui.TextWrapped("Thickness of the front sole under the ball/toes. Elevates V's 3rd-person model in Photo Mode so thick soles don't sink into the ground.")
+            ImGui.Spacing()
+            ImGui.TextColored(1.0, 0.85, 0.3, 1.0, "Photo Mode Measurement:")
+            ImGui.TextWrapped("1. Platform: Move PM 'V Up/Down' UP until front sole touches floor = Platform Height.")
+            ImGui.TextWrapped("2. Heel: Move PM 'V Up/Down' DOWN until heel touches floor + Platform = Total Heel Height.")
+            ImGui.TreePop()
         end
 
         -- Photo Mode Elevation Configuration

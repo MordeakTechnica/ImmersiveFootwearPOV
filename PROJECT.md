@@ -95,10 +95,6 @@ Items.Custom_Chunky_Platforms_01:
     - "PlatformHeight_006"
 ```
 
-> [!TIP]
-> **Backward Compatibility Fallback:**
-> If an older footwear mod only defines `PlatformHeight_006` without a `HeelHeight` tag, the parser automatically treats the platform height as the heel height for FPP elevation.
-
 ---
 
 ## 4. REDscript & CET Implementation Design

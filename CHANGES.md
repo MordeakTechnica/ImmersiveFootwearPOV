@@ -4,6 +4,13 @@ All notable changes to this project are tracked in this file chronologically by 
 
 ---
 
+## [`775eb40`](https://github.com/mordeak/immersive-footwear-pov/commit/775eb40) — 2026-08-28
+### `docs(readme, ui): update integration guide for modders and add in-game height guide`
+* **Modder Integration Guide:** Updated [`README.md`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/README.md) with dual-height formula, Blender/Photo Mode measurement steps, supported aliases up to 25 cm, and in-game tag verification instructions.
+* **In-Game CET UI:** Added descriptive slider helper subtext and collapsible `Shoe Height Guide & Anatomy` dropdown in the CET overlay.
+
+---
+
 ## [`6e91217`](https://github.com/mordeak/immersive-footwear-pov/commit/6e91217) — 2026-08-28
 ### `docs: add USER_GUIDE.md for custom shoe height setup and Photo Mode measurement`
 * Created dedicated player guide [`USER_GUIDE.md`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/USER_GUIDE.md) explaining FPP Heel vs Photo Mode Platform concepts, CET overlay controls, auto-saving, and step-by-step measurement instructions using Photo Mode's V Up/Down slider.
