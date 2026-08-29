@@ -84,10 +84,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
         this.m_currentPlatformHeight = 0.0;
       };
 
-      if this.m_debugLogging {
-        LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Footwear resolved: '\(this.GetResolvedShoeDisplayName())' | Source: \(this.m_activeSource) | Heel: +\(this.m_currentHeelHeight)m | Platform: +\(this.m_currentPlatformHeight)m | Official: \(this.m_hasOfficialTags)");
-      };
-
       this.RecalculateEffectiveOffset(player);
     } else {
       this.RecalculateEffectiveOffset(player);
@@ -106,10 +102,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_customPlatformHeight = ShoeHeightParser.ClampHeight(platform);
     this.m_currentHeelHeight = this.m_customHeelHeight;
     this.m_currentPlatformHeight = this.m_customPlatformHeight;
-
-    if this.m_debugLogging {
-      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Custom override set: Heel=+\(this.m_customHeelHeight)m, Platform=+\(this.m_customPlatformHeight)m");
-    };
 
     this.RecalculateEffectiveOffset(player);
   }
@@ -205,14 +197,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_isSuppressed = newSuppressed;
     this.m_suppressionReason = newReason;
 
-    if this.m_debugLogging && (NotEquals(wasSuppressed, this.m_isSuppressed) || NotEquals(oldReason, this.m_suppressionReason)) {
-      if this.m_isSuppressed {
-        LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Stance SUPPRESSED -> Reason: '\(this.m_suppressionReason)'");
-      } else {
-        LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][REDS] Stance RESTORED -> Normal Gameplay");
-      };
-    };
-
     return this.m_isSuppressed;
   }
 
@@ -266,10 +250,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     return this.m_effectiveOffset;
   }
 
-  public func PrintBodyOffset(player: ref<PlayerPuppet>) -> Float {
-    HeightController.PrintBodyOffsetInfo(player, this.m_effectiveOffset);
-    return this.m_effectiveOffset;
-  }
 
   public func GetEquippedFootwearID() -> ItemID {
     return this.m_equippedFootwearID;

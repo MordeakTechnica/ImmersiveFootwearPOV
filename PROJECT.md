@@ -186,7 +186,6 @@ Items.Custom_Chunky_Platforms_01:
 - [x] **Transition Telemetry & Diagnostics Console API:**
   - Added optional debug logging covering FPP stance easing and Photo Mode (PM) lifecycle, frame progression, and Attribute 37 (`upDown`) force status.
   - Added multi-channel controls: CET console methods (`ToggleDebug`, `SetDebug`, `DumpState`), global shortcuts (`ToggleIFPDebug()`, `IFPDebug(bool)`, `IFPStatus()`), and Dear ImGui UI checkbox (persisted in `user_shoe_overrides.json`).
-  - Synchronized debug logging to REDscript `ImmersiveFootwearPOVSystem` with dedicated `LogChannel(n"DEBUG", ...)` messages.
 
 ### Phase 6: True First Person (TFP) Integration & Multi-Framework Support
 > [!NOTE]

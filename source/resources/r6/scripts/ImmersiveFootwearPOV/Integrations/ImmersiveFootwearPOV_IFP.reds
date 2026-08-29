@@ -34,17 +34,5 @@ public class HeightController {
   public static func ResetHeightOffset(player: ref<PlayerPuppet>) -> Void {
     HeightController.ApplyHeightOffset(player, 0.0);
   }
-
-  // Debug print of V's world coordinates and physical platform status
-  public static func PrintBodyOffsetInfo(player: ref<PlayerPuppet>, offsetZ: Float) -> Void {
-    if !IsDefined(player) {
-      return;
-    };
-
-    let worldPos: Vector4 = player.GetWorldPosition();
-    LogChannel(n"DEBUG", s"========== [Player Physical Platform Status] ==========");
-    LogChannel(n"DEBUG", s"Player World Position:   (X=\(worldPos.X), Y=\(worldPos.Y), Z=\(worldPos.Z))");
-    LogChannel(n"DEBUG", s"Platform Block Height:   +\(offsetZ)m");
-    LogChannel(n"DEBUG", s"=======================================================");
-  }
 }
+

@@ -2,6 +2,12 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [`04011f3`](https://github.com/mordeak/immersive-footwear-pov/commit/04011f3) — 2026-08-29
+### `refactor(logging): remove dead REDscript LogChannel/FTLog routines in favor of CET Lua telemetry`
+* **REDscript Logging Cleanup:** Completely removed inert `LogChannel` / `FTLog` calls and unused debug printer methods from `ImmersiveFootwearPOV_System.reds` and `Integrations/ImmersiveFootwearPOV_IFP.reds`.
+* **Zero Overhead:** Streamlined REDscript execution to pure game logic and animgraph state blending without redundant debug branching.
+* **Diagnostics Retention:** All real-time telemetry (stance blend easing, suppression events, Photo Mode transitions, shoe diagnostics) remains accessible via CET console commands (`IFPStatus()`, `DumpState()`, `IFPDebug(true)`).
+
 ---
 
 ## [`775eb40`](https://github.com/mordeak/immersive-footwear-pov/commit/775eb40) — 2026-08-28
