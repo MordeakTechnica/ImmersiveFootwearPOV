@@ -338,7 +338,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let shoeName: String = this.GetResolvedShoeDisplayName();
     let suppressed: Bool = this.m_isSuppressed;
     let reason: String = this.m_suppressionReason;
-    LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][TFP] Event: \(eventName) | Footwear: '\(shoeName)' (+\(liftCm) cm) | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+    Log(s"[ImmersiveFootwearPOV][TFP] Event: \(eventName) | Footwear: '\(shoeName)' (+\(liftCm) cm) | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
   }
 
   public func LogTFPPolling(baseZ: Float, curZ: Float) -> Void {
@@ -356,7 +356,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       let liftCm: Float = Cast<Float>(RoundF(offset * 1000.0)) / 10.0;
       let shoeName: String = this.GetResolvedShoeDisplayName();
       let reason: String = this.m_suppressionReason;
-      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][TFP] Camera State Transition -> Footwear: '\(shoeName)' | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+      Log(s"[ImmersiveFootwearPOV][TFP] Camera State Transition -> Footwear: '\(shoeName)' | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
     };
   }
 }

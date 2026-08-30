@@ -11,3 +11,7 @@ examples
 # User logs & caches
 *.log
 install_log.xml
+
+# Antigravity Agent Configuration
+.agents/
+
