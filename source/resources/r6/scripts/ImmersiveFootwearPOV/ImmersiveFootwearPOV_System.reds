@@ -309,4 +309,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func ReadHeelHeightFromTDBID(tdbid: TweakDBID) -> Float {
     return ShoeHeightParser.ReadShoeHeightDataFromTDBID(tdbid).heelHeight;
   }
+
+  public func ReadFootwearFromEquipmentExOutfit(outfitName: CName) -> ItemID {
+    return EquipmentExHelper.GetFootwearFromOutfit(this.GetGameInstance(), outfitName);
+  }
 }

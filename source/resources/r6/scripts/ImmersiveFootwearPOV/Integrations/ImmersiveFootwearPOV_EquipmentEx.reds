@@ -1,7 +1,7 @@
 module ImmersiveFootwearPOV
 
 @if(ModuleExists("EquipmentEx"))
-import EquipmentEx.OutfitSystem
+import EquipmentEx.{OutfitSystem,OutfitPart}
 
 // -----------------------------------------------------------------------------
 // 3rd-Party Integration: Equipment-EX (Active Module Implementation)
@@ -55,6 +55,36 @@ public class EquipmentExHelper {
     return ItemID.None();
   }
 
+  // Resolves footwear ItemID directly from an Equipment-EX outfit name
+  public static func GetFootwearFromOutfit(game: GameInstance, outfitName: CName) -> ItemID {
+    let outfitSys: ref<OutfitSystem> = OutfitSystem.GetInstance(game);
+    if !IsDefined(outfitSys) {
+      return ItemID.None();
+    };
+
+    let parts: array<ref<OutfitPart>> = outfitSys.GetOutfitParts(outfitName);
+    let count: Int32 = ArraySize(parts);
+    let i: Int32 = 0;
+    let part: ref<OutfitPart>;
+    let slotID: TweakDBID;
+
+    while i < count {
+      part = parts[i];
+      if IsDefined(part) {
+        slotID = part.GetSlotID();
+        if Equals(slotID, t"OutfitSlots.Feet") || Equals(slotID, t"AttachmentSlots.Feet") || Equals(slotID, t"OutfitSlots.FeetOuter") || Equals(slotID, t"OutfitSlots.Legs") {
+          let itemID: ItemID = part.GetItemID();
+          if ItemID.IsValid(itemID) {
+            return itemID;
+          };
+        };
+      };
+      i += 1;
+    };
+
+    return ItemID.None();
+  }
+
   public static func IsEquipmentExActive(player: ref<PlayerPuppet>) -> Bool {
     if !IsDefined(player) {
       return false;
@@ -71,6 +101,10 @@ public class EquipmentExHelper {
 public class EquipmentExHelper {
 
   public static func GetActiveFootwear(player: ref<PlayerPuppet>) -> ItemID {
+    return ItemID.None();
+  }
+
+  public static func GetFootwearFromOutfit(game: GameInstance, outfitName: CName) -> ItemID {
     return ItemID.None();
   }
 

@@ -95,15 +95,22 @@ local function GetShoeDisplayName(tdbid, cleanKey)
 end
 
 local function GetPMPuppet(controller)
+    local puppet = nil
     if controller and controller.fakePuppet then
-        return controller.fakePuppet
+        puppet = controller.fakePuppet
     end
-    local helper = Game.GetScriptableSystemsContainer():Get("EquipmentEx.PaperdollHelper")
-    if helper and helper.GetPuppet then
-        local puppet = helper:GetPuppet()
-        if puppet then return puppet end
+    if not puppet then
+        pcall(function()
+            local helper = Game.GetScriptableSystemsContainer():Get("EquipmentEx.PaperdollHelper")
+            if helper then
+                puppet = helper:GetPuppet()
+            end
+        end)
     end
-    return Game.GetPlayer()
+    if not puppet then
+        puppet = Game.GetPlayer()
+    end
+    return puppet
 end
 
 local function GetEquippedFootwear(puppet)
@@ -155,6 +162,45 @@ end
 -- -----------------------------------------------------------------------------
 -- Photo Mode Elevation Controller
 -- -----------------------------------------------------------------------------
+local function UpdatePMElevationFromOutfitName(controller, outfitName)
+    local ok, success = pcall(function()
+        local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+        if not sys then return false end
+
+        local itemID = sys:ReadFootwearFromEquipmentExOutfit(CName.new(outfitName))
+        if not itemID or not ItemID.IsValid(itemID) then
+            -- Outfit is confirmed barefoot / flat in Equipment-EX
+            PM.pendingInspectFrames = nil
+            print(string.format("[ImmersiveFootwearPOV][PM] Outfit Switched -> '%s' (Direct Equipment-EX Query: Barefoot / Flat) | Platform: +0.0 cm | Elevation: +0.0000 m", tostring(outfitName)))
+            PM.ForceAttribute(PM.ATTR_V_UP_DOWN, 0.0)
+            return true
+        end
+
+        local tdbid = ItemID.GetTDBID(itemID)
+        local shoeKey = ExtractCleanTDBIDString(tdbid)
+        local displayName = GetShoeDisplayName(tdbid, shoeKey)
+        local heelCm, platformCm, source = ResolveShoeHeights(itemID, tdbid, shoeKey)
+
+        local autoElevate = PM.modState and (PM.modState.autoElevatePMPlatform ~= false) or true
+        local elevationMeters = (autoElevate and platformCm > 0.0) and (platformCm / 100.0) or 0.0
+
+        PM.pendingInspectFrames = nil
+        print(string.format("[ImmersiveFootwearPOV][PM] Outfit Switched -> '%s' (Direct Equipment-EX Query: Footwear: '%s', Key: '%s', Source: %s) | Heel: +%.1f cm | Platform: +%.1f cm | AutoElevate: %s | Elevation: +%.4f m",
+            tostring(outfitName),
+            tostring(displayName),
+            tostring(shoeKey),
+            source,
+            heelCm,
+            platformCm,
+            tostring(autoElevate),
+            elevationMeters))
+
+        PM.ForceAttribute(PM.ATTR_V_UP_DOWN, elevationMeters)
+        return true
+    end)
+    return ok and (success == true)
+end
+
 local function UpdatePMFootwearElevation(controller)
     local ok, err = pcall(function()
         local puppet = GetPMPuppet(controller)
@@ -245,17 +291,32 @@ function PM.Init(modState)
     -- Detect in-PM outfit switcher updates (Equipment-EX & Vanilla Wardrobe)
     local function TriggerDelayedInspection()
         if PM.isPhotoModeActive then
-            PM.pendingInspectFrames = 5
+            PM.pendingInspectFrames = 8
         end
     end
 
     Observe("gameuiPhotoModeMenuController", "OnAttributeOptionSelected", function(controller, attribute, option)
-        TriggerDelayedInspection()
-    end)
+        local attrKey = tostring(attribute)
+        if attrKey == "3301" or attrKey == "3300" then
+            local optText = nil
+            if option then
+                if type(option) == "string" then
+                    optText = option
+                elseif option.optionText then
+                    optText = tostring(option.optionText)
+                elseif option.GetOptionText then
+                    optText = tostring(option:GetOptionText())
+                end
+            end
 
-    Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(controller, attributeKey, attributeValue, doApply)
-        if tostring(attributeKey) == "3301" or tostring(attributeKey) == "3300" then
-            TriggerDelayedInspection()
+            if optText and #optText > 0 then
+                local success = UpdatePMElevationFromOutfitName(controller, optText)
+                if not success then
+                    TriggerDelayedInspection()
+                end
+            else
+                TriggerDelayedInspection()
+            end
         end
     end)
 
@@ -265,7 +326,7 @@ function PM.Init(modState)
 end
 
 function PM.OnUpdate(deltaTime)
-    -- Asynchronous in-PM outfit inspection queue
+    -- Asynchronous in-PM outfit inspection queue (waits 8 frames for mesh attachment)
     if PM.pendingInspectFrames ~= nil and PM.isPhotoModeActive then
         PM.pendingInspectFrames = PM.pendingInspectFrames - 1
         if PM.pendingInspectFrames <= 0 then
