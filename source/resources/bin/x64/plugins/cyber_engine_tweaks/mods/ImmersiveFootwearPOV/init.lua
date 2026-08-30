@@ -287,7 +287,17 @@ end
 
 function mod.DumpState()
     local shoe = mod.currentShoeState
+    local player = Game.GetPlayer()
+    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+    local tfpPresent = (sys and sys.IsTFPPresent) and sys:IsTFPPresent() or false
+    local eqExPresent = (sys and sys.IsEquipmentExPresent) and sys:IsEquipmentExPresent() or false
+    local ifpInstalled = IFPIntegration.IsInstalled()
+
     print("================ [Immersive Footwear POV Diagnostics] ================")
+    print(string.format(" Frameworks Active: IFP: %s | TFP: %s | Equipment-EX: %s",
+        ifpInstalled and "INSTALLED" or "ABSENT",
+        tfpPresent and "INSTALLED" or "ABSENT",
+        eqExPresent and "INSTALLED" or "ABSENT"))
     print(string.format(" Debug Logging:     %s", mod.debugLogs and "ENABLED" or "DISABLED"))
     print(string.format(" Photo Mode Active: %s (Auto-Elevate: %s)", tostring(mod.isPhotoModeOpen), tostring(mod.autoElevatePMPlatform)))
     print(string.format(" Equipped Footwear: %s", tostring(shoe.displayName)))
@@ -316,7 +326,9 @@ registerForEvent("onInit", function()
     PMIntegration.Init(mod)
     local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
-    print(string.format("[ImmersiveFootwearPOV] Initialized with IFP Base Height: %.1f cm | Debug: %s",
+    local ifpInstalled = IFPIntegration.IsInstalled()
+    print(string.format("[ImmersiveFootwearPOV] Initialized | IFP: %s (Base: %.1f cm) | Debug: %s",
+        ifpInstalled and "ACTIVE" or "ABSENT",
         mod.ifpBaseHeightCm, mod.debugLogs and "ENABLED" or "DISABLED"))
 end)
 

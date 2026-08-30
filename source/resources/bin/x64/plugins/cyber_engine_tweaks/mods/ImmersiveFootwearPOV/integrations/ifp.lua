@@ -8,6 +8,14 @@ local IFP = {
 }
 
 -- -----------------------------------------------------------------------------
+-- Query IFP Installation Status
+-- -----------------------------------------------------------------------------
+function IFP.IsInstalled()
+    local ifp = GetMod("ImmersiveFirstPerson") or GetMod("immersive_first_person")
+    return ifp ~= nil
+end
+
+-- -----------------------------------------------------------------------------
 -- Query IFP Base Height & Native Suppression via In-Memory API
 -- -----------------------------------------------------------------------------
 function IFP.GetState()
@@ -58,6 +66,10 @@ end
 -- Render Footwear UI directly inside the native IFP CET Window
 -- -----------------------------------------------------------------------------
 function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
+    if not IFP.IsInstalled() then
+        return
+    end
+
     if not ImGui.Begin("Immersive First Person") then
         return
     end

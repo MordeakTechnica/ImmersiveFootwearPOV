@@ -191,9 +191,11 @@ Items.Custom_Chunky_Platforms_01:
 > [!NOTE]
 > **Design Principle for TFP Users:** Players choose True First Person specifically to avoid Lua/CET scripting overhead. When integrating with TFP, the mod operates in a **100% native REDscript architecture**—we do not inject CET UI controls or force Lua windows when TFP is active. All configuration is handled directly in TFP's native in-game menu.
 
-- [ ] **Step 6.1: Graceful Framework Detection & Fallback Baseline**
-  - Verify and test mod behavior when neither IFP nor TFP are installed (or only one is installed).
-  - Ensure zero compilation errors, zero script crashes, and clean fallback operation in standalone mode.
+- [x] **Step 6.1: Graceful Framework Detection & Fallback Baseline**
+  - Verified and tested mod behavior across all installation matrix states (neither, either, or both IFP/TFP/Equipment-EX installed).
+  - Implemented modular `FrameworkDetector` and `EquipmentExDetector` REDscript helpers with `@if(ModuleExists)` / `@if(!ModuleExists)` conditional compilation.
+  - Implemented `IFP.IsInstalled()` guard in CET to prevent phantom overlay windows in standalone / TFP-only modes.
+  - Enhanced `DumpState()` and `onInit` diagnostics reporting real-time status of all active 1st-person and outfit frameworks.
 - [ ] **Step 6.2: Isolated TFP REDscript Integration Module**
   - Create `source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_TFP.reds`.
   - Guard the entire file with `@if(ModuleExists("TrueFirstPerson"))` so it compiles only when TFP is present.

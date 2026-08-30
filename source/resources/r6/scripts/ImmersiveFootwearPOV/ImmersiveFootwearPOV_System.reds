@@ -313,4 +313,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func ReadFootwearFromEquipmentExOutfit(outfitName: CName) -> ItemID {
     return EquipmentExHelper.GetFootwearFromOutfit(this.GetGameInstance(), outfitName);
   }
+
+  // -----------------------------------------------------------------------------
+  // Framework Detection Helpers
+  // -----------------------------------------------------------------------------
+  public func IsTFPPresent() -> Bool {
+    return FrameworkDetector.IsTFPPresent();
+  }
+
+  public func IsEquipmentExPresent() -> Bool {
+    return EquipmentExDetector.IsPresent();
+  }
 }
