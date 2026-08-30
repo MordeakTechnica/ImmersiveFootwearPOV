@@ -290,4 +290,23 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func IsInWorkspot() -> Bool {
     return this.m_isInWorkspot;
   }
+
+  // -----------------------------------------------------------------------------
+  // Public ShoeHeightParser Helpers (Exposed to CET Lua)
+  // -----------------------------------------------------------------------------
+  public func ReadPlatformHeightFromItemID(itemID: ItemID) -> Float {
+    return ShoeHeightParser.ReadPlatformHeight(itemID);
+  }
+
+  public func ReadHeelHeightFromItemID(itemID: ItemID) -> Float {
+    return ShoeHeightParser.ReadHeelHeight(itemID);
+  }
+
+  public func ReadPlatformHeightFromTDBID(tdbid: TweakDBID) -> Float {
+    return ShoeHeightParser.ReadShoeHeightDataFromTDBID(tdbid).platformHeight;
+  }
+
+  public func ReadHeelHeightFromTDBID(tdbid: TweakDBID) -> Float {
+    return ShoeHeightParser.ReadShoeHeightDataFromTDBID(tdbid).heelHeight;
+  }
 }
