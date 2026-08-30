@@ -11,6 +11,7 @@ public class FootwearHooksHelper {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
       if IsDefined(sys) {
         sys.UpdateEquippedFootwear(player);
+        TFPHelper.LogState(player);
       };
     };
   }
@@ -20,6 +21,8 @@ public class FootwearHooksHelper {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
       if IsDefined(sys) {
         sys.SetWorkspotState(player, inWorkspot);
+        TFPHelper.LogEvent(player.GetGame(), inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)", 0.0, 0.0);
+        TFPHelper.LogState(player);
       };
     };
   }
@@ -29,6 +32,18 @@ public class FootwearHooksHelper {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
       if IsDefined(sys) {
         sys.SetVehicleState(player, inVehicle);
+        TFPHelper.LogEvent(player.GetGame(), inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)", 0.0, 0.0);
+        TFPHelper.LogState(player);
+      };
+    };
+  }
+
+  public static func NotifyWeaponAction(player: ref<PlayerPuppet>, actionName: String) -> Void {
+    if IsDefined(player) {
+      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+      if IsDefined(sys) {
+        TFPHelper.LogEvent(player.GetGame(), "WeaponAction (" + actionName + ")", 0.0, 0.0);
+        TFPHelper.LogState(player);
       };
     };
   }
@@ -68,6 +83,9 @@ protected cb func OnGameAttached() -> Bool {
   return result;
 }
 
+// -----------------------------------------------------------------------------
+// In-Game Menu & Wardrobe UI Closing Hooks
+// -----------------------------------------------------------------------------
 @wrapMethod(gameuiInGameMenuGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
@@ -113,5 +131,28 @@ protected cb func OnMountingEvent(evt: ref<MountingEvent>) -> Bool {
 protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
   FootwearHooksHelper.NotifyVehicleState(this, false);
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+// Weapon Draw / Holster / Weapon Wheel Actions Hook
+// -----------------------------------------------------------------------------
+@wrapMethod(PlayerPuppet)
+protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsumer) -> Bool {
+  let result: Bool = wrappedMethod(action, consumer);
+  let actionName: CName = ListenerAction.GetName(action);
+  if Equals(actionName, n"DrawItem")
+     || Equals(actionName, n"DrawWeapon")
+     || Equals(actionName, n"HolsterWeapon")
+     || Equals(actionName, n"SwitchWeapon")
+     || Equals(actionName, n"WeaponWheel")
+     || Equals(actionName, n"WeaponSlot1")
+     || Equals(actionName, n"WeaponSlot2")
+     || Equals(actionName, n"WeaponSlot3")
+     || Equals(actionName, n"WeaponSlot4") {
+    if ListenerAction.IsButtonJustPressed(action) {
+      FootwearHooksHelper.NotifyWeaponAction(this, NameToString(actionName));
+    };
+  };
   return result;
 }

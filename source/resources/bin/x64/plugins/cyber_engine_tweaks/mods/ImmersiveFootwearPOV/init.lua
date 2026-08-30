@@ -58,7 +58,8 @@ local mod = {
 -- -----------------------------------------------------------------------------
 local function LogFPP(fmt, ...)
     if mod.debugLogs then
-        print(string.format("[ImmersiveFootwearPOV][FPP] " .. fmt, ...))
+        local tag = (mod.currentShoeState and mod.currentShoeState.isTFP) and "TFP" or "FPP"
+        print(string.format("[ImmersiveFootwearPOV][%s] " .. fmt, tag, ...))
     end
 end
 
@@ -210,6 +211,7 @@ local function SyncShoeState(player, sys)
     mod.currentShoeState.isOfficial = isOfficial
     mod.currentShoeState.isSuppressed = isSuppressed
     mod.currentShoeState.suppressionReason = suppressionReason
+    mod.currentShoeState.isTFP = (sys and sys.IsTFPPresent) and sys:IsTFPPresent() or false
 
     if hasShoe and #shoeKey > 0 then
         if isOfficial then

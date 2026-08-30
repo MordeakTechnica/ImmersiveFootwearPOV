@@ -17,6 +17,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_suppressionReason: String;
   private let m_isInitialized: Bool;
   private let m_debugLogging: Bool;
+  private let m_tfpLastLoggedFootwear: ItemID;
+  private let m_tfpLastLoggedOffset: Float;
+  private let m_tfpLastLoggedSuppressed: Bool;
 
   public static func GetInstance(gameInstance: GameInstance) -> ref<ImmersiveFootwearPOVSystem> {
     let system: ref<ImmersiveFootwearPOVSystem> = GameInstance.GetScriptableSystemsContainer(gameInstance).Get(n"ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem") as ImmersiveFootwearPOVSystem;
@@ -323,5 +326,37 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func IsEquipmentExPresent() -> Bool {
     return EquipmentExDetector.IsPresent();
+  }
+
+  // -----------------------------------------------------------------------------
+  // TFP Telemetry Logging Helpers
+  // -----------------------------------------------------------------------------
+  public func LogTFPEvent(eventName: String, baseZ: Float, curZ: Float) -> Void {
+    if !this.m_debugLogging { return; };
+    let offset: Float = this.m_effectiveOffset;
+    let liftCm: Float = Cast<Float>(RoundF(offset * 1000.0)) / 10.0;
+    let shoeName: String = this.GetResolvedShoeDisplayName();
+    let suppressed: Bool = this.m_isSuppressed;
+    let reason: String = this.m_suppressionReason;
+    LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][TFP] Event: \(eventName) | Footwear: '\(shoeName)' (+\(liftCm) cm) | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+  }
+
+  public func LogTFPPolling(baseZ: Float, curZ: Float) -> Void {
+    if !this.m_debugLogging { return; };
+
+    let item: ItemID = this.m_equippedFootwearID;
+    let offset: Float = this.m_effectiveOffset;
+    let suppressed: Bool = this.m_isSuppressed;
+
+    if NotEquals(item, this.m_tfpLastLoggedFootwear) || AbsF(offset - this.m_tfpLastLoggedOffset) > 0.0005 || NotEquals(suppressed, this.m_tfpLastLoggedSuppressed) {
+      this.m_tfpLastLoggedFootwear = item;
+      this.m_tfpLastLoggedOffset = offset;
+      this.m_tfpLastLoggedSuppressed = suppressed;
+
+      let liftCm: Float = Cast<Float>(RoundF(offset * 1000.0)) / 10.0;
+      let shoeName: String = this.GetResolvedShoeDisplayName();
+      let reason: String = this.m_suppressionReason;
+      LogChannel(n"DEBUG", s"[ImmersiveFootwearPOV][TFP] Camera State Transition -> Footwear: '\(shoeName)' | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+    };
   }
 }

@@ -196,11 +196,12 @@ Items.Custom_Chunky_Platforms_01:
   - Implemented modular `FrameworkDetector` and `EquipmentExDetector` REDscript helpers with `@if(ModuleExists)` / `@if(!ModuleExists)` conditional compilation.
   - Implemented `IFP.IsInstalled()` guard in CET to prevent phantom overlay windows in standalone / TFP-only modes.
   - Enhanced `DumpState()` and `onInit` diagnostics reporting real-time status of all active 1st-person and outfit frameworks.
-- [ ] **Step 6.2: Isolated TFP REDscript Integration Module**
-  - Create `source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_TFP.reds`.
-  - Guard the entire file with `@if(ModuleExists("TrueFirstPerson"))` so it compiles only when TFP is present.
-- [ ] **Step 6.3: Observational Telemetry & State Polling**
-  - Hook TFP camera update events purely for observational logging (log active TFP base Z and footwear offset without altering camera transforms).
+- [x] **Step 6.2: Isolated TFP REDscript Integration Module**
+  - Created `source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_TFP.reds`.
+  - Guarded with `@if(ModuleExists("TrueFirstPerson"))` and provided `@if(!ModuleExists("TrueFirstPerson"))` clean fallback stubs so it compiles seamlessly in all configurations.
+- [x] **Step 6.3: Observational Telemetry & State Polling**
+  - Hooked TFP camera update lifecycle events (`InitPosition`, `ResetForWeapon`, `ResetCameraVehicle`, `HandleCamera`) purely for non-invasive observational telemetry.
+  - Implemented transition-gated logging to monitor active footwear name, effective shoe lift (+cm), TFP base Z, active camera Z, and suppression state.
 - [ ] **Step 6.4: Additive Camera Z Offset Injection (`IFPCamera.GetBaseZ`)**
   - Wrap `IFPCamera.GetBaseZ(config: ref<IFPConfig>) -> Float` to inject `ImmersiveFootwearPOVSystem.GetInstance().GetEffectiveOffset()`.
   - Ensure all context-aware suppression (sitting, ladders, swimming, crouching) naturally applies.
