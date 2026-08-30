@@ -303,12 +303,7 @@ function mod.DumpState()
     print("=====================================================================")
 end
 
--- Global CET Console shortcut aliases (exported to _G for direct console typing)
-if _G then
-    _G.ToggleIFPDebug = function() return mod.ToggleDebug() end
-    _G.IFPDebug = function(enabled) return mod.SetDebug(enabled) end
-    _G.IFPStatus = function() mod.DumpState() end
-end
+-- Global CET Console shortcut aliases (for direct console typing)
 ToggleIFPDebug = function() return mod.ToggleDebug() end
 IFPDebug = function(enabled) return mod.SetDebug(enabled) end
 IFPStatus = function() mod.DumpState() end

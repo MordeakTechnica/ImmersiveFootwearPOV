@@ -15,6 +15,16 @@ local PM = {
     modState = nil,
 }
 
+local FOOTWEAR_SLOTS = {
+    "OutfitSlots.Feet",
+    "AttachmentSlots.Feet",
+    "OutfitSlots.FeetOuter",
+    "OutfitSlots.Legs"
+}
+
+-- -----------------------------------------------------------------------------
+-- Logging & Native UI Attribute Dispatcher
+-- -----------------------------------------------------------------------------
 local function LogPM(fmt, ...)
     if PM.modState and PM.modState.debugLogs then
         print(string.format("[ImmersiveFootwearPOV][PM] " .. fmt, ...))
@@ -43,11 +53,7 @@ function PM.ForceAttribute(attribute, value)
         if forceOk then
             LogPM("ForceAttribute via item:ForceValue(Attr=%d, Val=%.4f) SUCCEEDED", attribute, value)
             return true
-        else
-            LogPM("ForceAttribute via item:ForceValue FAILED: %s (falling back to controller:OnForceAttributeVaulue)", tostring(err))
         end
-    else
-        LogPM("GetMenuItem(%d) returned %s (pcall ok: %s)", attribute, item == nil and "nil" or "found", tostring(itemOk))
     end
 
     local callbackOk, callbackErr = pcall(function()
@@ -56,19 +62,19 @@ function PM.ForceAttribute(attribute, value)
     if callbackOk then
         LogPM("ForceAttribute via controller:OnForceAttributeVaulue(Attr=%d, Val=%.4f) SUCCEEDED", attribute, value)
     else
-        LogPM("ForceAttribute via controller:OnForceAttributeVaulue FAILED: %s", tostring(callbackErr))
+        LogPM("ForceAttribute FAILED: %s", tostring(callbackErr))
     end
     return callbackOk
 end
 
+-- -----------------------------------------------------------------------------
+-- Entity & Shoe Lookup Helpers
+-- -----------------------------------------------------------------------------
 local function ExtractCleanTDBIDString(tdbid)
     if not tdbid then return "" end
     local str = tostring(tdbid)
     local clean = string.match(str, "%-%-%[%[%s*(.-)%s*%-%-%]%]")
-    if clean and #clean > 0 then
-        return clean
-    end
-    return str
+    return (clean and #clean > 0) and clean or str
 end
 
 local function GetShoeDisplayName(tdbid, cleanKey)
@@ -85,15 +91,41 @@ local function GetShoeDisplayName(tdbid, cleanKey)
             end
         end
     end)
-    if not displayName or displayName == "" then
-        displayName = cleanKey or tostring(tdbid)
-    end
-    return displayName
+    return (displayName and displayName ~= "") and displayName or (cleanKey or tostring(tdbid))
 end
 
-local function ReadShoeHeightsFromSystem(itemID, tdbid)
-    local heelCm = 0.0
-    local platCm = 0.0
+local function GetPMPuppet(controller)
+    if controller and controller.fakePuppet then
+        return controller.fakePuppet
+    end
+    local helper = Game.GetScriptableSystemsContainer():Get("EquipmentEx.PaperdollHelper")
+    if helper and helper.GetPuppet then
+        local puppet = helper:GetPuppet()
+        if puppet then return puppet end
+    end
+    return Game.GetPlayer()
+end
+
+local function GetEquippedFootwear(puppet)
+    local ts = Game.GetTransactionSystem()
+    if not ts or not puppet then return nil, nil end
+
+    for _, slotName in ipairs(FOOTWEAR_SLOTS) do
+        local itemObj = ts:GetItemInSlot(puppet, TweakDBID.new(slotName))
+        if itemObj then
+            local itemID = itemObj:GetItemID()
+            if ItemID.IsValid(itemID) then
+                return itemID, slotName
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function ResolveShoeHeights(itemID, tdbid, cleanKey)
+    local heelCm, platCm, source = 0.0, 0.0, "None"
+
+    -- 1. Official TweakDB metadata tags via REDscript ShoeHeightParser
     pcall(function()
         local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
         if sys then
@@ -106,80 +138,37 @@ local function ReadShoeHeightsFromSystem(itemID, tdbid)
             end
         end
     end)
-    return heelCm, platCm
+
+    if heelCm > 0.0 or platCm > 0.0 then
+        return heelCm, platCm, "TweakDB Tags"
+    end
+
+    -- 2. Custom user overrides in JSON
+    local saved = PM.modState and PM.modState.overrides and PM.modState.overrides[cleanKey]
+    if saved then
+        return tonumber(saved.heel) or 0.0, tonumber(saved.platform) or 0.0, "Custom Override"
+    end
+
+    return 0.0, 0.0, "None"
 end
 
+-- -----------------------------------------------------------------------------
+-- Photo Mode Elevation Controller
+-- -----------------------------------------------------------------------------
 local function UpdatePMFootwearElevation(controller)
     local ok, err = pcall(function()
-        local puppet = nil
-        if controller and controller.fakePuppet then
-            puppet = controller.fakePuppet
-        end
-        if not puppet then
-            local helper = Game.GetScriptableSystemsContainer():Get("EquipmentEx.PaperdollHelper")
-            if helper then
-                puppet = helper:GetPuppet()
-            end
-        end
-        if not puppet then
-            puppet = Game.GetPlayer()
-        end
+        local puppet = GetPMPuppet(controller)
+        if not puppet then return end
 
-        if not puppet then
-            print("[ImmersiveFootwearPOV][PM] Could not resolve PM puppet entity")
-            return
-        end
+        local itemID, slotName = GetEquippedFootwear(puppet)
+        local displayName, shoeKey, source = "Barefoot / Flat", "", "None"
+        local heelCm, platformCm = 0.0, 0.0
 
-        local ts = Game.GetTransactionSystem()
-        if not ts then return end
-
-        local slots = {
-            "OutfitSlots.Feet",
-            "AttachmentSlots.Feet",
-            "OutfitSlots.FeetOuter",
-            "OutfitSlots.Legs"
-        }
-
-        local foundItemID = nil
-        local foundSlot = nil
-        for _, slotName in ipairs(slots) do
-            local itemObj = ts:GetItemInSlot(puppet, TweakDBID.new(slotName))
-            if itemObj then
-                local itemID = itemObj:GetItemID()
-                if ItemID.IsValid(itemID) then
-                    foundItemID = itemID
-                    foundSlot = slotName
-                    break
-                end
-            end
-        end
-
-        local platformCm = 0.0
-        local heelCm = 0.0
-        local displayName = "Barefoot / Flat"
-        local shoeKey = ""
-        local source = "None"
-
-        if foundItemID then
-            local tdbid = ItemID.GetTDBID(foundItemID)
+        if itemID then
+            local tdbid = ItemID.GetTDBID(itemID)
             shoeKey = ExtractCleanTDBIDString(tdbid)
             displayName = GetShoeDisplayName(tdbid, shoeKey)
-
-            -- 1. Check official TweakDB metadata tags via REDscript ShoeHeightParser
-            local officialHeelCm, officialPlatCm = ReadShoeHeightsFromSystem(foundItemID, tdbid)
-            if officialHeelCm > 0.0 or officialPlatCm > 0.0 then
-                heelCm = officialHeelCm
-                platformCm = officialPlatCm
-                source = "TweakDB Tags"
-            else
-                -- 2. If untagged, check user custom overrides
-                local saved = PM.modState and PM.modState.overrides and PM.modState.overrides[shoeKey]
-                if saved then
-                    platformCm = tonumber(saved.platform) or 0.0
-                    heelCm = tonumber(saved.heel) or 0.0
-                    source = "Custom Override"
-                end
-            end
+            heelCm, platformCm, source = ResolveShoeHeights(itemID, tdbid, shoeKey)
         end
 
         local autoElevate = PM.modState and (PM.modState.autoElevatePMPlatform ~= false) or true
@@ -188,7 +177,7 @@ local function UpdatePMFootwearElevation(controller)
         print(string.format("[ImmersiveFootwearPOV][PM] Outfit Switched -> Footwear: '%s' (Key: '%s', Slot: %s, Source: %s) | Heel: +%.1f cm | Platform: +%.1f cm | AutoElevate: %s | Elevation: +%.4f m",
             tostring(displayName),
             tostring(shoeKey),
-            tostring(foundSlot or "None"),
+            tostring(slotName or "None"),
             source,
             heelCm,
             platformCm,
@@ -202,8 +191,12 @@ local function UpdatePMFootwearElevation(controller)
     end
 end
 
+-- -----------------------------------------------------------------------------
+-- Lifecycle & Event Registration
+-- -----------------------------------------------------------------------------
 function PM.Init(modState)
     PM.modState = modState
+
     Observe("gameuiPhotoModeMenuController", "OnShow", function(controller)
         PM.isPhotoModeActive = true
         PM.controller = controller
@@ -228,12 +221,9 @@ function PM.Init(modState)
             PM.pendingElevation = platformCm / 100.0
             PM.pendingPlatformCm = platformCm
             PM.elevationFrames = 0
-            LogPM("Queued Native Attribute %d (+%.1f cm / +%.4f m) platform sole elevation for PM character puppet",
-                PM.ATTR_V_UP_DOWN, platformCm, PM.pendingElevation)
         else
             PM.pendingElevation = nil
             PM.pendingPlatformCm = 0.0
-            LogPM("No Photo Mode platform elevation queued (Platform: +%.1fcm, AutoElevate: %s)", platformCm, tostring(autoElevate))
         end
     end)
 
@@ -252,56 +242,30 @@ function PM.Init(modState)
         end
     end)
 
-    Observe("PhotoModeMenuListItem", "StartArrowClickedEffect", function(listItem, widget)
+    -- Detect in-PM outfit switcher updates (Equipment-EX & Vanilla Wardrobe)
+    local function TriggerDelayedInspection()
         if PM.isPhotoModeActive then
-            local data = listItem and listItem:GetData()
-            local attrKey = data and data.attributeKey or "unknown"
-            if tostring(attrKey) == "3301" or tostring(attrKey) == "3300" then
-                PM.pendingInspectFrames = 5
-            end
+            PM.pendingInspectFrames = 5
         end
+    end
+
+    Observe("gameuiPhotoModeMenuController", "OnAttributeOptionSelected", function(controller, attribute, option)
+        TriggerDelayedInspection()
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(controller, attributeKey, attributeValue, doApply)
-        if PM.isPhotoModeActive then
-            if tostring(attributeKey) == "3301" or tostring(attributeKey) == "3300" then
-                PM.pendingInspectFrames = 5
-            end
-        end
-    end)
-
-    Observe("gameuiPhotoModeMenuController", "OnAttributeOptionSelected", function(controller, attribute, option)
-        if PM.isPhotoModeActive then
-            local optText = option and option.optionText or ""
-            local optData = option and option.optionData or ""
-            print(string.format("[ImmersiveFootwearPOV][PM] OnAttributeOptionSelected -> Attr: %s, Option: '%s' (Data: %s)",
-                tostring(attribute), tostring(optText), tostring(optData)))
-            PM.pendingInspectFrames = 5
-        end
-    end)
-
-    Observe("PhotoModePlayerEntityComponent", "OnItemAddedToSlot", function(component, evt)
-        if PM.isPhotoModeActive and evt then
-            PM.pendingInspectFrames = 3
-        end
-    end)
-
-    Observe("EquipmentSystemPlayerData", "SwitchWardrobeSet", function(playerData, setIndex)
-        print(string.format("[ImmersiveFootwearPOV][PM] Wardrobe SwitchWardrobeSet -> Set Index: %s", tostring(setIndex)))
-        if PM.isPhotoModeActive then
-            PM.pendingInspectFrames = 5
+        if tostring(attributeKey) == "3301" or tostring(attributeKey) == "3300" then
+            TriggerDelayedInspection()
         end
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnEquipWardrobeSet", function(controller, setIndex)
-        print(string.format("[ImmersiveFootwearPOV][PM] OnEquipWardrobeSet -> Set Index: %s", tostring(setIndex)))
-        if PM.isPhotoModeActive then
-            PM.pendingInspectFrames = 5
-        end
+        TriggerDelayedInspection()
     end)
 end
 
 function PM.OnUpdate(deltaTime)
+    -- Asynchronous in-PM outfit inspection queue
     if PM.pendingInspectFrames ~= nil and PM.isPhotoModeActive then
         PM.pendingInspectFrames = PM.pendingInspectFrames - 1
         if PM.pendingInspectFrames <= 0 then
@@ -310,16 +274,13 @@ function PM.OnUpdate(deltaTime)
         end
     end
 
+    -- Initial PM entry elevation dispatcher
     if PM.pendingElevation ~= nil and PM.isPhotoModeActive and PM.controller ~= nil then
         PM.elevationFrames = PM.elevationFrames + 1
-        LogPM("OnUpdate frame %d: Waiting to apply Attribute %d (+%.4f m)...", PM.elevationFrames, PM.ATTR_V_UP_DOWN, PM.pendingElevation)
         if PM.elevationFrames >= 2 then
-            LogPM("OnUpdate frame %d reached: Dispatching ForceAttribute(%d, +%.4f m)...", PM.elevationFrames, PM.ATTR_V_UP_DOWN, PM.pendingElevation)
             local success = PM.ForceAttribute(PM.ATTR_V_UP_DOWN, PM.pendingElevation)
             if success and PM.pendingPlatformCm > 0.0 then
                 print(string.format("[ImmersiveFootwearPOV] Photo Mode character elevated: +%.1f cm (+%.2f m)", PM.pendingPlatformCm, PM.pendingElevation))
-            elseif not success then
-                print(string.format("[ImmersiveFootwearPOV][ERROR] Failed to apply Photo Mode elevation (+%.1f cm) to Attribute %d", PM.pendingPlatformCm, PM.ATTR_V_UP_DOWN))
             end
             PM.pendingElevation = nil
         end
