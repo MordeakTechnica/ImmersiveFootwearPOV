@@ -157,3 +157,23 @@ protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsu
   };
   return result;
 }
+
+@wrapMethod(PlayerPuppet)
+protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
+  let result: Bool = wrappedMethod(evt);
+  let slotID: TweakDBID = evt.GetSlotID();
+  if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
+    FootwearHooksHelper.NotifyWeaponAction(this, "WeaponEquippedToSlot");
+  };
+  return result;
+}
+
+@wrapMethod(PlayerPuppet)
+protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
+  let result: Bool = wrappedMethod(evt);
+  let slotID: TweakDBID = evt.GetSlotID();
+  if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
+    FootwearHooksHelper.NotifyWeaponAction(this, "WeaponRemovedFromSlot");
+  };
+  return result;
+}

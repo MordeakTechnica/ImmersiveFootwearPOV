@@ -28,6 +28,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_tfpLastLoggedOffset: Float;
   private let m_tfpLastLoggedSuppressed: Bool;
   private let m_tfpLastWeaponKey: String;
+  private let m_tfpLastWeaponBaseZ: Float;
   private let m_tfpLastAppliedWeaponLift: Float;
 
   // -----------------------------------------------------------------------------
@@ -191,6 +192,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   // -----------------------------------------------------------------------------
   public func GetTFPLastWeaponKey() -> String { return this.m_tfpLastWeaponKey; }
   public func SetTFPLastWeaponKey(key: String) -> Void { this.m_tfpLastWeaponKey = key; }
+  public func GetTFPLastWeaponBaseZ() -> Float { return this.m_tfpLastWeaponBaseZ; }
+  public func SetTFPLastWeaponBaseZ(baseZ: Float) -> Void { this.m_tfpLastWeaponBaseZ = baseZ; }
   public func GetTFPLastAppliedWeaponLift() -> Float { return this.m_tfpLastAppliedWeaponLift; }
   public func SetTFPLastAppliedWeaponLift(lift: Float) -> Void { this.m_tfpLastAppliedWeaponLift = lift; }
 
