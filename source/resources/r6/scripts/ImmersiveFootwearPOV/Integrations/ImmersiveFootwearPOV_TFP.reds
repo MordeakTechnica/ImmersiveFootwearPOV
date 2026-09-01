@@ -1,7 +1,7 @@
 module ImmersiveFootwearPOV
 
 @if(ModuleExists("TrueFirstPerson"))
-import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon, IFPWeaponTuning, IFPWeaponSettings}
+import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon}
 
 // =============================================================================
 // Immersive Footwear POV - True First Person (TFP) Integration Helper
