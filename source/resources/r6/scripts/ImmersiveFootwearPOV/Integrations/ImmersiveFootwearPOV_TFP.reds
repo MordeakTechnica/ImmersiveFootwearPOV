@@ -173,6 +173,10 @@ public class TFPHelper {
     // No-op
   }
 
+  public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
+    // No-op
+  }
+
   public static func GetFootwearHeightOffset(game: GameInstance) -> Float {
     return 0.0;
   }
