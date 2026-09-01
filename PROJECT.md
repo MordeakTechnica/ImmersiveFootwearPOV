@@ -214,9 +214,15 @@ Items.Custom_Chunky_Platforms_01:
   - Test vehicle transitions: verify that entering cars drops elevation to `0.0 m` (preventing roof clipping) and stepping out immediately restores footwear height via `IFPCamera`.
 - [ ] **Step 6.7: Silent CET Behavior under TFP**
   - Ensure CET mod detects when TFP is active and remains completely passive/dormant, avoiding redundant Lua windows or conflicting overlays.
-- [ ] **Step 6.8: TFP "First Person" Tab In-Game Settings Extension**
-  - Extend TFP's native in-game settings schema ([`IFPConfigProvider.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/examples/True_First_Person/r6/scripts/TrueFirstPersonCamera/IFPConfigProvider.reds)) under the **First Person** tab.
-  - Expose native in-game toggles and custom height adjustments directly within TFP's native menu via REDscript without requiring CET.
+- [x] **Step 6.8: Native In-Game Settings Provider (RedscriptConfigFramework)**
+  - Created [`Integrations/ImmersiveFootwearPOV_RCF.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_RCF.reds) implementing `FootwearConfigProvider` extending `DVRCF_Provider`.
+  - Exposes native in-game settings menu under Mod Settings:
+    - **Heel Height (cm)** slider (0.0 to 25.0 cm).
+    - **Platform Height (cm)** slider (0.0 to 25.0 cm).
+    - **Apply Footwear Height** button (instant POV height update in-game).
+    - **Reset to Default / Clear Override** button.
+    - **Transition Debug Logging** toggle.
+  - Fully decoupled from CET: allows full custom testing directly from the native pause/settings menu without requiring CET overlay.
 
 ---
 

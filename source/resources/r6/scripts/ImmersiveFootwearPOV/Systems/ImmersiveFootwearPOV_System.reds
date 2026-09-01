@@ -116,10 +116,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   // -----------------------------------------------------------------------------
-  // Custom Overrides (Untagged Mod Footwear)
+  // Custom Overrides (Untagged Mod Footwear & Testing)
   // -----------------------------------------------------------------------------
-  public func SetCustomHeightOverride(player: ref<PlayerPuppet>, heel: Float, platform: Float) -> Void {
-    if this.m_hasOfficialTags {
+  public func SetCustomHeightOverride(player: ref<PlayerPuppet>, heel: Float, platform: Float, opt force: Bool) -> Void {
+    if this.m_hasOfficialTags && !force {
       return;
     };
 
@@ -132,13 +132,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.RecalculateEffectiveOffset(player);
   }
 
-  public func ClearCustomHeightOverride(player: ref<PlayerPuppet>) -> Void {
-    if !this.m_hasOfficialTags {
+  public func ClearCustomHeightOverride(player: ref<PlayerPuppet>, opt force: Bool) -> Void {
+    if !this.m_hasOfficialTags || force {
       this.m_hasCustomOverride = false;
       this.m_customHeelHeight = 0.0;
       this.m_customPlatformHeight = 0.0;
-      this.m_currentHeelHeight = 0.0;
-      this.m_currentPlatformHeight = 0.0;
+      if !this.m_hasOfficialTags {
+        this.m_currentHeelHeight = 0.0;
+        this.m_currentPlatformHeight = 0.0;
+      } else {
+        let data: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(this.m_equippedFootwearID);
+        this.m_currentHeelHeight = data.heelHeight;
+        this.m_currentPlatformHeight = data.platformHeight;
+      };
       this.RecalculateEffectiveOffset(player);
     };
   }
