@@ -78,22 +78,30 @@ public class TFPHelper {
 
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
+    let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
     let config: ref<IFPConfig> = tfpSys.GetConfig();
 
-    if IsDefined(weapon) && IsDefined(povSys) && IsDefined(config) {
+    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) {
       let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
       if IsDefined(curWeapon) && curWeapon.IsAttached() {
-        let effectiveOffset: Float = povSys.GetEffectiveOffset();
         let key: String = weapon.GetTuningKeyForCurrent();
+        let effectiveOffset: Float = povSys.GetEffectiveOffset();
+        let lastLift: Float = povSys.GetTFPLastAppliedWeaponLift();
+        let liftDelta: Float = effectiveOffset - lastLift;
+
+        let tune: ref<IFPWeaponSettings> = tuning.GetOrCreate(key);
+        if IsDefined(tune) && AbsF(liftDelta) > 0.0001 {
+          tune.z += liftDelta;
+          povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
+          povSys.SetTFPLastWeaponKey(key);
+        };
 
         // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
         weapon.RefreshCurrentWeapon(config.cameraZ, config);
 
-        povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
-        povSys.SetTFPLastWeaponKey(key);
-
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
-        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Alignment Synced -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
+        let tuneZ: Float = IsDefined(tune) ? tune.z : 0.0;
+        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Alignment Synced via Per-Weapon Tuning -> Lift: +\(liftCm)cm | Tune Z: \(tuneZ)m | CameraZ: \(config.cameraZ)m";
         LogChannel(n"DEBUG", msg);
         Log(msg);
       };
