@@ -42,6 +42,7 @@ public class FootwearHooksHelper {
     if IsDefined(player) {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
       if IsDefined(sys) {
+        TFPHelper.SyncWeaponForCurrentFootwear(player.GetGame());
         TFPHelper.LogEvent(player.GetGame(), "WeaponAction (" + actionName + ")", 0.0, 0.0);
         TFPHelper.LogState(player);
       };

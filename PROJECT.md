@@ -206,8 +206,10 @@ Items.Custom_Chunky_Platforms_01:
   - Implemented additive camera elevation in `ImmersiveFootwearPOV_TFP.reds` synchronizing `config.cameraZ = baseZ + effectiveOffset` across `IFPCamera.InitPosition` and `IFPWeapon.RefreshCurrentWeapon`.
   - Context-aware suppression (sitting, ladders, swimming, crouching, vehicle entry) automatically zeroes out the offset ($0.0\,\text{m}$) via `ImmersiveFootwearPOVSystem.RecalculateEffectiveOffset()`.
   - Verified 100% native REDscript compilation with 0 errors via `compile_redscripts.py`.
-- [ ] **Step 6.5: Weapon Offset & ADS Alignment Verification**
-  - Test and verify that TFP's `IFPWeapon.reds` automatically applies matching inverse downward compensation (`-cameraHeight`) to maintain perfect iron-sight and optic crosshair centering.
+- [x] **Step 6.5: Weapon Offset & ADS Alignment Verification (Option A Implementation)**
+  - Implemented dynamic weapon height synchronization (`TFPHelper.SyncWeaponForCurrentFootwear`).
+  - Additively applies footwear lift (`+effectiveOffset`) to TFP's weapon tuning Z (`tune.z`), ensuring that physical viewmodels and ADS iron-sights rise naturally with footwear lift while maintaining perfect center-screen optic alignment.
+  - Hooked weapon actions and equip cycles (`NotifyWeaponAction`, `ApplyFootwearHeight`) to keep all weapons synchronized on footwear and suppression changes.
 - [ ] **Step 6.6: Vehicle Entry Suppression & Exit Restoration**
   - Test vehicle transitions: verify that entering cars drops elevation to `0.0 m` (preventing roof clipping) and stepping out immediately restores footwear height via `IFPCamera`.
 - [ ] **Step 6.7: Silent CET Behavior under TFP**

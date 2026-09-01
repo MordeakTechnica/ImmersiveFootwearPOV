@@ -1,7 +1,7 @@
 module ImmersiveFootwearPOV
 
 @if(ModuleExists("TrueFirstPerson"))
-import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon}
+import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon, IFPWeaponTuning, IFPWeaponSettings}
 
 // =============================================================================
 // Immersive Footwear POV - True First Person (TFP) Integration Helper
@@ -34,10 +34,8 @@ public class TFPHelper {
 
         cam.ResetToBase(true);
 
-        let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
-        if IsDefined(weapon) && IsDefined(weapon.GetCurrentWeapon()) {
-          weapon.RefreshCurrentWeapon(targetZ, config);
-        };
+        // Sync weapon height with active footwear lift (Option A)
+        TFPHelper.SyncWeaponForCurrentFootwear(game);
 
         let shoeName: String = povSys.GetResolvedShoeDisplayName();
         let shoeSource: String = povSys.GetActiveSource();
@@ -57,6 +55,43 @@ public class TFPHelper {
 
         LogChannel(n"DEBUG", msg);
         Log(msg);
+      };
+    };
+  }
+
+  // Synchronizes the active weapon's physical viewmodel & ADS height with footwear lift (Option A)
+  public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
+    let tfpSys: ref<IFPSystem> = IFPSystem.Get(game);
+    if !IsDefined(tfpSys) || !tfpSys.IsSessionActive() { return; };
+
+    let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
+    let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
+    let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
+    let config: ref<IFPConfig> = tfpSys.GetConfig();
+
+    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) {
+      let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
+      if IsDefined(curWeapon) {
+        let key: String = weapon.GetTuningKeyForCurrent();
+        if StrLen(key) > 0 {
+          let effectiveOffset: Float = povSys.GetEffectiveOffset();
+          let lastKey: String = povSys.GetTFPLastWeaponKey();
+          let lastLift: Float = povSys.GetTFPLastAppliedWeaponLift();
+          let tune: ref<IFPWeaponSettings> = tuning.GetOrCreate(key);
+          if IsDefined(tune) {
+            if NotEquals(key, lastKey) {
+              tune.z += effectiveOffset;
+              povSys.SetTFPLastWeaponKey(key);
+            } else {
+              let liftDelta: Float = effectiveOffset - lastLift;
+              if AbsF(liftDelta) > 0.0001 {
+                tune.z += liftDelta;
+              };
+            };
+          };
+          povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
+          weapon.RefreshCurrentWeapon(config.cameraZ, config);
+        };
       };
     };
   }

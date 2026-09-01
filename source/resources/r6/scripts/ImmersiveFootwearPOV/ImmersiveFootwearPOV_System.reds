@@ -20,6 +20,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_tfpLastLoggedFootwear: ItemID;
   private let m_tfpLastLoggedOffset: Float;
   private let m_tfpLastLoggedSuppressed: Bool;
+  private let m_tfpLastWeaponKey: String;
+  private let m_tfpLastAppliedWeaponLift: Float;
 
   public static func GetInstance(gameInstance: GameInstance) -> ref<ImmersiveFootwearPOVSystem> {
     let system: ref<ImmersiveFootwearPOVSystem> = GameInstance.GetScriptableSystemsContainer(gameInstance).Get(n"ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem") as ImmersiveFootwearPOVSystem;
@@ -256,6 +258,22 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func IsTFPPresent() -> Bool {
     return FrameworkDetector.IsTFPPresent();
+  }
+
+  public func GetTFPLastWeaponKey() -> String {
+    return this.m_tfpLastWeaponKey;
+  }
+
+  public func SetTFPLastWeaponKey(key: String) -> Void {
+    this.m_tfpLastWeaponKey = key;
+  }
+
+  public func GetTFPLastAppliedWeaponLift() -> Float {
+    return this.m_tfpLastAppliedWeaponLift;
+  }
+
+  public func SetTFPLastAppliedWeaponLift(lift: Float) -> Void {
+    this.m_tfpLastAppliedWeaponLift = lift;
   }
 
 
