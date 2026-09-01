@@ -65,23 +65,6 @@ public class TFPHelper {
     };
   }
 
-  // Restores the previous weapon's baseline tuning before switching, holstering, or unequipping
-  public static func RestorePreviousWeaponBaseline(tfpSys: ref<IFPSystem>, povSys: ref<ImmersiveFootwearPOVSystem>) -> Void {
-    if !IsDefined(tfpSys) || !IsDefined(povSys) { return; };
-    let lastKey: String = povSys.GetTFPLastWeaponKey();
-    let appliedLift: Float = povSys.GetTFPLastAppliedWeaponLift();
-    if StrLen(lastKey) > 0 && AbsF(appliedLift) > 0.0001 {
-      let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
-      if IsDefined(tuning) {
-        let oldTune: ref<IFPWeaponSettings> = tuning.Get(lastKey);
-        if IsDefined(oldTune) {
-          oldTune.z = povSys.GetTFPLastWeaponBaseZ();
-        };
-      };
-      povSys.SetTFPLastAppliedWeaponLift(0.0);
-    };
-  }
-
   // Synchronizes the active weapon's physical viewmodel & ADS height with footwear lift
   public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
     let sysHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
@@ -95,44 +78,24 @@ public class TFPHelper {
 
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
-    let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
     let config: ref<IFPConfig> = tfpSys.GetConfig();
 
-    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) {
+    if IsDefined(weapon) && IsDefined(povSys) && IsDefined(config) {
       let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
-      let effectiveOffset: Float = povSys.GetEffectiveOffset();
-      let lastKey: String = povSys.GetTFPLastWeaponKey();
-
       if IsDefined(curWeapon) && curWeapon.IsAttached() {
+        let effectiveOffset: Float = povSys.GetEffectiveOffset();
         let key: String = weapon.GetTuningKeyForCurrent();
-        if StrLen(key) > 0 {
-          // If weapon switched, restore previous weapon's baseline first
-          if NotEquals(key, lastKey) {
-            TFPHelper.RestorePreviousWeaponBaseline(tfpSys, povSys);
-            let newTune: ref<IFPWeaponSettings> = tuning.GetOrCreate(key);
-            povSys.SetTFPLastWeaponKey(key);
-            povSys.SetTFPLastWeaponBaseZ(newTune.z);
-          };
 
-          let tune: ref<IFPWeaponSettings> = tuning.GetOrCreate(key);
-          let baseZ: Float = povSys.GetTFPLastWeaponBaseZ();
+        // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
+        weapon.RefreshCurrentWeapon(config.cameraZ, config);
 
-          // Set active weapon tune.z strictly to baseZ + effectiveOffset (zero accumulation risk)
-          tune.z = baseZ + effectiveOffset;
-          povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
+        povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
+        povSys.SetTFPLastWeaponKey(key);
 
-          // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
-          weapon.RefreshCurrentWeapon(config.cameraZ, config);
-
-          let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
-          let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Alignment Synced -> Key: '\(key)' | Base Z: \(baseZ)m + Lift: \(liftCm)cm -> Active Tune Z: \(tune.z)m";
-          LogChannel(n"DEBUG", msg);
-          Log(msg);
-        };
-      } else {
-        // No weapon held or holstered: cleanly restore previous weapon baseline
-        TFPHelper.RestorePreviousWeaponBaseline(tfpSys, povSys);
-        povSys.SetTFPLastWeaponKey("");
+        let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
+        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
+        LogChannel(n"DEBUG", msg);
+        Log(msg);
       };
     };
   }
