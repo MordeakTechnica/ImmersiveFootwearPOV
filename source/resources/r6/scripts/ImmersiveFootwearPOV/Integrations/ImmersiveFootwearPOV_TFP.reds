@@ -16,11 +16,17 @@ public class TFPHelper {
 
   // Applies additive footwear height offset to TFP camera and syncs weapon ADS
   public static func ApplyFootwearHeight(game: GameInstance) -> Void {
+    let sysHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
+    if IsDefined(sysHandler) && sysHandler.IsPreGame() { return; };
+
+    let player: ref<PlayerPuppet> = GetPlayer(game);
+    if !IsDefined(player) || !player.IsAttached() { return; };
+
     let tfpSys: ref<IFPSystem> = IFPSystem.Get(game);
     if !IsDefined(tfpSys) || !tfpSys.IsSessionActive() { return; };
 
     let cam: ref<IFPCamera> = tfpSys.GetCamera();
-    if !IsDefined(cam) || !cam.IsEnabled() { return; };
+    if !IsDefined(cam) || !cam.IsEnabled() || !IsDefined(cam.GetFPP()) { return; };
 
     let config: ref<IFPConfig> = tfpSys.GetConfig();
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
@@ -37,7 +43,7 @@ public class TFPHelper {
 
         cam.ResetToBase(true);
 
-        // Sync weapon height with active footwear lift (Option A via TFPC slot transform)
+        // Sync weapon height with active footwear lift
         TFPHelper.SyncWeaponForCurrentFootwear(game);
 
         let shoeName: String = povSys.GetResolvedShoeDisplayName();
@@ -64,6 +70,12 @@ public class TFPHelper {
 
   // Synchronizes the active weapon's physical viewmodel & ADS height with footwear lift
   public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
+    let sysHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
+    if IsDefined(sysHandler) && sysHandler.IsPreGame() { return; };
+
+    let player: ref<PlayerPuppet> = GetPlayer(game);
+    if !IsDefined(player) || !player.IsAttached() { return; };
+
     let tfpSys: ref<IFPSystem> = IFPSystem.Get(game);
     if !IsDefined(tfpSys) || !tfpSys.IsSessionActive() { return; };
 
@@ -71,11 +83,10 @@ public class TFPHelper {
     let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
     let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
     let config: ref<IFPConfig> = tfpSys.GetConfig();
-    let player: ref<PlayerPuppet> = GetPlayer(game);
 
-    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) && IsDefined(player) {
+    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) {
       let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
-      if IsDefined(curWeapon) {
+      if IsDefined(curWeapon) && curWeapon.IsAttached() {
         let key: String = weapon.GetTuningKeyForCurrent();
         let effectiveOffset: Float = povSys.GetEffectiveOffset();
         let tune: ref<IFPWeaponSettings>;
@@ -86,7 +97,10 @@ public class TFPHelper {
         let roll: Float = IsDefined(tune) ? tune.gripRoll : 0.0;
         let userZ: Float = IsDefined(tune) ? tune.z : 0.0;
 
-        // Apply physical slot transformation to both right and left weapon grip slots via TFPC native C++ plugin
+        // 1. Refresh TFP weapon ADS stat modifiers first
+        weapon.RefreshCurrentWeapon(config.cameraZ, config);
+
+        // 2. Apply physical slot transformation AFTER RefreshCurrentWeapon so it is not overwritten by TFP ResetSlotTransform
         if effectiveOffset > 0.0001 {
           TFPCNative.PokeSlotTransform(player, "WeaponRight", 0.0, 0.0, effectiveOffset + userZ, 0.0, 0.0, roll);
           TFPCNative.PokeSlotTransform(player, "WeaponLeft", 0.0, 0.0, effectiveOffset + userZ, 0.0, 0.0, 0.0);
@@ -101,8 +115,6 @@ public class TFPHelper {
 
         povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
         povSys.SetTFPLastWeaponKey(key);
-
-        weapon.RefreshCurrentWeapon(config.cameraZ, config);
 
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
         let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon Slot Transform Applied -> Shoe Lift: +\(liftCm)cm | Slot: 'WeaponRight'/'WeaponLeft' (dz: +\(effectiveOffset)m)";
