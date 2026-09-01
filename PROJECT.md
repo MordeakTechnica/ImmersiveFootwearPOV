@@ -214,15 +214,11 @@ Items.Custom_Chunky_Platforms_01:
   - Test vehicle transitions: verify that entering cars drops elevation to `0.0 m` (preventing roof clipping) and stepping out immediately restores footwear height via `IFPCamera`.
 - [ ] **Step 6.7: Silent CET Behavior under TFP**
   - Ensure CET mod detects when TFP is active and remains completely passive/dormant, avoiding redundant Lua windows or conflicting overlays.
-- [ ] **Step 6.8: Native In-Game Settings Provider (RedscriptConfigFramework)**
-  - Created [`Integrations/ImmersiveFootwearPOV_RCF.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_RCF.reds) implementing `FootwearConfigProvider` extending `DVRCF_Provider`.
-  - Exposes native in-game settings menu under Mod Settings:
-    - **Heel Height (cm)** slider (0.0 to 25.0 cm).
-    - **Platform Height (cm)** slider (0.0 to 25.0 cm).
-    - **Apply Footwear Height** button (instant POV height update in-game).
-    - **Reset to Default / Clear Override** button.
-    - **Transition Debug Logging** toggle.
-  - Fully decoupled from CET: allows full custom testing directly from the native pause/settings menu without requiring CET overlay.
+- [x] **Step 6.8: Universal CET Configuration Window (Standalone & Multi-Framework)**
+  - Enhanced [`integrations/ifp.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/integrations/ifp.lua) with hybrid window rendering:
+    - When IFP is installed: seamlessly appends to IFP's native in-game window.
+    - When TFP or Standalone (neither) is installed: opens dedicated "Immersive Footwear POV" CET overlay window.
+  - Exposes interactive Heel Height & Platform Height sliders, Photo Mode auto-elevation toggles, real-time stance diagnostics, and custom height reset buttons across all installation matrix states without depending on external Redscript config providers.
 
 ---
 

@@ -63,20 +63,37 @@ function IFP.ApplyBlend(player, activeBlend)
 end
 
 -- -----------------------------------------------------------------------------
--- Render Footwear UI directly inside the native IFP CET Window
+-- Render Footwear UI (Standalone Window or Appended to IFP Window)
 -- -----------------------------------------------------------------------------
 function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
-    if not IFP.IsInstalled() then
-        return
+    local ifpInstalled = IFP.IsInstalled()
+    local isAppended = false
+
+    if ifpInstalled then
+        isAppended = ImGui.Begin("Immersive First Person")
     end
 
-    if not ImGui.Begin("Immersive First Person") then
-        return
+    if not isAppended then
+        if not ImGui.Begin("Immersive Footwear POV", ImGuiWindowFlags.AlwaysAutoResize) then
+            ImGui.End()
+            return
+        end
     end
 
-    ImGui.Spacing()
-    ImGui.Separator()
-    ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV Extension]")
+    if isAppended then
+        ImGui.Spacing()
+        ImGui.Separator()
+        ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV Extension]")
+    else
+        ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV]")
+        local isTFP = (sys and sys.IsTFPPresent and sys:IsTFPPresent()) or false
+        if isTFP then
+            ImGui.TextDisabled("Active POV Engine: True First Person (TFP Native REDscript)")
+        else
+            ImGui.TextDisabled("Active POV Engine: Standalone / Photo Mode (PM)")
+        end
+        ImGui.Separator()
+    end
 
     local shoeState = modState.currentShoeState
 
