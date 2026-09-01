@@ -3,9 +3,6 @@ module ImmersiveFootwearPOV
 @if(ModuleExists("TrueFirstPerson"))
 import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon, IFPWeaponTuning, IFPWeaponSettings}
 
-@if(ModuleExists("TFPCPlugin"))
-import TFPCPlugin.TFPCNative
-
 // =============================================================================
 // Immersive Footwear POV - True First Person (TFP) Integration Helper
 // Additive native REDscript camera elevation, weapon alignment, and telemetry
@@ -81,43 +78,22 @@ public class TFPHelper {
 
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
-    let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
     let config: ref<IFPConfig> = tfpSys.GetConfig();
 
-    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) {
+    if IsDefined(weapon) && IsDefined(povSys) && IsDefined(config) {
       let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
       if IsDefined(curWeapon) && curWeapon.IsAttached() {
-        let key: String = weapon.GetTuningKeyForCurrent();
         let effectiveOffset: Float = povSys.GetEffectiveOffset();
-        let tune: ref<IFPWeaponSettings>;
-        if StrLen(key) > 0 {
-          tune = tuning.Get(key);
-        };
+        let key: String = weapon.GetTuningKeyForCurrent();
 
-        let roll: Float = IsDefined(tune) ? tune.gripRoll : 0.0;
-        let userZ: Float = IsDefined(tune) ? tune.z : 0.0;
-
-        // 1. Refresh TFP weapon ADS stat modifiers first
+        // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
         weapon.RefreshCurrentWeapon(config.cameraZ, config);
-
-        // 2. Apply physical slot transformation AFTER RefreshCurrentWeapon so it is not overwritten by TFP ResetSlotTransform
-        if effectiveOffset > 0.0001 {
-          TFPCNative.PokeSlotTransform(player, "WeaponRight", 0.0, 0.0, effectiveOffset + userZ, 0.0, 0.0, roll);
-          TFPCNative.PokeSlotTransform(player, "WeaponLeft", 0.0, 0.0, effectiveOffset + userZ, 0.0, 0.0, 0.0);
-        } else {
-          if AbsF(roll) > 0.01 || AbsF(userZ) > 0.0001 {
-            TFPCNative.PokeSlotTransform(player, "WeaponRight", 0.0, 0.0, userZ, 0.0, 0.0, roll);
-          } else {
-            TFPCNative.ResetSlotTransform(player, "WeaponRight");
-          };
-          TFPCNative.ResetSlotTransform(player, "WeaponLeft");
-        };
 
         povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
         povSys.SetTFPLastWeaponKey(key);
 
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
-        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon Slot Transform Applied -> Shoe Lift: +\(liftCm)cm | Slot: 'WeaponRight'/'WeaponLeft' (dz: +\(effectiveOffset)m)";
+        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Alignment Synced -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
         LogChannel(n"DEBUG", msg);
         Log(msg);
       };
