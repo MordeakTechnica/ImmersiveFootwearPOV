@@ -214,6 +214,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
     if IsDefined(player) {
       HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
+      TFPHelper.ApplyFootwearHeight(player.GetGame());
     };
   }
 
@@ -251,6 +252,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func GetBodyOffset(player: ref<PlayerPuppet>) -> Float {
     return this.m_effectiveOffset;
+  }
+
+  public func IsTFPPresent() -> Bool {
+    return FrameworkDetector.IsTFPPresent();
   }
 
 

@@ -14,6 +14,12 @@ public class HeightController {
       return false;
     };
 
+    // When True First Person is present, camera elevation is handled mathematically by TFP.
+    // We skip touching the skeletal animgraph blend to prevent double-height conflicts.
+    if FrameworkDetector.IsTFPPresent() {
+      return false;
+    };
+
     // Calculate animgraph blend:
     // Range is -50cm (-0.50m) to +50cm (+0.50m)
     // 0.0m offset (flat shoes) -> blend 0.50

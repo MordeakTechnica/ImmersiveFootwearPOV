@@ -202,9 +202,10 @@ Items.Custom_Chunky_Platforms_01:
 - [x] **Step 6.3: Observational Telemetry & State Polling**
   - Hooked TFP camera update lifecycle events (`InitPosition`, `ResetForWeapon`, `ResetCameraVehicle`, `HandleCamera`) purely for non-invasive observational telemetry.
   - Implemented transition-gated logging to monitor active footwear name, effective shoe lift (+cm), TFP base Z, active camera Z, and suppression state.
-- [ ] **Step 6.4: Additive Camera Z Offset Injection (`IFPCamera.GetBaseZ`)**
-  - Wrap `IFPCamera.GetBaseZ(config: ref<IFPConfig>) -> Float` to inject `ImmersiveFootwearPOVSystem.GetInstance().GetEffectiveOffset()`.
-  - Ensure all context-aware suppression (sitting, ladders, swimming, crouching) naturally applies.
+- [x] **Step 6.4: Additive Camera Z Offset Injection (`TFPHelper.ApplyFootwearHeight`)**
+  - Implemented additive camera elevation in `ImmersiveFootwearPOV_TFP.reds` synchronizing `config.cameraZ = baseZ + effectiveOffset` across `IFPCamera.InitPosition` and `IFPWeapon.RefreshCurrentWeapon`.
+  - Context-aware suppression (sitting, ladders, swimming, crouching, vehicle entry) automatically zeroes out the offset ($0.0\,\text{m}$) via `ImmersiveFootwearPOVSystem.RecalculateEffectiveOffset()`.
+  - Verified 100% native REDscript compilation with 0 errors via `compile_redscripts.py`.
 - [ ] **Step 6.5: Weapon Offset & ADS Alignment Verification**
   - Test and verify that TFP's `IFPWeapon.reds` automatically applies matching inverse downward compensation (`-cameraHeight`) to maintain perfect iron-sight and optic crosshair centering.
 - [ ] **Step 6.6: Vehicle Entry Suppression & Exit Restoration**

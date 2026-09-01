@@ -361,6 +361,17 @@ registerForEvent("onUpdate", function(deltaTime)
         SyncShoeState(player, sys)
     end
 
+    -- Always update Photo Mode platform lift
+    PMIntegration.OnUpdate(deltaTime)
+
+    local isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false
+
+    -- When True First Person is active, camera elevation is handled 100% natively in REDscript.
+    -- We skip the IFP animgraph skeletal blend to prevent double-height conflicts.
+    if isTFP then
+        return
+    end
+
     -- Poll IFP base height periodically (or every frame in overlay)
     mod.ifpPollTimer = mod.ifpPollTimer + deltaTime
     if mod.ifpPollTimer >= 0.10 or mod.isOverlayOpen then
