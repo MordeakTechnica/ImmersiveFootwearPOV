@@ -3,6 +3,9 @@ module ImmersiveFootwearPOV
 @if(ModuleExists("TrueFirstPerson"))
 import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon, IFPWeaponTuning, IFPWeaponSettings}
 
+@if(ModuleExists("TFPCPlugin"))
+import TFPCPlugin.TFPCNative
+
 // =============================================================================
 // Immersive Footwear POV - True First Person (TFP) Integration Helper
 // Additive native REDscript camera elevation, weapon alignment, and telemetry
@@ -34,7 +37,7 @@ public class TFPHelper {
 
         cam.ResetToBase(true);
 
-        // Sync weapon height with active footwear lift (Option A)
+        // Sync weapon height with active footwear lift (Option A via TFPC slot transform)
         TFPHelper.SyncWeaponForCurrentFootwear(game);
 
         let shoeName: String = povSys.GetResolvedShoeDisplayName();
@@ -59,7 +62,7 @@ public class TFPHelper {
     };
   }
 
-  // Synchronizes the active weapon's physical viewmodel & ADS height with footwear lift (Option A)
+  // Synchronizes the active weapon's physical viewmodel & ADS height with footwear lift
   public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
     let tfpSys: ref<IFPSystem> = IFPSystem.Get(game);
     if !IsDefined(tfpSys) || !tfpSys.IsSessionActive() { return; };
@@ -68,30 +71,43 @@ public class TFPHelper {
     let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
     let tuning: ref<IFPWeaponTuning> = tfpSys.GetWeaponTuning();
     let config: ref<IFPConfig> = tfpSys.GetConfig();
+    let player: ref<PlayerPuppet> = GetPlayer(game);
 
-    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) {
+    if IsDefined(weapon) && IsDefined(tuning) && IsDefined(povSys) && IsDefined(config) && IsDefined(player) {
       let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
       if IsDefined(curWeapon) {
         let key: String = weapon.GetTuningKeyForCurrent();
+        let effectiveOffset: Float = povSys.GetEffectiveOffset();
+        let tune: ref<IFPWeaponSettings>;
         if StrLen(key) > 0 {
-          let effectiveOffset: Float = povSys.GetEffectiveOffset();
-          let lastKey: String = povSys.GetTFPLastWeaponKey();
-          let lastLift: Float = povSys.GetTFPLastAppliedWeaponLift();
-          let tune: ref<IFPWeaponSettings> = tuning.GetOrCreate(key);
-          if IsDefined(tune) {
-            if NotEquals(key, lastKey) {
-              tune.z += effectiveOffset;
-              povSys.SetTFPLastWeaponKey(key);
-            } else {
-              let liftDelta: Float = effectiveOffset - lastLift;
-              if AbsF(liftDelta) > 0.0001 {
-                tune.z += liftDelta;
-              };
-            };
-          };
-          povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
-          weapon.RefreshCurrentWeapon(config.cameraZ, config);
+          tune = tuning.Get(key);
         };
+
+        let roll: Float = IsDefined(tune) ? tune.gripRoll : 0.0;
+        let userZ: Float = IsDefined(tune) ? tune.z : 0.0;
+
+        // Apply physical slot transformation to both right and left weapon grip slots via TFPC native C++ plugin
+        if effectiveOffset > 0.0001 {
+          TFPCNative.PokeSlotTransform(player, "WeaponRight", 0.0, 0.0, effectiveOffset + userZ, 0.0, 0.0, roll);
+          TFPCNative.PokeSlotTransform(player, "WeaponLeft", 0.0, 0.0, effectiveOffset + userZ, 0.0, 0.0, 0.0);
+        } else {
+          if AbsF(roll) > 0.01 || AbsF(userZ) > 0.0001 {
+            TFPCNative.PokeSlotTransform(player, "WeaponRight", 0.0, 0.0, userZ, 0.0, 0.0, roll);
+          } else {
+            TFPCNative.ResetSlotTransform(player, "WeaponRight");
+          };
+          TFPCNative.ResetSlotTransform(player, "WeaponLeft");
+        };
+
+        povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
+        povSys.SetTFPLastWeaponKey(key);
+
+        weapon.RefreshCurrentWeapon(config.cameraZ, config);
+
+        let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
+        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon Slot Transform Applied -> Shoe Lift: +\(liftCm)cm | Slot: 'WeaponRight'/'WeaponLeft' (dz: +\(effectiveOffset)m)";
+        LogChannel(n"DEBUG", msg);
+        Log(msg);
       };
     };
   }
