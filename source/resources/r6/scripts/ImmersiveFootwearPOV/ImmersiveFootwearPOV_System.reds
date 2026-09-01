@@ -145,63 +145,60 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       return false;
     };
 
-    let wasSuppressed: Bool = this.m_isSuppressed;
-    let oldReason: String = this.m_suppressionReason;
-    let newSuppressed: Bool = false;
-    let newReason: String = "";
-
     // 1. Vehicles
     if this.m_isInVehicle || VehicleComponent.IsMountedToVehicle(player.GetGame(), player) {
-      newSuppressed = true;
-      newReason = "Vehicle Occupancy";
-    } else if this.m_isInWorkspot || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
-      // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
-      newSuppressed = true;
-      newReason = "Authored Workspot";
-    } else {
-      let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
-      if IsDefined(psmBlackboard) {
-        // 3. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
-        let sceneTier: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.SceneTier);
-        if sceneTier >= 3 || sceneTier <= 0 {
-          newSuppressed = true;
-          newReason = "Scripted Scene / Dialogue";
-        } else {
-          // 4. Locomotion Traversal & Special Actions
-          let detailedLocomotion: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.LocomotionDetailed);
-          if detailedLocomotion >= 8 && detailedLocomotion <= 13 {
-            newSuppressed = true;
-            newReason = "Climb, Vault, or Ladder";
-          } else if detailedLocomotion == 29 || detailedLocomotion == 31 {
-            newSuppressed = true;
-            newReason = "Knockdown or Forced Reaction";
-          } else {
-            let highLevel: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.HighLevel);
-            let swimmingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Swimming);
-            if highLevel == 6 || swimmingState > 0 {
-              newSuppressed = true;
-              newReason = "Swimming";
-            } else {
-              let takedownState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.Takedown);
-              if takedownState > 0 {
-                newSuppressed = true;
-                newReason = "Takedown or Grapple";
-              } else {
-                let carryingState: Int32 = psmBlackboard.GetInt(GetAllBlackboardDefs().PlayerStateMachine.BodyCarrying);
-                if carryingState > 0 {
-                  newSuppressed = true;
-                  newReason = "Body Carrying";
-                };
-              };
-            };
-          };
-        };
-      };
+      return this.SetSuppression(true, "Vehicle Occupancy");
     };
 
-    this.m_isSuppressed = newSuppressed;
-    this.m_suppressionReason = newReason;
+    // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
+    if this.m_isInWorkspot || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
+      return this.SetSuppression(true, "Authored Workspot");
+    };
 
+    let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
+    if !IsDefined(psmBlackboard) {
+      return this.SetSuppression(false, "");
+    };
+
+    let psmDefs: ref<PlayerStateMachineDef> = GetAllBlackboardDefs().PlayerStateMachine;
+
+    // 3. Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
+    let sceneTier: Int32 = psmBlackboard.GetInt(psmDefs.SceneTier);
+    if sceneTier >= 3 || sceneTier <= 0 {
+      return this.SetSuppression(true, "Scripted Scene / Dialogue");
+    };
+
+    // 4. Locomotion Traversal & Special Actions (Climb, Vault, Ladder, Knockdown)
+    let detailedLoco: Int32 = psmBlackboard.GetInt(psmDefs.LocomotionDetailed);
+    if detailedLoco >= 8 && detailedLoco <= 13 {
+      return this.SetSuppression(true, "Climb, Vault, or Ladder");
+    };
+    if detailedLoco == 29 || detailedLoco == 31 {
+      return this.SetSuppression(true, "Knockdown or Forced Reaction");
+    };
+
+    // 5. Swimming
+    let highLevel: Int32 = psmBlackboard.GetInt(psmDefs.HighLevel);
+    let swimmingState: Int32 = psmBlackboard.GetInt(psmDefs.Swimming);
+    if highLevel == 6 || swimmingState > 0 {
+      return this.SetSuppression(true, "Swimming");
+    };
+
+    // 6. Combat / Action Locks (Takedown, Body Carrying)
+    if psmBlackboard.GetInt(psmDefs.Takedown) > 0 {
+      return this.SetSuppression(true, "Takedown or Grapple");
+    };
+    if psmBlackboard.GetInt(psmDefs.BodyCarrying) > 0 {
+      return this.SetSuppression(true, "Body Carrying");
+    };
+
+    // No suppression active
+    return this.SetSuppression(false, "");
+  }
+
+  private func SetSuppression(suppressed: Bool, reason: String) -> Bool {
+    this.m_isSuppressed = suppressed;
+    this.m_suppressionReason = reason;
     return this.m_isSuppressed;
   }
 
