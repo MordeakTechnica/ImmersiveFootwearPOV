@@ -215,9 +215,9 @@ Items.Custom_Chunky_Platforms_01:
 - [ ] **Step 6.7: Silent CET Behavior under TFP**
   - Ensure CET mod detects when TFP is active and remains completely passive/dormant, avoiding redundant Lua windows or conflicting overlays.
 - [x] **Step 6.8: Universal CET Configuration Window (Standalone & Multi-Framework)**
-  - Enhanced [`integrations/ifp.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/integrations/ifp.lua) with hybrid window rendering:
-    - When IFP is installed: seamlessly appends to IFP's native in-game window.
-    - When TFP or Standalone (neither) is installed: opens dedicated "Immersive Footwear POV" CET overlay window.
+  - Enhanced [`integrations/ifp.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/integrations/ifp.lua) with mutually exclusive hybrid window rendering:
+    - When IFP is enabled (and TFP is not active): seamlessly and exclusively attaches to IFP's native in-game window (`"Immersive First Person"`). No separate Footwear window is opened.
+    - When either no 3rd-party POV mod or TFP is installed (or IFP is disabled): adds a dedicated `"Immersive Footwear POV"` CET overlay window.
   - Exposes interactive Heel Height & Platform Height sliders, Photo Mode auto-elevation toggles, real-time stance diagnostics, and custom height reset buttons across all installation matrix states without depending on external Redscript config providers.
 
 ---

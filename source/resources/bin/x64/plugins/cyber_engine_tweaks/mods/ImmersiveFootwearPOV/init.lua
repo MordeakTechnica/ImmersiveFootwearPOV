@@ -294,10 +294,12 @@ function mod.DumpState()
     local tfpPresent = (sys and sys.IsTFPPresent) and sys:IsTFPPresent() or false
     local eqExPresent = (sys and sys.IsEquipmentExPresent) and sys:IsEquipmentExPresent() or false
     local ifpInstalled = IFPIntegration.IsInstalled()
+    local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
 
     print("================ [Immersive Footwear POV Diagnostics] ================")
-    print(string.format(" Frameworks Active: IFP: %s | TFP: %s | Equipment-EX: %s",
+    print(string.format(" Frameworks Active: IFP: %s (Enabled: %s) | TFP: %s | Equipment-EX: %s",
         ifpInstalled and "INSTALLED" or "ABSENT",
+        ifpEnabled and "YES" or "NO",
         tfpPresent and "INSTALLED" or "ABSENT",
         eqExPresent and "INSTALLED" or "ABSENT"))
     print(string.format(" Debug Logging:     %s", mod.debugLogs and "ENABLED" or "DISABLED"))
@@ -329,8 +331,10 @@ registerForEvent("onInit", function()
     local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
     local ifpInstalled = IFPIntegration.IsInstalled()
-    print(string.format("[ImmersiveFootwearPOV] Initialized | IFP: %s (Base: %.1f cm) | Debug: %s",
+    local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
+    print(string.format("[ImmersiveFootwearPOV] Initialized | IFP: %s (Enabled: %s, Base: %.1f cm) | Debug: %s",
         ifpInstalled and "ACTIVE" or "ABSENT",
+        ifpEnabled and "YES" or "NO",
         mod.ifpBaseHeightCm, mod.debugLogs and "ENABLED" or "DISABLED"))
 end)
 
