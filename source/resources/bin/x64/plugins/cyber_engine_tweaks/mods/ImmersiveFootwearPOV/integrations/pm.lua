@@ -4,6 +4,21 @@
 -- Ensures 3rd-person Photo Mode character poses have accurate platform sole elevation
 -- =============================================================================
 
+local PM_CONSTANTS = {
+    ATTR_V_UP_DOWN = 37,           -- Native Cyberpunk 2077 Photo Mode V Elevation Attribute
+    ATTR_WARDROBE_SET = 3300,      -- Vanilla Wardrobe set switcher attribute
+    ATTR_EQUIPMENT_EX_OUTFIT = 3301, -- Equipment-EX outfit switcher attribute
+    DELAY_FRAMES_INITIAL_ELEVATION = 2, -- Frames to wait after OnShow for PM menu readiness
+    DELAY_FRAMES_OUTFIT_INSPECT = 8,    -- Frames to wait after wardrobe switch for mesh attachment
+}
+
+local FOOTWEAR_SLOTS = {
+    "OutfitSlots.Feet",
+    "AttachmentSlots.Feet",
+    "OutfitSlots.FeetOuter",
+    "OutfitSlots.Legs",
+}
+
 local PM = {
     isPhotoModeActive = false,
     controller = nil,
@@ -11,19 +26,12 @@ local PM = {
     pendingPlatformCm = 0.0,
     elevationFrames = 0,
     pendingInspectFrames = nil,
-    ATTR_V_UP_DOWN = 37, -- Native Cyberpunk 2077 Photo Mode V Elevation Attribute
+    ATTR_V_UP_DOWN = PM_CONSTANTS.ATTR_V_UP_DOWN,
     modState = nil,
 }
 
-local FOOTWEAR_SLOTS = {
-    "OutfitSlots.Feet",
-    "AttachmentSlots.Feet",
-    "OutfitSlots.FeetOuter",
-    "OutfitSlots.Legs"
-}
-
 -- -----------------------------------------------------------------------------
--- Logging & Native UI Attribute Dispatcher
+-- Logging & Diagnostics
 -- -----------------------------------------------------------------------------
 local function LogPM(fmt, ...)
     if PM.modState and PM.modState.debugLogs then
@@ -35,6 +43,9 @@ function PM.IsActive()
     return PM.isPhotoModeActive
 end
 
+-- -----------------------------------------------------------------------------
+-- Native UI Attribute Dispatcher
+-- -----------------------------------------------------------------------------
 function PM.ForceAttribute(attribute, value)
     if not PM.controller or not PM.isPhotoModeActive then
         LogPM("ForceAttribute called but controller is %s, isPhotoModeActive is %s",
@@ -47,7 +58,7 @@ function PM.ForceAttribute(attribute, value)
     end)
 
     if itemOk and item ~= nil then
-        local forceOk, err = pcall(function()
+        local forceOk = pcall(function()
             item:ForceValue(value, true)
         end)
         if forceOk then
@@ -130,7 +141,7 @@ local function GetEquippedFootwear(puppet)
 end
 
 local function ResolveShoeHeights(itemID, tdbid, cleanKey)
-    local heelCm, platCm, source = 0.0, 0.0, "None"
+    local heelCm, platCm = 0.0, 0.0
 
     -- 1. Official TweakDB metadata tags via REDscript ShoeHeightParser
     pcall(function()
@@ -159,6 +170,20 @@ local function ResolveShoeHeights(itemID, tdbid, cleanKey)
     return 0.0, 0.0, "None"
 end
 
+local function CalculatePMElevation(platformCm)
+    local autoElevate = PM.modState and (PM.modState.autoElevatePMPlatform ~= false) or true
+    local elevationMeters = (autoElevate and platformCm > 0.0) and (platformCm / 100.0) or 0.0
+    return elevationMeters, autoElevate
+end
+
+local function ExtractOptionText(option)
+    if not option then return nil end
+    if type(option) == "string" then return option end
+    if option.optionText then return tostring(option.optionText) end
+    if option.GetOptionText then return tostring(option:GetOptionText()) end
+    return nil
+end
+
 -- -----------------------------------------------------------------------------
 -- Photo Mode Elevation Controller
 -- -----------------------------------------------------------------------------
@@ -171,8 +196,8 @@ local function UpdatePMElevationFromOutfitName(controller, outfitName)
         if not itemID or not ItemID.IsValid(itemID) then
             -- Outfit is confirmed barefoot / flat in Equipment-EX
             PM.pendingInspectFrames = nil
-            print(string.format("[ImmersiveFootwearPOV][PM] Outfit Switched -> '%s' (Direct Equipment-EX Query: Barefoot / Flat) | Platform: +0.0 cm | Elevation: +0.0000 m", tostring(outfitName)))
-            PM.ForceAttribute(PM.ATTR_V_UP_DOWN, 0.0)
+            LogPM("Outfit Switched -> '%s' (Barefoot / Flat) | Elevation: +0.0000 m", tostring(outfitName))
+            PM.ForceAttribute(PM_CONSTANTS.ATTR_V_UP_DOWN, 0.0)
             return true
         end
 
@@ -180,12 +205,10 @@ local function UpdatePMElevationFromOutfitName(controller, outfitName)
         local shoeKey = ExtractCleanTDBIDString(tdbid)
         local displayName = GetShoeDisplayName(tdbid, shoeKey)
         local heelCm, platformCm, source = ResolveShoeHeights(itemID, tdbid, shoeKey)
-
-        local autoElevate = PM.modState and (PM.modState.autoElevatePMPlatform ~= false) or true
-        local elevationMeters = (autoElevate and platformCm > 0.0) and (platformCm / 100.0) or 0.0
+        local elevationMeters, autoElevate = CalculatePMElevation(platformCm)
 
         PM.pendingInspectFrames = nil
-        print(string.format("[ImmersiveFootwearPOV][PM] Outfit Switched -> '%s' (Direct Equipment-EX Query: Footwear: '%s', Key: '%s', Source: %s) | Heel: +%.1f cm | Platform: +%.1f cm | AutoElevate: %s | Elevation: +%.4f m",
+        LogPM("Outfit Switched -> '%s' (Footwear: '%s', Key: '%s', Source: %s) | Heel: +%.1f cm | Platform: +%.1f cm | AutoElevate: %s | Elevation: +%.4f m",
             tostring(outfitName),
             tostring(displayName),
             tostring(shoeKey),
@@ -193,9 +216,9 @@ local function UpdatePMElevationFromOutfitName(controller, outfitName)
             heelCm,
             platformCm,
             tostring(autoElevate),
-            elevationMeters))
+            elevationMeters)
 
-        PM.ForceAttribute(PM.ATTR_V_UP_DOWN, elevationMeters)
+        PM.ForceAttribute(PM_CONSTANTS.ATTR_V_UP_DOWN, elevationMeters)
         return true
     end)
     return ok and (success == true)
@@ -217,10 +240,9 @@ local function UpdatePMFootwearElevation(controller)
             heelCm, platformCm, source = ResolveShoeHeights(itemID, tdbid, shoeKey)
         end
 
-        local autoElevate = PM.modState and (PM.modState.autoElevatePMPlatform ~= false) or true
-        local elevationMeters = (autoElevate and platformCm > 0.0) and (platformCm / 100.0) or 0.0
+        local elevationMeters, autoElevate = CalculatePMElevation(platformCm)
 
-        print(string.format("[ImmersiveFootwearPOV][PM] Outfit Switched -> Footwear: '%s' (Key: '%s', Slot: %s, Source: %s) | Heel: +%.1f cm | Platform: +%.1f cm | AutoElevate: %s | Elevation: +%.4f m",
+        LogPM("Outfit Switched -> Footwear: '%s' (Key: '%s', Slot: %s, Source: %s) | Heel: +%.1f cm | Platform: +%.1f cm | AutoElevate: %s | Elevation: +%.4f m",
             tostring(displayName),
             tostring(shoeKey),
             tostring(slotName or "None"),
@@ -228,9 +250,9 @@ local function UpdatePMFootwearElevation(controller)
             heelCm,
             platformCm,
             tostring(autoElevate),
-            elevationMeters))
+            elevationMeters)
 
-        PM.ForceAttribute(PM.ATTR_V_UP_DOWN, elevationMeters)
+        PM.ForceAttribute(PM_CONSTANTS.ATTR_V_UP_DOWN, elevationMeters)
     end)
     if not ok then
         print(string.format("[ImmersiveFootwearPOV][PM] UpdatePMFootwearElevation error: %s", tostring(err)))
@@ -253,18 +275,18 @@ function PM.Init(modState)
         local shoeState = modState and modState.currentShoeState or {}
         local platformCm = shoeState.platformCm or 0.0
         local heelCm = shoeState.heelCm or 0.0
-        local autoElevate = modState and (modState.autoElevatePMPlatform ~= false) or true
+        local elevationMeters, autoElevate = CalculatePMElevation(platformCm)
 
-        print(string.format("[ImmersiveFootwearPOV][PM] OnShow triggered. Controller: %s | Shoe: '%s' (ID: %s) | Heel: +%.1fcm | Platform: +%.1fcm | AutoElevate: %s",
+        LogPM("OnShow triggered. Controller: %s | Shoe: '%s' (ID: %s) | Heel: +%.1fcm | Platform: +%.1fcm | AutoElevate: %s",
             controller and "Valid" or "nil",
             tostring(shoeState.displayName or "None"),
             tostring(shoeState.key or "None"),
             heelCm,
             platformCm,
-            tostring(autoElevate)))
+            tostring(autoElevate))
 
         if autoElevate and platformCm > 0.0 then
-            PM.pendingElevation = platformCm / 100.0
+            PM.pendingElevation = elevationMeters
             PM.pendingPlatformCm = platformCm
             PM.elevationFrames = 0
         else
@@ -275,7 +297,7 @@ function PM.Init(modState)
 
     Observe("gameuiPhotoModeMenuController", "OnHide", function()
         if PM.isPhotoModeActive then
-            print("[ImmersiveFootwearPOV][PM] OnHide triggered. Exiting Photo Mode. Cleaning up controller and restoring stance.")
+            LogPM("OnHide triggered. Exiting Photo Mode. Cleaning up controller and restoring stance.")
             PM.isPhotoModeActive = false
             PM.controller = nil
             PM.pendingElevation = nil
@@ -288,27 +310,16 @@ function PM.Init(modState)
         end
     end)
 
-    -- Detect in-PM outfit switcher updates (Equipment-EX & Vanilla Wardrobe)
     local function TriggerDelayedInspection()
         if PM.isPhotoModeActive then
-            PM.pendingInspectFrames = 8
+            PM.pendingInspectFrames = PM_CONSTANTS.DELAY_FRAMES_OUTFIT_INSPECT
         end
     end
 
     Observe("gameuiPhotoModeMenuController", "OnAttributeOptionSelected", function(controller, attribute, option)
-        local attrKey = tostring(attribute)
-        if attrKey == "3301" or attrKey == "3300" then
-            local optText = nil
-            if option then
-                if type(option) == "string" then
-                    optText = option
-                elseif option.optionText then
-                    optText = tostring(option.optionText)
-                elseif option.GetOptionText then
-                    optText = tostring(option:GetOptionText())
-                end
-            end
-
+        local attrId = tonumber(attribute) or 0
+        if attrId == PM_CONSTANTS.ATTR_EQUIPMENT_EX_OUTFIT or attrId == PM_CONSTANTS.ATTR_WARDROBE_SET then
+            local optText = ExtractOptionText(option)
             if optText and #optText > 0 then
                 local success = UpdatePMElevationFromOutfitName(controller, optText)
                 if not success then
@@ -326,7 +337,7 @@ function PM.Init(modState)
 end
 
 function PM.OnUpdate(deltaTime)
-    -- Asynchronous in-PM outfit inspection queue (waits 8 frames for mesh attachment)
+    -- Asynchronous in-PM outfit inspection queue (waits for mesh attachment)
     if PM.pendingInspectFrames ~= nil and PM.isPhotoModeActive then
         PM.pendingInspectFrames = PM.pendingInspectFrames - 1
         if PM.pendingInspectFrames <= 0 then
@@ -338,10 +349,10 @@ function PM.OnUpdate(deltaTime)
     -- Initial PM entry elevation dispatcher
     if PM.pendingElevation ~= nil and PM.isPhotoModeActive and PM.controller ~= nil then
         PM.elevationFrames = PM.elevationFrames + 1
-        if PM.elevationFrames >= 2 then
-            local success = PM.ForceAttribute(PM.ATTR_V_UP_DOWN, PM.pendingElevation)
+        if PM.elevationFrames >= PM_CONSTANTS.DELAY_FRAMES_INITIAL_ELEVATION then
+            local success = PM.ForceAttribute(PM_CONSTANTS.ATTR_V_UP_DOWN, PM.pendingElevation)
             if success and PM.pendingPlatformCm > 0.0 then
-                print(string.format("[ImmersiveFootwearPOV] Photo Mode character elevated: +%.1f cm (+%.2f m)", PM.pendingPlatformCm, PM.pendingElevation))
+                LogPM("Photo Mode character elevated: +%.1f cm (+%.4f m)", PM.pendingPlatformCm, PM.pendingElevation)
             end
             PM.pendingElevation = nil
         end
