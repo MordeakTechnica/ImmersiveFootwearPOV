@@ -205,7 +205,8 @@ local function DrawStanceReadout(modState, shoeState, isAppended, sys)
         end
 
         if sys and sys.IsITPPresent and sys:IsITPPresent() then
-            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Dynamic foot_elevation_offset)", shoeState.effectiveCm))
+            local platCm = shoeState.isSuppressed and 0.0 or (shoeState.platformCm or 0.0)
+            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Platform Lift)", platCm))
         end
     end
 end

@@ -125,12 +125,20 @@ registerForEvent("onUpdate", function(deltaTime)
     -- Update Photo Mode platform lift once per frame
     PMIntegration.OnUpdate(deltaTime)
 
-    -- Continuously drive 3rd-person stance elevation (ITP foot_elevation_offset)
-    local currentOffset = sys:GetEffectiveOffset()
+    -- Continuously drive 3rd-person stance elevation (ITP foot_elevation_offset with platform height)
     local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+    local platformMeters = 0.0
+    if not isSuppressed then
+        if sys.GetEffectivePlatformOffset then
+            platformMeters = sys:GetEffectivePlatformOffset()
+        else
+            platformMeters = (mod.currentShoeState.platformCm or 0.0) / 100.0
+        end
+    end
     if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
-        local itpOffset = isSuppressed and 0.0 or currentOffset
-        pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), itpOffset)
+        -- Normalize [-0.50m, +0.50m] to animgraph blend [0.0, 1.0] where 0.50 is 0m neutral
+        local blend = math.min(math.max((platformMeters + 0.50) / 1.00, 0.0), 1.0)
+        pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), blend)
     end
 
     local isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false

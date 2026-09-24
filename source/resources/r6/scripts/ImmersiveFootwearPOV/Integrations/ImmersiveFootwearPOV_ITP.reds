@@ -15,11 +15,16 @@ public class ITPController {
       return false;
     };
 
-    // Clamp within declared animgraph variable bounds (-0.50m to +0.50m)
-    let clampedOffset: Float = ClampF(offsetMeters, -0.50, 0.50);
+    // Calculate animgraph blend:
+    // Range is -50cm (-0.50m) to +50cm (+0.50m)
+    // 0.0m offset (flat shoes / baseline) -> blend 0.50
+    // +0.05m offset (5cm platform)        -> blend 0.55
+    // +0.10m offset (10cm platform)       -> blend 0.60
+    let blend: Float = (offsetMeters + 0.50) / 1.00;
+    blend = ClampF(blend, 0.0, 1.0);
 
     // Native REDengine API queues AnimInputSetterFloat directly into active animgraph
-    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
+    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", blend);
     return true;
   }
 

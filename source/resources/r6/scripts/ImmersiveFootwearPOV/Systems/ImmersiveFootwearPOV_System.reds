@@ -109,10 +109,12 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.m_effectiveOffset = this.m_currentHeelHeight;
     };
 
+    let effectivePlatform: Float = suppressed ? 0.0 : this.m_currentPlatformHeight;
+
     if IsDefined(player) {
       HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
       TFPHelper.ApplyFootwearHeight(player.GetGame());
-      ITPController.ApplyHeightOffset(player, this.m_effectiveOffset);
+      ITPController.ApplyHeightOffset(player, effectivePlatform);
     };
   }
 
@@ -184,6 +186,12 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func GetCurrentPlatformHeight() -> Float { return this.m_currentPlatformHeight; }
   public func GetCurrentShoeHeight() -> Float { return this.m_currentHeelHeight; }
   public func GetEffectiveOffset() -> Float { return this.m_effectiveOffset; }
+  public func GetEffectivePlatformOffset() -> Float {
+    if this.m_isSuppressed {
+      return 0.0;
+    };
+    return this.m_currentPlatformHeight;
+  }
   public func HasOfficialTweakTags() -> Bool { return this.m_hasOfficialTags; }
   public func HasCustomOverride() -> Bool { return this.m_hasCustomOverride; }
   public func GetBodyOffset(player: ref<PlayerPuppet>) -> Float { return this.m_effectiveOffset; }
