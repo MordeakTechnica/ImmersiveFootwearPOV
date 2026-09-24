@@ -112,6 +112,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if IsDefined(player) {
       HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
       TFPHelper.ApplyFootwearHeight(player.GetGame());
+      ITPController.ApplyHeightOffset(player, this.m_effectiveOffset);
     };
   }
 
@@ -274,6 +275,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func IsEquipmentExPresent() -> Bool {
     return EquipmentExDetector.IsPresent();
+  }
+
+  public func IsITPPresent() -> Bool {
+    return ITPDetector.IsPresent(this.GetGameInstance());
   }
 
   // -----------------------------------------------------------------------------

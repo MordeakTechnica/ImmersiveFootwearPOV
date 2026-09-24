@@ -32,3 +32,9 @@ public class EquipmentExDetector {
     return false;
   }
 }
+
+public class ITPDetector {
+  public static func IsPresent(gameInstance: GameInstance) -> Bool {
+    return ITPController.IsITPPresent(gameInstance);
+  }
+}

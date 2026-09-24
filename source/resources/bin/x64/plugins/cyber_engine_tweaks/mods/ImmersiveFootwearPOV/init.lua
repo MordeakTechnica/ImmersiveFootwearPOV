@@ -125,6 +125,14 @@ registerForEvent("onUpdate", function(deltaTime)
     -- Update Photo Mode platform lift once per frame
     PMIntegration.OnUpdate(deltaTime)
 
+    -- Continuously drive 3rd-person stance elevation (ITP foot_elevation_offset)
+    local currentOffset = sys:GetEffectiveOffset()
+    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+    if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
+        local itpOffset = isSuppressed and 0.0 or currentOffset
+        pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), itpOffset)
+    end
+
     local isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false
 
     -- When True First Person is active, camera elevation is handled 100% natively in REDscript.

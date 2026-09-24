@@ -220,6 +220,23 @@ Items.Custom_Chunky_Platforms_01:
     - When either no 3rd-party POV mod or TFP is installed (or IFP is disabled): adds a dedicated `"Immersive Footwear POV"` CET overlay window.
   - Exposes interactive Heel Height & Platform Height sliders, Photo Mode auto-elevation toggles, real-time stance diagnostics, and custom height reset buttons across all installation matrix states without depending on external Redscript config providers.
 
+### Phase 7: Immersive Third Person (ITP) Dynamic Elevation Integration
+- [x] **Step 7.1: Dedicated REDscript Integration Module (`ImmersiveFootwearPOV_ITP.reds`)**
+  - Created [`ImmersiveFootwearPOV_ITP.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_ITP.reds) implementing `ITPController`.
+  - Interfaces natively with REDengine's `AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset)` to dynamically elevate V's third-person character model.
+  - Implemented runtime detection (`ITPController.IsITPPresent`) targeting `TPPCameraVisibleRenderBridge`.
+- [x] **Step 7.2: Framework Detection & Diagnostics Integration**
+  - Added `ITPDetector` helper in [`ImmersiveFootwearPOV_Framework.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_Framework.reds).
+  - Added `IsITPPresent()` system query on `ImmersiveFootwearPOVSystem`.
+- [x] **Step 7.3: Core Recalculation & Dynamic Height Feeding**
+  - Updated `ImmersiveFootwearPOVSystem.RecalculateEffectiveOffset(player)` to dynamically dispatch `ITPController.ApplyHeightOffset(player, this.m_effectiveOffset)` on all shoe changes, wardrobe swaps, and suppression updates.
+  - Automatically suppresses 3rd-person elevation during vehicles, workspots (chairs/couches/beds), swimming, ladders, and story cutscenes.
+- [x] **Step 7.4: CET Continuous Frame Driver & Telemetry Readouts**
+  - In [`init.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/init.lua), continuously feeds `foot_elevation_offset` across both FPP and TPP perspectives to guarantee persistence against animation graph resets.
+  - Enhanced CET overlay window ([`integrations/ifp.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/integrations/ifp.lua)) with live ITP engine detection and 3rd-person stance lift telemetry.
+- [x] **Step 7.5: Native REDscript Compilation Verification**
+  - Compiled and verified against live game cache via `scc.exe` with 0 errors and 0 warnings.
+
 ---
 
 ## 6. Dependencies & Publishing Requirements

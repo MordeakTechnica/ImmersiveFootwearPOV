@@ -188,11 +188,11 @@ local function DrawPhotoModeOptions(modState, shoeState, saveOverridesCallback)
     end
 end
 
-local function DrawStanceReadout(modState, shoeState, isAppended)
+local function DrawStanceReadout(modState, shoeState, isAppended, sys)
     ImGui.Separator()
     if shoeState.isSuppressed then
         ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
-        ImGui.Text(string.format("First-Person Stance: Temporarily Suppressed (%s)", shoeState.suppressionReason))
+        ImGui.Text(string.format("Stance Elevation: Temporarily Suppressed (%s)", shoeState.suppressionReason))
         ImGui.PopStyleColor(1)
         ImGui.TextDisabled("Elevation will smoothly restore upon standing / exiting.")
     else
@@ -202,6 +202,10 @@ local function DrawStanceReadout(modState, shoeState, isAppended)
             ImGui.TextColored(0.2, 1.0, 0.4, 1.0, string.format("Total Stance Lift: %+d cm (Base + Shoes)", math.floor(shoeState.totalStanceCm + 0.5)))
         else
             ImGui.TextColored(0.2, 1.0, 0.4, 1.0, string.format("Footwear Stance Lift: +%.1f cm", shoeState.effectiveCm))
+        end
+
+        if sys and sys.IsITPPresent and sys:IsITPPresent() then
+            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Dynamic foot_elevation_offset)", shoeState.effectiveCm))
         end
     end
 end
@@ -230,7 +234,7 @@ local function DrawFootwearControls(modState, player, sys, heightLimits, saveOve
 
     DrawHeightGuideAccordion()
     DrawPhotoModeOptions(modState, shoeState, saveOverridesCallback)
-    DrawStanceReadout(modState, shoeState, isAppended)
+    DrawStanceReadout(modState, shoeState, isAppended, sys)
 end
 
 -- -----------------------------------------------------------------------------
@@ -259,6 +263,8 @@ function IFP.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback)
             ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV]")
             if isTFP then
                 ImGui.TextDisabled("Active POV Engine: True First Person (TFP Native REDscript)")
+            elseif sys and sys.IsITPPresent and sys:IsITPPresent() then
+                ImGui.TextDisabled("Active POV Engine: Immersive Third Person (ITP Active)")
             else
                 ImGui.TextDisabled("Active POV Engine: Standalone / Photo Mode (PM)")
             end
