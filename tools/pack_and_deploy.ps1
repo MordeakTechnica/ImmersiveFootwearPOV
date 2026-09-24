@@ -100,6 +100,13 @@ Copy-Item -Recurse -Force (Join-Path $sourceCet "integrations\*") -Destination (
 Copy-Item -Recurse -Force (Join-Path $sourceCet "modules\*") -Destination (Join-Path $gameCet "modules")
 Write-Host "[+] Deployed CET files to $gameCet" -ForegroundColor Green
 
+# 4d. Tweaks
+$sourceTweaks = Join-Path $ProjectRoot "source\resources\r6\tweaks\ImmersiveFootwearPOV"
+$gameTweaks = Join-Path $GameDir "r6\tweaks\ImmersiveFootwearPOV"
+New-Item -ItemType Directory -Force -Path $gameTweaks | Out-Null
+Copy-Item -Recurse -Force "$sourceTweaks\*" -Destination $gameTweaks
+Write-Host "[+] Deployed Tweaks to $gameTweaks" -ForegroundColor Green
+
 Write-Host "`n=== Step 5: Validating REDscript Compilation in Game ===" -ForegroundColor Cyan
 $scc = Join-Path $GameDir "engine\tools\scc.exe"
 $finalRedscripts = Join-Path $GameDir "r6\cache\final.redscripts"
