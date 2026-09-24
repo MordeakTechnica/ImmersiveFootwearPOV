@@ -7,9 +7,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 
-# Archive names matching the mod with 'zz' prefix
-$ArchiveNameWithSpace = "zz_Immersive Footwear POV.archive"
-$ArchiveNameNoSpace = "zz_ImmersiveFootwearPOV.archive"
+# Archive name: mod name with spaces replaced by underscores, and 'zz_' prefix
+$ArchiveName = "zz_Immersive_Footwear_POV.archive"
 
 Write-Host "=== Step 1: Converting Raw AnimGraph to CR2W ===" -ForegroundColor Cyan
 $rawJson = Join-Path $ProjectRoot "source\raw\base\gameplay\anim_graphs\player_base.animgraph.json"
@@ -46,47 +45,46 @@ Remove-Item -Recurse -Force $packStagingDir
 
 $tempArchive = Join-Path $packOutDir "temp_pack_staging.archive"
 if (-not (Test-Path $tempArchive)) {
-    # If packed name was archive.archive
     $tempArchive = Join-Path $packOutDir "archive.archive"
 }
 
-$packedArchive = Join-Path $packOutDir $ArchiveNameWithSpace
+$packedArchive = Join-Path $packOutDir $ArchiveName
+# Clean older archives from packed directory
+Get-ChildItem $packOutDir -Filter "*.archive" | Where-Object { $_.Name -ne (Split-Path $tempArchive -Leaf) } | Remove-Item -Force
 Move-Item -Force $tempArchive $packedArchive
-# Also keep a no-space copy in packed for maximum compatibility
-Copy-Item -Force $packedArchive (Join-Path $packOutDir $ArchiveNameNoSpace)
 
 Write-Host "[+] Packed archive: $packedArchive" -ForegroundColor Green
 Write-Host "[*] Verifying internal archive structure:" -ForegroundColor DarkGray
 & $WkitCli archive $packedArchive -l
 
 Write-Host "`n=== Step 3: Copying Archive to Project Archive Folders ===" -ForegroundColor Cyan
-# Copy to source\archive folder as requested by user
-Copy-Item -Force $packedArchive (Join-Path $stagingRoot $ArchiveNameWithSpace)
-Copy-Item -Force $packedArchive (Join-Path $stagingRoot $ArchiveNameNoSpace)
-Write-Host "[+] Copied $ArchiveNameWithSpace into $stagingRoot" -ForegroundColor Green
+# Clean older archives from source\archive
+Get-ChildItem $stagingRoot -Filter "*.archive" | Remove-Item -Force
+Copy-Item -Force $packedArchive (Join-Path $stagingRoot $ArchiveName)
+Write-Host "[+] Copied $ArchiveName into $stagingRoot" -ForegroundColor Green
 
-# Copy to source\resources\archive\pc\mod folder
+# Clean older archives and copy to source\resources\archive\pc\mod
 $resArchiveDir = Join-Path $ProjectRoot "source\resources\archive\pc\mod"
 New-Item -ItemType Directory -Force -Path $resArchiveDir | Out-Null
-Copy-Item -Force $packedArchive (Join-Path $resArchiveDir $ArchiveNameWithSpace)
-Copy-Item -Force $packedArchive (Join-Path $resArchiveDir $ArchiveNameNoSpace)
-Write-Host "[+] Copied $ArchiveNameWithSpace into $resArchiveDir" -ForegroundColor Green
+Get-ChildItem $resArchiveDir -Filter "*.archive" | Remove-Item -Force
+Copy-Item -Force $packedArchive (Join-Path $resArchiveDir $ArchiveName)
+Write-Host "[+] Copied $ArchiveName into $resArchiveDir" -ForegroundColor Green
 
 Write-Host "`n=== Step 4: Deploying to Game Directory ===" -ForegroundColor Cyan
-# 4a. Mod Archive in game directory
 $gameModDir = Join-Path $GameDir "archive\pc\mod"
 New-Item -ItemType Directory -Force -Path $gameModDir | Out-Null
 
-# Clean up older intermediate name if present
-$oldArchive = Join-Path $gameModDir "zz_ImmersiveFootwearPOV_ITP.archive"
-if (Test-Path $oldArchive) {
-    Remove-Item -Force $oldArchive
-    Write-Host "[*] Removed outdated $oldArchive" -ForegroundColor DarkGray
+# Clean up older variants from game directory
+@("zz_Immersive Footwear POV.archive", "zz_ImmersiveFootwearPOV.archive", "zz_ImmersiveFootwearPOV_ITP.archive") | ForEach-Object {
+    $p = Join-Path $gameModDir $_
+    if (Test-Path $p) {
+        Remove-Item -Force $p
+        Write-Host "[*] Removed older variant: $_" -ForegroundColor DarkGray
+    }
 }
 
-Copy-Item -Force $packedArchive (Join-Path $gameModDir $ArchiveNameWithSpace)
-Copy-Item -Force $packedArchive (Join-Path $gameModDir $ArchiveNameNoSpace)
-Write-Host "[+] Deployed archive to $gameModDir\$ArchiveNameWithSpace" -ForegroundColor Green
+Copy-Item -Force $packedArchive (Join-Path $gameModDir $ArchiveName)
+Write-Host "[+] Deployed archive to $gameModDir\$ArchiveName" -ForegroundColor Green
 
 # 4b. REDscripts
 $sourceScripts = Join-Path $ProjectRoot "source\resources\r6\scripts\ImmersiveFootwearPOV"
@@ -112,4 +110,4 @@ if ((Test-Path $scc) -and (Test-Path $finalRedscripts)) {
     Write-Host "[-] scc.exe or final.redscripts not found, skipping validation." -ForegroundColor Yellow
 }
 
-Write-Host "`n=== All Steps Complete: Archive and Scripts Verified! ===" -ForegroundColor Green
+Write-Host "`n=== All Steps Complete: Single Archive zz_Immersive_Footwear_POV.archive Deployed! ===" -ForegroundColor Green
