@@ -2,9 +2,10 @@ import json
 import os
 import copy
 
+REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ifp_json_path = r"C:\Users\cogli\.gemini\antigravity\scratch\ifp_height_extracted\base\gameplay\anim_graphs\player_base.animgraph.json"
 itp_json_path = r"C:\Users\cogli\.gemini\antigravity\scratch\itp_extracted\base\gameplay\anim_graphs\player_base.animgraph.json"
-out_dir = r"C:\Users\cogli\.gemini\antigravity\scratch\itp_elevated\base\gameplay\anim_graphs"
+out_dir = os.path.join(REPO_DIR, "source", "raw", "base", "gameplay", "anim_graphs")
 os.makedirs(out_dir, exist_ok=True)
 out_json_path = os.path.join(out_dir, "player_base.animgraph.json")
 
