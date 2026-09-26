@@ -35,7 +35,9 @@ function State.ApplyCustomOverride(player, sys, shoeKey, overrides)
         local heelMeters = heelCm / 100.0
         local platMeters = platCm / 100.0
 
-        if not sys:HasCustomOverride() or shoeKey ~= State.lastEquippedKey or math.abs(sys:GetCurrentHeelHeight() - heelMeters) > 0.0005 then
+        if not sys:HasCustomOverride() or shoeKey ~= State.lastEquippedKey
+           or math.abs(sys:GetCurrentHeelHeight() - heelMeters) > 0.0005
+           or math.abs(sys:GetCurrentPlatformHeight() - platMeters) > 0.0005 then
             sys:SetCustomHeightOverride(player, heelMeters, platMeters)
         end
         shoeState.heelCm = heelCm

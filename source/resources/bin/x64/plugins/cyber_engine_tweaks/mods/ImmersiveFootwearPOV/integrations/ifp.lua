@@ -72,11 +72,17 @@ end
 -- -----------------------------------------------------------------------------
 -- Apply Active Blend Value to Character Animation Component
 -- -----------------------------------------------------------------------------
-function IFP.ApplyBlend(player, activeBlend)
+function IFP.ApplyBlend(player, activeBlend, offsetMeters)
     if not IFP.inputName then
         IFP.inputName = CName.new("ifp_height_blend")
     end
+    if not IFP.footElevationName then
+        IFP.footElevationName = CName.new("foot_elevation_offset")
+    end
     AnimationControllerComponent.SetInputFloat(player, IFP.inputName, activeBlend)
+    if offsetMeters ~= nil then
+        AnimationControllerComponent.SetInputFloat(player, IFP.footElevationName, offsetMeters)
+    end
 end
 
 -- -----------------------------------------------------------------------------
@@ -120,9 +126,9 @@ local function DrawCustomFootwearControls(modState, player, sys, shoeState, heig
 
     ImGui.Spacing()
 
-    -- Custom Platform Height Slider (Lifts character puppet in Photo Mode)
-    local platVal, platChanged = ImGui.SliderFloat("Custom Platform (PM)##ifp_custom_plat", shoeState.platformCm, 0.0, heightLimits.MAX_PLATFORM_CM, "%.1f cm")
-    ImGui.TextDisabled("  -> Front sole thickness: lifts character puppet in Photo Mode")
+    -- Custom Platform Height Slider (Lifts character puppet in Third Person & Photo Mode)
+    local platVal, platChanged = ImGui.SliderFloat("Custom Platform (3rd Person / PM)##ifp_custom_plat", shoeState.platformCm, 0.0, heightLimits.MAX_PLATFORM_CM, "%.1f cm")
+    ImGui.TextDisabled("  -> Front sole thickness: lifts character puppet in Third Person & Photo Mode")
     if platChanged and player and sys and #shoeKey > 0 then
         shoeState.platformCm = platVal
         if not modState.overrides[shoeKey] then
@@ -206,7 +212,8 @@ local function DrawStanceReadout(modState, shoeState, isAppended, sys)
 
         if sys and sys.IsITPPresent and sys:IsITPPresent() then
             local platCm = shoeState.isSuppressed and 0.0 or (shoeState.platformCm or 0.0)
-            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Platform Lift)", platCm))
+            local statusStr = modState.isITPActive and "[ACTIVE VIEW]" or "[FPP Active]"
+            ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Platform Lift) %s", platCm, statusStr))
         end
     end
 end

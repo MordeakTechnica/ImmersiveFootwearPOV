@@ -114,7 +114,11 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if IsDefined(player) {
       HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
       TFPHelper.ApplyFootwearHeight(player.GetGame());
-      ITPController.ApplyHeightOffset(player, effectivePlatform);
+      if ITPController.IsTPPActive(player) {
+        ITPController.ApplyHeightOffset(player, effectivePlatform);
+      } else {
+        ITPController.ResetHeightOffset(player);
+      };
     };
   }
 

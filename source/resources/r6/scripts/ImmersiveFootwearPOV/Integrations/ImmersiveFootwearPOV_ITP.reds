@@ -24,7 +24,8 @@ public class ITPController {
     blend = ClampF(blend, 0.0, 1.0);
 
     // Native REDengine API queues AnimInputSetterFloat directly into active animgraph
-    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", blend);
+    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", offsetMeters);
+    AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", blend);
     return true;
   }
 
@@ -41,5 +42,28 @@ public class ITPController {
       return IsDefined(itpBridge);
     };
     return false;
+  }
+
+  /// Checks if third-person camera is currently active and rendering
+  public static func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
+    if !IsDefined(player) {
+      return false;
+    };
+    let camSys: ref<CameraSystem> = GameInstance.GetCameraSystem(player.GetGame());
+    if !IsDefined(camSys) {
+      return false;
+    };
+    let camXf: Transform;
+    if !camSys.GetActiveCameraWorldTransform(camXf) {
+      return false;
+    };
+    let camPos: Vector4 = Transform.GetPosition(camXf);
+    let basePos: Vector4 = player.GetWorldPosition();
+    let eyeZ: Float = basePos.Z + 1.55;
+    let dx: Float = camPos.X - basePos.X;
+    let dy: Float = camPos.Y - basePos.Y;
+    let dz: Float = camPos.Z - eyeZ;
+    let distSq: Float = dx * dx + dy * dy + dz * dz;
+    return distSq > 0.64;
   }
 }

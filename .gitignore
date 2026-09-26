@@ -8,6 +8,10 @@ packed
 examples/
 examples
 
+# Tools and automation scripts
+tools/
+tools
+
 # User logs & caches
 *.log
 install_log.xml

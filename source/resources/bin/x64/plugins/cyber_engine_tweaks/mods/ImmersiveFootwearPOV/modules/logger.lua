@@ -55,4 +55,18 @@ function Logger.LogFPP(isTFP, fmt, ...)
     end
 end
 
+function Logger.LogFile(fmt, ...)
+    local msg = string.format(fmt, ...)
+    if Logger.debugLogs then
+        print(string.format("[ImmersiveFootwearPOV] %s", msg))
+    end
+    pcall(function()
+        local f = io.open("ImmersiveFootwearPOV.log", "a")
+        if f then
+            f:write(os.date("[%Y-%m-%d %H:%M:%S] ") .. msg .. "\n")
+            f:close()
+        end
+    end)
+end
+
 return Logger

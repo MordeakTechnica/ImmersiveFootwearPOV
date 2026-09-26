@@ -25,6 +25,16 @@ function Transition.GetStanceCm()
     return (Transition.currentBlend * 1.00 - 0.50) * 100.0
 end
 
+function Transition.SetImmediate(newTarget)
+    local target = math.max(0.0, math.min(1.0, tonumber(newTarget) or 0.50))
+    Transition.currentBlend = target
+    Transition.startBlend = target
+    Transition.targetBlend = target
+    Transition.elapsed = Transition.DURATION
+    Transition.isTransitioning = false
+    return target
+end
+
 function Transition.SetTarget(newTarget, reason, onLogCallback)
     newTarget = math.max(0.0, math.min(1.0, newTarget))
     if math.abs(newTarget - Transition.targetBlend) < 0.0001 then
