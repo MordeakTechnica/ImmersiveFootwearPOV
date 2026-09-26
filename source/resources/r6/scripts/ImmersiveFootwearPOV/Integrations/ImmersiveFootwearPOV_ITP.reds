@@ -31,7 +31,10 @@ public class ITPController {
 
   /// Resets character model elevation back to baseline (0.0m)
   public static func ResetHeightOffset(player: ref<PlayerPuppet>) -> Void {
-    ITPController.ApplyHeightOffset(player, 0.0);
+    if !IsDefined(player) {
+      return;
+    };
+    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
   }
 
   /// Checks if Immersive Third Person (ITP) is active in the running game instance

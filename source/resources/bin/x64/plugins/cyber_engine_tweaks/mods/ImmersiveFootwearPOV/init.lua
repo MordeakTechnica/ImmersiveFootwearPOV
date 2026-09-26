@@ -252,12 +252,10 @@ registerForEvent("onUpdate", function(deltaTime)
 
         if not isITPActive then
             -- Returning to First Person (FPP):
-            -- Immediately reset character model skeletal elevation back to neutral baseline (0.0m / blend 0.50),
-            -- identical to ITP where first-person operates with zero skeletal offset.
-            Transition.SetImmediate(0.50)
-            IFPIntegration.ApplyBlend(player, 0.50, 0.0)
-            mod.currentShoeState.totalStanceCm = 0.0
-            Logger.LogFile("Reset stance to baseline (0.0m / blend 0.50) upon returning to First Person.")
+            -- Immediately zero out 3rd-person puppet elevation variable
+            if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
+                pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), 0.0)
+            end
         end
     end
 
@@ -270,20 +268,30 @@ registerForEvent("onUpdate", function(deltaTime)
 
     -- Determine stance height based on perspective:
     -- Third Person (ITP Active): Elevate character model with platform height (or forced override)
-    -- First Person (FPP): Model height MUST reset to neutral (0.0m offset / blend 0.50), identical as in ITP
+    -- First Person (FPP): Drive eye level and body via heel height + IFP base slider
+    local isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false
+    local ifpInstalled = IFPIntegration.IsInstalled()
+    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+
     local targetBlend = 0.50
-    local reason = "First Person Neutral Baseline (Identical as in ITP)"
+    local footElevationMeters = 0.0
+    local reason = "Neutral Baseline"
 
     if isITPActive then
+        -- -------------------------------------------------------------------------
+        -- Third Person Perspective (ITP Active)
+        -- Elevate character model puppet by platform sole height
+        -- -------------------------------------------------------------------------
         if mod.forcedBlend ~= nil then
             targetBlend = mod.forcedBlend
+            footElevationMeters = (targetBlend - 0.50) * 1.00
             reason = string.format("Forced Stance Override (Blend: %.3f)", mod.forcedBlend)
         else
             local platOffset = (sys.GetEffectivePlatformOffset and sys:GetEffectivePlatformOffset()) or 0.0
             if platOffset <= 0.0 and mod.currentShoeState and mod.currentShoeState.platformCm then
                 platOffset = (mod.currentShoeState.platformCm or 0.0) / 100.0
             end
-            local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+            footElevationMeters = isSuppressed and 0.0 or platOffset
             targetBlend, _ = IFPIntegration.CalculateTargetBlend(platOffset, 0.0, isSuppressed)
             if mod.isPhotoModeOpen then
                 reason = "Photo Mode Active (Locomotion Neutralized)"
@@ -294,8 +302,34 @@ registerForEvent("onUpdate", function(deltaTime)
             end
         end
     else
-        targetBlend = 0.50
-        reason = "First Person Neutral Baseline (Identical as in ITP)"
+        -- -------------------------------------------------------------------------
+        -- First Person Perspective (FPP)
+        -- -------------------------------------------------------------------------
+        footElevationMeters = 0.0
+
+        if isTFP then
+            -- True First Person handles camera height via native REDscript camera matrices
+            targetBlend = 0.50
+            reason = "True First Person Native (Skeletal Blend Neutral)"
+        elseif sys.IsITPPresent and sys:IsITPPresent() and not ifpInstalled then
+            -- Pure ITP without IFP installed: First Person operates with zero skeletal offset
+            targetBlend = 0.50
+            reason = "First Person Neutral Baseline (Identical as in ITP)"
+        else
+            -- IFP Active (or Standalone): Combine footwear heel height + IFP base slider
+            local currentOffset = sys:GetEffectiveOffset()
+            targetBlend, _ = IFPIntegration.CalculateTargetBlend(currentOffset, mod.ifpBaseHeightCm, isSuppressed)
+
+            if mod.isPhotoModeOpen then
+                reason = "Photo Mode Active (Locomotion Neutralized)"
+            elseif mod.currentShoeState.isSuppressed then
+                reason = "Suppression (" .. tostring(mod.currentShoeState.suppressionReason) .. ")"
+            elseif mod.currentShoeState.hasShoe then
+                reason = string.format("Footwear Active (%s: +%.1f cm)", tostring(mod.currentShoeState.displayName), (mod.currentShoeState.heelCm or 0.0))
+            else
+                reason = "Barefoot / Neutral Stance"
+            end
+        end
     end
 
     local isTFPForLog = mod.currentShoeState and mod.currentShoeState.isTFP
@@ -309,8 +343,7 @@ registerForEvent("onUpdate", function(deltaTime)
     end)
 
     mod.currentShoeState.totalStanceCm = Transition.GetStanceCm()
-    local activeOffsetMeters = (mod.currentShoeState.totalStanceCm or 0.0) / 100.0
-    IFPIntegration.ApplyBlend(player, activeBlend, activeOffsetMeters)
+    IFPIntegration.ApplyBlend(player, activeBlend, footElevationMeters)
 end)
 
 -- -----------------------------------------------------------------------------

@@ -236,11 +236,11 @@ Items.Custom_Chunky_Platforms_01:
   - Enhanced CET overlay window ([`integrations/ifp.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/integrations/ifp.lua)) with live ITP engine detection and 3rd-person stance lift telemetry.
 - [x] **Step 7.5: Native REDscript Compilation Verification**
   - Compiled and verified against live game cache via `scc.exe` with 0 errors and 0 warnings.
-- [x] **Step 7.6: First-Person Perspective (FPP) Automatic Neutral Reset**
-  - Re-architected perspective detection (`CheckIsTPPActive` in CET and `ITPController.IsTPPActive` in REDscript) to query `CameraSystem.GetActiveCameraWorldTransform`. Accurately checks whether the active rendering camera is located at the head/eyes (FPP) or pulled back in 3rd person (TPP), eliminating previous false positives where FPP was misclassified due to ITP resting coordinates.
-  - Added `Transition.SetImmediate(0.50)`: on the exact frame the player transitions from 3rd-person to 1st-person, the skeletal model height immediately snaps back to neutral baseline ($0.0\,\text{m}$, `blend = 0.50`), completely matching native ITP behavior.
-  - In FPP, skeletal `ifp_height_blend` remains strictly locked at neutral baseline ($0.50$), ensuring first-person camera, iron-sights, arms, and weapons never suffer vertical distortion.
-  - Switching back to 3rd-person smoothly re-elevates the character model over a 0.20-second ease.
+- [x] **Step 7.6: Perspective-Aware Dual Height Dispatch (FPP Heel Lift & TPP Platform Lift)**
+  - Re-architected perspective detection (`CheckIsTPPActive` in CET and `ITPController.IsTPPActive` in REDscript) to query `CameraSystem.GetActiveCameraWorldTransform`. Accurately checks whether the active rendering camera is located at the head/eyes (FPP) or pulled back in 3rd person (TPP).
+  - In FPP (First Person / IFP): `ifp_height_blend` dynamically elevates V's first-person eye height and body based on footwear heel height + IFP base slider (`IFPIntegration.CalculateTargetBlend`). Third-person puppet offset (`foot_elevation_offset`) is strictly zeroed.
+  - In TPP (Immersive Third Person): `ifp_height_blend` and `foot_elevation_offset` dynamically elevate the character model puppet based on front platform sole thickness, keeping thick platform soles and heels from clipping into the terrain.
+  - Resolved perspective conflict where FPP was previously hardcoded to neutral `0.50`, ensuring high heels function identically whether playing pure IFP (optional archive uninstalled) or toggling between IFP and ITP.
 
 ---
 
