@@ -42,6 +42,7 @@ public class FootwearHooksHelper {
     };
   }
 
+
   public static func IsWeaponAction(actionName: CName) -> Bool {
     return Equals(actionName, n"DrawItem")
       || Equals(actionName, n"DrawWeapon")
@@ -105,6 +106,8 @@ protected cb func OnUninitialize() -> Bool {
   FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet);
   return result;
 }
+
+
 
 // -----------------------------------------------------------------------------
 // Workspot (Furniture, Sitting, Sleeping, Workstations) Lifecycle Hooks

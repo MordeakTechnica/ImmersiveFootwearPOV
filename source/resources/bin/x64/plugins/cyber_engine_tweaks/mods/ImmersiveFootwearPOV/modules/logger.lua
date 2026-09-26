@@ -1,11 +1,30 @@
 -- =============================================================================
 -- Immersive Footwear POV - Logging Module
--- Manages debug logging, runtime filtering, and CET console API toggles
+-- Centralized logging manager: routes CET telemetry and logs to RedLogger
+-- Writes to: r6\logs\mods\ImmersiveFootwearPOV__<timestamp>.log
 -- =============================================================================
 
 local Logger = {
     debugLogs = false,
 }
+
+local function ForwardToRedLogger(level, tag, msg)
+    pcall(function()
+        local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+        if sys then
+            if not tag or tag == "" then
+                if sys.GetActiveModTag then
+                    tag = sys:GetActiveModTag(Game.GetPlayer())
+                end
+            end
+            if sys.LogLevelFromCET then
+                sys:LogLevelFromCET(level or "INFO", tag or "PM", msg)
+            elseif sys.LogFromCET then
+                sys:LogFromCET(tag or "PM", msg)
+            end
+        end
+    end)
+end
 
 function Logger.Init(enabled)
     Logger.debugLogs = (enabled == true)
@@ -43,15 +62,19 @@ function Logger.ToggleDebug(onSaveCallback)
 end
 
 function Logger.Log(tag, fmt, ...)
+    local msg = string.format(fmt, ...)
     if Logger.debugLogs then
-        print(string.format("[ImmersiveFootwearPOV][%s] " .. fmt, tag or "CORE", ...))
+        print(string.format("[ImmersiveFootwearPOV][%s] %s", tag or "CORE", msg))
+        ForwardToRedLogger("DEBUG", tag, msg)
     end
 end
 
 function Logger.LogFPP(isTFP, fmt, ...)
+    local tag = isTFP and "TFP" or "IFP"
+    local msg = string.format(fmt, ...)
     if Logger.debugLogs then
-        local tag = isTFP and "TFP" or "FPP"
-        print(string.format("[ImmersiveFootwearPOV][%s] " .. fmt, tag, ...))
+        print(string.format("[ImmersiveFootwearPOV][%s] %s", tag, msg))
+        ForwardToRedLogger("DEBUG", tag, msg)
     end
 end
 
@@ -60,13 +83,7 @@ function Logger.LogFile(fmt, ...)
     if Logger.debugLogs then
         print(string.format("[ImmersiveFootwearPOV] %s", msg))
     end
-    pcall(function()
-        local f = io.open("ImmersiveFootwearPOV.log", "a")
-        if f then
-            f:write(os.date("[%Y-%m-%d %H:%M:%S] ") .. msg .. "\n")
-            f:close()
-        end
-    end)
+    ForwardToRedLogger("INFO", "", msg)
 end
 
 return Logger

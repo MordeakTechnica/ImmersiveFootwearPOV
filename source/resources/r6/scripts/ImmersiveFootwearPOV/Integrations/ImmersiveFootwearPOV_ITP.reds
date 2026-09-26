@@ -33,7 +33,13 @@ public class ITPController {
     let container: ref<ScriptableSystemsContainer> = GameInstance.GetScriptableSystemsContainer(gameInstance);
     if IsDefined(container) {
       let itpBridge: ref<ScriptableSystem> = container.Get(n"TPPCameraVisibleRenderBridge");
-      return IsDefined(itpBridge);
+      if IsDefined(itpBridge) {
+        return true;
+      };
+    };
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gameInstance).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) && IsDefined(player.FindComponentByName(n"tppCamera")) {
+      return true;
     };
     return false;
   }

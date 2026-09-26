@@ -34,8 +34,15 @@ local PM = {
 -- Logging & Diagnostics
 -- -----------------------------------------------------------------------------
 local function LogPM(fmt, ...)
+    local msg = string.format(fmt, ...)
     if PM.modState and PM.modState.debugLogs then
-        print(string.format("[ImmersiveFootwearPOV][PM] " .. fmt, ...))
+        print(string.format("[ImmersiveFootwearPOV][PM] %s", msg))
+        pcall(function()
+            local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+            if sys and sys.LogLevelFromCET then
+                sys:LogLevelFromCET("DEBUG", "PM", msg)
+            end
+        end)
     end
 end
 
@@ -272,6 +279,13 @@ function PM.Init(modState)
             modState.isPhotoModeOpen = true
         end
 
+        pcall(function()
+            local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+            if sys and sys.SetPhotoModeActive then
+                sys:SetPhotoModeActive(true)
+            end
+        end)
+
         local shoeState = modState and modState.currentShoeState or {}
         local platformCm = shoeState.platformCm or 0.0
         local heelCm = shoeState.heelCm or 0.0
@@ -307,6 +321,12 @@ function PM.Init(modState)
             if modState then
                 modState.isPhotoModeOpen = false
             end
+            pcall(function()
+                local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+                if sys and sys.SetPhotoModeActive then
+                    sys:SetPhotoModeActive(false)
+                end
+            end)
         end
     end)
 

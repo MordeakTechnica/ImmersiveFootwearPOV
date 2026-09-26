@@ -122,9 +122,27 @@ IFPStatus = function() return mod.DumpState() end
 ForceStance = function(cm) return mod.ForceStance(cm) end
 IFPForceStance = function(cm) return mod.ForceStance(cm) end
 
--- -----------------------------------------------------------------------------
--- CET Lifecycle Events
--- -----------------------------------------------------------------------------
+local function CheckIsITPInstalled()
+    if GetMod then
+        local itpMod = GetMod("immersive_third_person") or GetMod("ImmersiveThirdPerson") or GetMod("ITP")
+        if itpMod ~= nil then
+            return true
+        end
+    end
+    local installed = false
+    pcall(function()
+        local bridge = Game.GetScriptableSystemsContainer():Get("TPPCameraVisibleRenderBridge")
+        if bridge ~= nil then installed = true end
+    end)
+    if not installed then
+        local player = Game.GetPlayer()
+        if player and player:FindComponentByName(CName.new("tppCamera")) then
+            installed = true
+        end
+    end
+    return installed
+end
+
 registerForEvent("onInit", function()
     local overrides, settings = Config.Load(Config.FILE_NAME)
     mod.overrides = overrides
@@ -137,8 +155,21 @@ registerForEvent("onInit", function()
 
     local ifpInstalled = IFPIntegration.IsInstalled()
     local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
+    local itpInstalled = CheckIsITPInstalled()
+    pcall(function()
+        local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+        if sys then
+            if sys.SetITPPresent then
+                sys:SetITPPresent(itpInstalled)
+            end
+            if sys.SetIFPPresent then
+                sys:SetIFPPresent(ifpInstalled and ifpEnabled)
+            end
+        end
+    end)
     RegisterConsoleShortcuts()
-    print(string.format("[ImmersiveFootwearPOV] Initialized | IFP: %s (Enabled: %s, Base: %.1f cm) | Debug: %s",
+    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Base: %.1f cm) | Debug: %s",
+        itpInstalled and "ACTIVE" or "ABSENT",
         ifpInstalled and "ACTIVE" or "ABSENT",
         ifpEnabled and "YES" or "NO",
         mod.ifpBaseHeightCm, mod.debugLogs and "ENABLED" or "DISABLED"))
@@ -232,6 +263,14 @@ registerForEvent("onUpdate", function(deltaTime)
     if mod.pollTimer >= 0.15 then
         mod.pollTimer = 0.0
         sys:UpdateEquippedFootwear(player)
+        pcall(function()
+            if sys.SetITPPresent then
+                sys:SetITPPresent(CheckIsITPInstalled())
+            end
+            if sys.SetIFPPresent then
+                sys:SetIFPPresent(IFPIntegration.IsInstalled() and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false))
+            end
+        end)
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveAllOverrides)
     end
 

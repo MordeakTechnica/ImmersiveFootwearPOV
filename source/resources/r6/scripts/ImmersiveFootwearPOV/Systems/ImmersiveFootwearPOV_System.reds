@@ -22,6 +22,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_suppressionReason: String;
   private let m_isInitialized: Bool;
   private let m_debugLogging: Bool;
+  private let m_isPhotoModeActive: Bool;
+  private let m_isIFPPresent: Bool;
+  private let m_isITPPresent: Bool;
 
   // TFP Telemetry & Weapon Synchronization Tracking
   private let m_tfpLastLoggedFootwear: ItemID;
@@ -223,6 +226,17 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func IsInWorkspot() -> Bool { return this.m_isInWorkspot; }
   public func IsDebugLogging() -> Bool { return this.m_debugLogging; }
   public func SetDebugLogging(enable: Bool) -> Void { this.m_debugLogging = enable; }
+  public func IsPhotoModeActive() -> Bool {
+    let pmSys: ref<PhotoModeSystem> = GameInstance.GetPhotoModeSystem(this.GetGameInstance());
+    if IsDefined(pmSys) {
+      return pmSys.IsPhotoModeActive();
+    };
+    return this.m_isPhotoModeActive;
+  }
+  public func SetPhotoModeActive(active: Bool) -> Void { this.m_isPhotoModeActive = active; }
+  public func IsIFPPresent() -> Bool { return this.m_isIFPPresent; }
+  public func SetIFPPresent(present: Bool) -> Void { this.m_isIFPPresent = present; }
+  public func SetITPPresent(present: Bool) -> Void { this.m_isITPPresent = present; }
 
   // -----------------------------------------------------------------------------
   // TFP Weapon Synchronization Tracking
@@ -297,7 +311,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   // -----------------------------------------------------------------------------
-  // Framework Detection Helpers
+  // Framework Detection & Active Mod Tagging
   // -----------------------------------------------------------------------------
   public func IsTFPPresent() -> Bool {
     return FrameworkDetector.IsTFPPresent();
@@ -308,7 +322,43 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   public func IsITPPresent() -> Bool {
+    if this.m_isITPPresent {
+      return true;
+    };
     return ITPDetector.IsPresent(this.GetGameInstance());
+  }
+
+  public func GetActiveModTag(opt player: ref<PlayerPuppet>) -> String {
+    if this.IsPhotoModeActive() {
+      return "PM";
+    };
+
+    if this.IsITPPresent() {
+      return "ITP";
+    };
+
+    if this.IsTFPPresent() {
+      return "TFP";
+    };
+
+    if this.m_isIFPPresent {
+      return "IFP";
+    };
+
+    return "PM";
+  }
+
+  // -----------------------------------------------------------------------------
+  // Centralized Logging Delegation (Used by CET and internal callers)
+  // -----------------------------------------------------------------------------
+  public func LogFromCET(tag: String, message: String) -> Void {
+    let activeTag: String = StrLen(tag) > 0 ? tag : this.GetActiveModTag(null);
+    FootwearRedLogger.LogInfo(activeTag, message);
+  }
+
+  public func LogLevelFromCET(level: String, tag: String, message: String) -> Void {
+    let activeTag: String = StrLen(tag) > 0 ? tag : this.GetActiveModTag(null);
+    FootwearRedLogger.Append(level, activeTag, message);
   }
 
   // -----------------------------------------------------------------------------

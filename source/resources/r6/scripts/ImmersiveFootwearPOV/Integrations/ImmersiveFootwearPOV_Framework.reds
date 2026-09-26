@@ -33,6 +33,14 @@ public class EquipmentExDetector {
   }
 }
 
+@if(ModuleExists("ImmersiveThirdPersonMove360"))
+public class ITPDetector {
+  public static func IsPresent(gameInstance: GameInstance) -> Bool {
+    return true;
+  }
+}
+
+@if(!ModuleExists("ImmersiveThirdPersonMove360"))
 public class ITPDetector {
   public static func IsPresent(gameInstance: GameInstance) -> Bool {
     return ITPController.IsITPPresent(gameInstance);

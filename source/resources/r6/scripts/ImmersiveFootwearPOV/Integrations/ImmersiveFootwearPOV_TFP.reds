@@ -52,15 +52,16 @@ public class TFPHelper {
         let isSuppressed: Bool = povSys.IsSuppressed();
         let suppReason: String = povSys.GetSuppressionReason();
 
+        let tag: String = povSys.GetActiveModTag(player);
         let msg: String;
         if isSuppressed {
-          msg = s"[ImmersiveFootwearPOV][TFP] Footwear Height Suppressed (\(suppReason)) -> Shoe: '\(shoeName)' [\(shoeSource)] | Active Lift: +0.0cm | Base CameraZ: \(baseZCm)cm (was \(oldCamZCm)cm)";
+          msg = s"Footwear Height Suppressed (\(suppReason)) -> Shoe: '\(shoeName)' [\(shoeSource)] | Active Lift: +0.0cm | Base CameraZ: \(baseZCm)cm (was \(oldCamZCm)cm)";
         } else {
-          msg = s"[ImmersiveFootwearPOV][TFP] Footwear Height Applied -> Shoe: '\(shoeName)' [\(shoeSource)] | Lift: +\(liftCm)cm | TFP Base: \(baseZCm)cm -> Total CameraZ: \(targetZCm)cm (was \(oldCamZCm)cm)";
+          msg = s"Footwear Height Applied -> Shoe: '\(shoeName)' [\(shoeSource)] | Lift: +\(liftCm)cm | TFP Base: \(baseZCm)cm -> Total CameraZ: \(targetZCm)cm (was \(oldCamZCm)cm)";
         };
 
         if povSys.IsDebugLogging() {
-          Log(msg);
+          FootwearRedLogger.LogDebug(tag, msg);
         };
       };
     };
@@ -94,9 +95,10 @@ public class TFPHelper {
         povSys.SetTFPLastWeaponKey(key);
 
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
-        let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
+        let tag: String = povSys.GetActiveModTag(player);
+        let msg: String = s"Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
         if povSys.IsDebugLogging() {
-          Log(msg);
+          FootwearRedLogger.LogDebug(tag, msg);
         };
       };
     };
