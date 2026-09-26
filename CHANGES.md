@@ -2,7 +2,16 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [`c1ccec5`](https://github.com/mordeak/immersive-footwear-pov/commit/c1ccec5) — 2026-09-26
+## [`5805e15`](https://github.com/mordeak/immersive-footwear-pov/commit/5805e15ee388b98cd763ddfcaedf9c2965186dad) — 2026-09-26 · [**`v2.0.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.0)
+### `feat(logging): integrate RedLogger with centralized logging, dynamic mod tagging, and photo mode fix`
+* **RedLogger Centralized Logging:** Integrated [RedLogger](https://www.nexusmods.com/cyberpunk2077/mods/31920) via soft-dependency guards (`@if(ModuleExists("RedLogger"))`), channeling all REDscript and CET log statements into a single file at `r6\logs\mods\ImmersiveFootwearPOV__<timestamp>.log`.
+* **Dynamic Mod Tagging:** Automatically tag log lines based on the active/installed camera framework (`[ITP]`, `[IFP]`, `[TFP]`, or `[PM]` fallback).
+* **Photo Mode Detection Fix:** Eliminated premature Photo Mode flag caused by an ink UI controller `OnInitialize` hook running at game launch. Replaced with real-time native `PhotoModeSystem.IsPhotoModeActive()` query.
+* **Instant CET ITP Detection:** Added direct `GetMod("immersive_third_person")` lookup to ensure ITP registration occurs at engine startup before player entity instantiation.
+
+---
+
+## [`cebe255`](https://github.com/mordeak/immersive-footwear-pov/commit/cebe25559079608beaaf104ec066a4cf1ff08b74) — 2026-09-26
 ### `refactor(redscript): decouple event hooks, enforce logging standards, and unify animgraph blend calculation`
 * **Hooks Decoupling:** Removed direct `TFPHelper` integration calls (`LogState`, `LogEvent`, `SyncWeaponForCurrentFootwear`) from `FootwearHooksHelper` in `ImmersiveFootwearPOV_Hooks.reds`. All events now route strictly through `ImmersiveFootwearPOVSystem`.
 * **Logging Compliance:** Eliminated forbidden `LogChannel(n"DEBUG", ...)` calls in `ImmersiveFootwearPOV_TFP.reds` in adherence with `redscript-logging.md`, standardizing on native `Log(...)` guarded by `sys.IsDebugLogging()`.
@@ -12,7 +21,7 @@ All notable changes to this project are tracked in this file chronologically by 
 
 ---
 
-## [`58f346f`](https://github.com/mordeak/immersive-footwear-pov/commit/58f346fcd9d32eb61085eaa96ff4c82e7e84b463) — 2026-09-26 · [**`v2.0.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.0)
+## [`58f346f`](https://github.com/mordeak/immersive-footwear-pov/commit/58f346fcd9d32eb61085eaa96ff4c82e7e84b463) — 2026-09-26
 ### `fix(hooks): correct PlayerPuppet.OnGameAttached return type to Bool to avoid breaking other wrapped mods`
 * Corrected `PlayerPuppet.OnGameAttached` wrapMethod in `ImmersiveFootwearPOV_Hooks.reds` to return `Bool` and return `wrappedMethod()` result, preventing compilation errors and breakage with other wrapped mods on Cyberpunk 2077 Patch 2.1+.
 
