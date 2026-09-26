@@ -15,13 +15,7 @@ public class ITPController {
       return false;
     };
 
-    // Calculate animgraph blend:
-    // Range is -50cm (-0.50m) to +50cm (+0.50m)
-    // 0.0m offset (flat shoes / baseline) -> blend 0.50
-    // +0.05m offset (5cm platform)        -> blend 0.55
-    // +0.10m offset (10cm platform)       -> blend 0.60
-    let blend: Float = (offsetMeters + 0.50) / 1.00;
-    blend = ClampF(blend, 0.0, 1.0);
+    let blend: Float = FootwearAnimgraphHelper.CalculateHeightBlend(offsetMeters);
 
     // Native REDengine API queues AnimInputSetterFloat directly into active animgraph
     AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", offsetMeters);
@@ -31,10 +25,7 @@ public class ITPController {
 
   /// Resets character model elevation back to baseline (0.0m)
   public static func ResetHeightOffset(player: ref<PlayerPuppet>) -> Void {
-    if !IsDefined(player) {
-      return;
-    };
-    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
+    ITPController.ApplyHeightOffset(player, 0.0);
   }
 
   /// Checks if Immersive Third Person (ITP) is active in the running game instance
@@ -62,11 +53,13 @@ public class ITPController {
     };
     let camPos: Vector4 = Transform.GetPosition(camXf);
     let basePos: Vector4 = player.GetWorldPosition();
-    let eyeZ: Float = basePos.Z + 1.55;
+    let eyeZBaseline: Float = 1.55; // Standard player eye level above root Z (meters)
+    let eyeZ: Float = basePos.Z + eyeZBaseline;
     let dx: Float = camPos.X - basePos.X;
     let dy: Float = camPos.Y - basePos.Y;
     let dz: Float = camPos.Z - eyeZ;
     let distSq: Float = dx * dx + dy * dy + dz * dz;
-    return distSq > 0.64;
+    let minTppDistSq: Float = 0.64; // Distance threshold squared: (0.8m)^2
+    return distSq > minTppDistSq;
   }
 }

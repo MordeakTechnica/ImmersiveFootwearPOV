@@ -2,6 +2,244 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [`c1ccec5`](https://github.com/mordeak/immersive-footwear-pov/commit/c1ccec5) — 2026-09-26
+### `refactor(redscript): decouple event hooks, enforce logging standards, and unify animgraph blend calculation`
+* **Hooks Decoupling:** Removed direct `TFPHelper` integration calls (`LogState`, `LogEvent`, `SyncWeaponForCurrentFootwear`) from `FootwearHooksHelper` in `ImmersiveFootwearPOV_Hooks.reds`. All events now route strictly through `ImmersiveFootwearPOVSystem`.
+* **Logging Compliance:** Eliminated forbidden `LogChannel(n"DEBUG", ...)` calls in `ImmersiveFootwearPOV_TFP.reds` in adherence with `redscript-logging.md`, standardizing on native `Log(...)` guarded by `sys.IsDebugLogging()`.
+* **Animgraph Blend Math Unification:** Added `FootwearAnimgraphHelper.CalculateHeightBlend` in `ImmersiveFootwearPOV_Framework.reds` to centralize the `-0.50m..+0.50m` animgraph blend calculation across both IFP and ITP integrations.
+* **ITP Elevation Reset Fix:** Fixed `ITPController.ResetHeightOffset` to reset `ifp_height_blend` back to neutral baseline (`0.50`) alongside `foot_elevation_offset = 0.0`.
+* **Action Filter Simplification:** Replaced repetitive chained boolean checks in `OnAction` with `FootwearHooksHelper.IsWeaponAction`.
+
+---
+
+## [`58f346f`](https://github.com/mordeak/immersive-footwear-pov/commit/58f346fcd9d32eb61085eaa96ff4c82e7e84b463) — 2026-09-26 · [**`v2.0.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.0)
+### `fix(hooks): correct PlayerPuppet.OnGameAttached return type to Bool to avoid breaking other wrapped mods`
+* Corrected `PlayerPuppet.OnGameAttached` wrapMethod in `ImmersiveFootwearPOV_Hooks.reds` to return `Bool` and return `wrappedMethod()` result, preventing compilation errors and breakage with other wrapped mods on Cyberpunk 2077 Patch 2.1+.
+
+---
+
+## [`6399862`](https://github.com/mordeak/immersive-footwear-pov/commit/63998627e5f97cf69d6a5a4b11bc9a6540087c52) — 2026-09-26
+### `fix(ifp): restore first-person heel height elevation across all perspective states`
+* Fixed first-person camera height calculation in `init.lua` ensuring FPP heel height elevation is smoothly driven and restored across perspective state transitions.
+* Guarded against improper suppression state overrides during perspective switching.
+
+---
+
+## [`c8d6751`](https://github.com/mordeak/immersive-footwear-pov/commit/c8d675115c5ead95314b4211802fb327ed3fa3c3) — 2026-09-26
+### `feat(elevation): implement 3rd-person model height elevation with FPP reset`
+* **Animgraph Elevation Node:** Injected root elevation blend node into `player_base.animgraph` driven by `ifp_height_blend` and `foot_elevation_offset`.
+* **Priority Archive Packaging:** Named priority archive `##_ITP_Immersive_Footwear_POV.archive` to ensure precedence over third-person mods in ASCII load order.
+* **Camera Detection:** Implemented `CameraSystem`-based active camera world transform detection in CET and REDscript (`ITPController.IsTPPActive`).
+* **Perspective Neutralization:** Automatically resets character model height to neutral baseline (`0.0m`) when returning to first-person view.
+* Untracked development scripts and updated `.gitignore`.
+
+---
+
+## [`471f173`](https://github.com/mordeak/immersive-footwear-pov/commit/471f173491a966a1aabc895f0386ba3a9561cc92) — 2026-09-24
+### `feat(archive): add zz_Immersive_Footwear_POV.archive to release resources`
+* Added precompiled release archive `zz_Immersive_Footwear_POV.archive` containing the base gameplay elevation animgraph.
+
+---
+
+## [`20debc7`](https://github.com/mordeak/immersive-footwear-pov/commit/20debc77de759072179bf6e9565e97b227c1414d) — 2026-09-24
+### `fix(itp): switch third-person elevation to platform height and normalize animgraph blend formula`
+* Switched third-person elevation driver in `ITPController` to use `GetEffectivePlatformOffset()` instead of heel height.
+* Normalized animgraph blend formula mapping `-0.50m..+0.50m` range to `0.0..1.0` blend values.
+
+---
+
+## [`ac07ca2`](https://github.com/mordeak/immersive-footwear-pov/commit/ac07ca21cf83dde69f2440fdbe1db8b1ff0a68c9) — 2026-09-24
+### `feat(deploy): add tweaks deployment step to automated pack and deploy tool`
+* Enhanced `tools/pack_and_deploy.ps1` to automatically deploy TweakXL and resource files alongside compiled archives to the game installation directory.
+
+---
+
+## [`8199cac`](https://github.com/mordeak/immersive-footwear-pov/commit/8199cac5002771d473e73dabe2e6988febea79a2) — 2026-09-24
+### `fix(packaging): enforce single zz_Immersive_Footwear_POV.archive filename across all targets`
+* Standardized release archive name to `zz_Immersive_Footwear_POV.archive` across build scripts and deployment targets to eliminate packaging collisions.
+
+---
+
+## [`8940793`](https://github.com/mordeak/immersive-footwear-pov/commit/8940793f84c1bc2975657009c4b178aa93f9507b) — 2026-09-24
+### `feat(tools): add automated packaging and deployment pipeline for ITP elevated archive`
+* Created PowerShell automated build pipeline `tools/pack_and_deploy.ps1` utilizing WolvenKit CLI to convert raw animgraph JSON to CR2W, stage assets, pack `.archive` files, and deploy directly to test installations.
+
+---
+
+## [`798868e`](https://github.com/mordeak/immersive-footwear-pov/commit/798868ed4c470489c3e05e830e690a14115eabd5) — 2026-09-24
+### `feat(itp): add automated animgraph injection script for ITP elevation`
+* Developed Python automation utility `tools/inject_itp_elevation.py` to parse WolvenKit animgraph JSON and inject custom elevation blend nodes into `player_base.animgraph.json`.
+
+---
+
+## [`1fdf8cd`](https://github.com/mordeak/immersive-footwear-pov/commit/1fdf8cd6fe2b1f844dcb187c171a9b1bb2b0ebaf) — 2026-09-24
+### `feat(itp): implement Immersive Third Person dynamic elevation integration and UI telemetry`
+* Created `Integrations/ImmersiveFootwearPOV_ITP.reds` driving character model elevation via `AnimationControllerComponent.SetInputFloat` using custom variables `foot_elevation_offset` and `ifp_height_blend`.
+* Added runtime ITP bridge detection and CET overlay telemetry indicating active TPP state and elevation metrics.
+
+---
+
+## [`9948164`](https://github.com/mordeak/immersive-footwear-pov/commit/99481648f90142565d0ad3a627a7ff38ecbbacb6) — 2026-09-24
+### `fix(hooks): correct OnGameAttached return type to Void in PlayerPuppet wrapMethod`
+* Fixed signature mismatch for `PlayerPuppet.OnGameAttached` wrapMethod in `ImmersiveFootwearPOV_Hooks.reds`.
+
+---
+
+## [`d09312d`](https://github.com/mordeak/immersive-footwear-pov/commit/d09312daaf536c3837cfb4cdded2298c054ce956) — 2026-09-03
+### `refactor(cet): modularize orchestrator into config, logger, state, and transition modules`
+* **Modular CET Architecture:**
+  * Extracted JSON configuration and user override persistence into `modules/config.lua`.
+  * Extracted debug logging, rate limiting, and console output into `modules/logger.lua`.
+  * Extracted footwear state management and REDscript bridge syncing into `modules/state.lua`.
+  * Extracted smoothstep transition interpolation and stance blend easing into `modules/transition.lua`.
+* Streamlined `init.lua` to serve as a high-level lifecycle orchestrator.
+
+---
+
+## [`c654c62`](https://github.com/mordeak/immersive-footwear-pov/commit/c654c621fd3fc56cbad7ae80713d044dded8559d) — 2026-09-03
+### `fix(ui): ensure mutually exclusive CET window attachment when IFP is enabled`
+* Added native `IFP.IsEnabled()` verification before attaching CET controls to the IFP settings window.
+* Enforced strict mutual exclusion to suppress redundant standalone window rendering when IFP is active.
+
+---
+
+## [`8aa311a`](https://github.com/mordeak/immersive-footwear-pov/commit/8aa311a2c958fbe7906564c8d87770a580aa9a5a) — 2026-09-01
+### `feat(ui): universal CET configuration window for standalone, TFP, IFP, and Photo Mode`
+* Implemented universal CET configuration window displaying contextual elevation metrics, active frameworks (IFP, TFP, Equipment-EX), Photo Mode settings, and debug toggles.
+
+---
+
+## [`de9b197`](https://github.com/mordeak/immersive-footwear-pov/commit/de9b19737995d3638510102266223fb4eb2e8431) — 2026-09-01
+### `fix(tfp): ensure robust compilation with fully qualified imports and complete fallbacks`
+* Added fully qualified module imports for `TrueFirstPerson` (`IFPSystem`, `IFPCamera`, `IFPConfig`, `IFPWeapon`).
+* Provided complete, robust fallback implementations for all helper methods when `TrueFirstPerson` is not installed.
+
+---
+
+## [`f228aa2`](https://github.com/mordeak/immersive-footwear-pov/commit/f228aa2a5507ebecb0d2180519e82286c91667ce) — 2026-09-01
+### `fix(tfp): add missing fallback stub for SyncWeaponForCurrentFootwear when TFP is not installed`
+* Added missing fallback method stub `SyncWeaponForCurrentFootwear` to the `@if(!ModuleExists("TrueFirstPerson"))` class declaration in `ImmersiveFootwearPOV_TFP.reds`.
+
+---
+
+## [`80685ec`](https://github.com/mordeak/immersive-footwear-pov/commit/80685ec96d4f0c3fb25da2f3b598118e6dda06b0) — 2026-09-01
+### `feat(rcf): implement in-game settings menu for testing and fix SetVehicleState syntax`
+* Cleaned up syntax in vehicle state callback and verified experimental in-game configuration integration.
+
+---
+
+## [`98752f9`](https://github.com/mordeak/immersive-footwear-pov/commit/98752f9bea8cae5e394b82a48385162ac8ed4529) — 2026-09-01
+### `feat(rcf): implement native in-game settings menu for heel & platform height adjustment`
+* Added experimental in-game native menu interface for adjusting footwear heel and platform height offsets.
+
+---
+
+## [`eae50ae`](https://github.com/mordeak/immersive-footwear-pov/commit/eae50ae5c5509efd49f25ff2207e6ebffdb9d9b3) — 2026-09-01
+### `fix(tfp): let TFP native cameraZ drive ADS sight alignment without mutating weapon configs`
+* Refactored weapon ADS alignment to rely directly on TFP's native `cameraZ` elevation parameter via `weapon.RefreshCurrentWeapon(config.cameraZ, config)`, preventing weapon config mutation and sight drift.
+
+---
+
+## [`2d22c6f`](https://github.com/mordeak/immersive-footwear-pov/commit/2d22c6f6b3431bba397c504828ce00d00b607e5d) — 2026-09-01
+### `feat(tfp): implement clean weapon baseline restoration on weapon switch and footwear change`
+* Added weapon slot change hooks (`OnItemAddedToSlot` and `OnItemRemovedFromSlot`) in `ImmersiveFootwearPOV_Hooks.reds`.
+* Guaranteed clean restoration of baseline weapon transforms upon switching weapons or unequipping footwear.
+
+---
+
+## [`4e0a6bb`](https://github.com/mordeak/immersive-footwear-pov/commit/4e0a6bb42365e83c5a3de3b9502c38e2a5a4b9a2) — 2026-09-01
+### `feat(tfp): hook footwear lift into TFP per-weapon tuning pipeline`
+* Integrated footwear elevation offset directly into TFP's per-weapon tuning pipeline to synchronize ADS reticle positions.
+
+---
+
+## [`952ba83`](https://github.com/mordeak/immersive-footwear-pov/commit/952ba83cb255a0cfea939f57feeacbd518e95747) — 2026-09-01
+### `fix(tfp): resolve weapon flicker by replacing slot poke with native TFP weapon refresh`
+* Resolved visual weapon jitter and transform flickering by replacing raw slot transform manipulation with native TFP weapon refresh mechanisms.
+
+---
+
+## [`1221aaa`](https://github.com/mordeak/immersive-footwear-pov/commit/1221aaa68553f2bd05f61fe21166cd0717adafc0) — 2026-09-01
+### `fix(tfp): add save-load lifecycle readiness guards and preserve PokeSlotTransform`
+* Added game instance and system readiness checks (`inkISystemRequestsHandler.IsPreGame()`, `player.IsAttached()`) to prevent null reference errors on game save loading.
+
+---
+
+## [`557744d`](https://github.com/mordeak/immersive-footwear-pov/commit/557744d83808ac1facb95709e3d19a2bb342a1e9) — 2026-09-01
+### `feat(tfp): use TFPCNative.PokeSlotTransform for real-time physical weapon elevation`
+* Implemented real-time physical weapon elevation synchronization using TFP native transform poking.
+
+---
+
+## [`1b3aecd`](https://github.com/mordeak/immersive-footwear-pov/commit/1b3aecd9910f8605cff673969c6c04cf71eb4dd1) — 2026-09-01
+### `refactor(architecture): split ImmersiveFootwearPOV_System into modular Systems/ folder`
+* **Architectural Decoupling:**
+  * Extracted state suppression logic into `Systems/ImmersiveFootwearPOV_Suppression.reds`.
+  * Extracted telemetry logging into `Systems/ImmersiveFootwearPOV_Telemetry.reds`.
+  * Retained core ScriptableSystem state coordination in `Systems/ImmersiveFootwearPOV_System.reds`.
+
+---
+
+## [`57a431a`](https://github.com/mordeak/immersive-footwear-pov/commit/57a431a1fa0e72073cf63174ee92418c1dde962d) — 2026-09-01
+### `refactor(system): flatten nested suppression logic in EvaluateSuppressionState`
+* Simplified and flattened deeply nested conditional branches in `EvaluateSuppressionState` using early returns.
+
+---
+
+## [`cefa52c`](https://github.com/mordeak/immersive-footwear-pov/commit/cefa52c0d63e70483acc2dbab1d3cb9008ce2af8) — 2026-09-01
+### `feat(tfp): implement Option A dynamic weapon height elevation with footwear lift`
+* Added dynamic weapon viewmodel elevation aligned with footwear lift in True First Person mode.
+
+---
+
+## [`a033ec6`](https://github.com/mordeak/immersive-footwear-pov/commit/a033ec6cd11d22ef23ff4f1dd9183556aae78d3b) — 2026-09-01
+### `feat(tfp): implement additive camera Z elevation, jitter fix, and save-load safety guards for True First Person`
+* Added additive `cameraZ` elevation integration in `TFPHelper.ApplyFootwearHeight`.
+* Fixed camera jitter and added lifecycle safety checks preventing execution during pre-game or unattached states.
+
+---
+
+## [`618c04a`](https://github.com/mordeak/immersive-footwear-pov/commit/618c04ad59734d6f7e27a091d3f64cd70f931e9e) — 2026-08-30
+### `refactor(logging): replace LogChannel with native Log function and add .agents to gitignore`
+* Replaced debug `LogChannel` calls with native REDscript `Log` statements in `ImmersiveFootwearPOV_System.reds`.
+* Added `.agents` directory to `.gitignore`.
+
+---
+
+## [`f1870a2`](https://github.com/mordeak/immersive-footwear-pov/commit/f1870a286f9044c5964a544248e15f86efa84cb0) — 2026-08-30
+### `feat(tfp): implement Phase 6 Steps 2 and 3 TFP isolation and observational telemetry`
+* Implemented discrete event and continuous polling telemetry for TFP camera transitions.
+* Added lifecycle event logging for workspots, vehicles, and weapon actions.
+
+---
+
+## [`4203e29`](https://github.com/mordeak/immersive-footwear-pov/commit/4203e29598a35902976d66383b7bfa8086dc6316) — 2026-08-30
+### `feat(tfp): implement Phase 6 Step 1 graceful framework detection and diagnostics`
+* Created `Integrations/ImmersiveFootwearPOV_Framework.reds` providing compile-time `@if(ModuleExists("..."))` detection for `TrueFirstPerson` and `EquipmentEx`.
+* Added framework presence indicators in CET diagnostics.
+
+---
+
+## [`b3dab5e`](https://github.com/mordeak/immersive-footwear-pov/commit/b3dab5e8df6bd6db8d131cfe90394e740dc7f4e5) — 2026-08-30
+### `feat(pm,equipment-ex): direct outfit memory query for instant photo mode platform elevation`
+* Added `EquipmentExHelper.GetFootwearFromOutfit` allowing instant querying of footwear items from active Equipment-EX outfits in memory during Photo Mode pose changes.
+
+---
+
+## [`6be0306`](https://github.com/mordeak/immersive-footwear-pov/commit/6be0306464af95adc9bb7cbaee7e76cc342f54dd) — 2026-08-30
+### `refactor(pm,init): streamline Photo Mode integration and clean up global console aliases`
+* Refactored Photo Mode elevation logic in `integrations/pm.lua`.
+* Cleaned up global CET console commands and standardized diagnostics output.
+
+---
+
+## [`a6d56a3`](https://github.com/mordeak/immersive-footwear-pov/commit/a6d56a3e7e67aeb193fb2659ec09baf999631007) — 2026-08-30
+### `feat(pm): add dynamic photo mode outfit switching platform sole elevation and expose ShoeHeightParser proxy`
+* Added dynamic Photo Mode outfit switching support with automatic character elevation based on newly equipped footwear platform soles.
+* Exposed `ShoeHeightParser` methods directly on `ImmersiveFootwearPOVSystem` for CET Lua consumption.
+
+---
+
 ## [`f74ff53`](https://github.com/mordeak/immersive-footwear-pov/commit/f74ff53) — 2026-08-29
 ### `refactor(logging): remove dead REDscript LogChannel/FTLog routines in favor of CET Lua telemetry`
 * **REDscript Logging Cleanup:** Completely removed inert `LogChannel` / `FTLog` calls and unused debug printer methods from `ImmersiveFootwearPOV_System.reds` and `Integrations/ImmersiveFootwearPOV_IFP.reds`.

@@ -59,8 +59,9 @@ public class TFPHelper {
           msg = s"[ImmersiveFootwearPOV][TFP] Footwear Height Applied -> Shoe: '\(shoeName)' [\(shoeSource)] | Lift: +\(liftCm)cm | TFP Base: \(baseZCm)cm -> Total CameraZ: \(targetZCm)cm (was \(oldCamZCm)cm)";
         };
 
-        LogChannel(n"DEBUG", msg);
-        Log(msg);
+        if povSys.IsDebugLogging() {
+          Log(msg);
+        };
       };
     };
   }
@@ -94,8 +95,9 @@ public class TFPHelper {
 
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
         let msg: String = s"[ImmersiveFootwearPOV][TFP] Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
-        LogChannel(n"DEBUG", msg);
-        Log(msg);
+        if povSys.IsDebugLogging() {
+          Log(msg);
+        };
       };
     };
   }

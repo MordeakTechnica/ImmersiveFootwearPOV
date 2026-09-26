@@ -20,18 +20,7 @@ public class HeightController {
       return false;
     };
 
-    // Calculate animgraph blend:
-    // Range is -50cm (-0.50m) to +50cm (+0.50m)
-    // 0.0m offset (flat shoes) -> blend 0.50
-    // +0.09m offset (9cm boots) -> blend 0.59
-    let blend: Float = (offsetZ + 0.50) / 1.00;
-    if blend < 0.0 {
-      blend = 0.0;
-    };
-    if blend > 1.0 {
-      blend = 1.0;
-    };
-
+    let blend: Float = FootwearAnimgraphHelper.CalculateHeightBlend(offsetZ);
     AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", blend);
     return true;
   }

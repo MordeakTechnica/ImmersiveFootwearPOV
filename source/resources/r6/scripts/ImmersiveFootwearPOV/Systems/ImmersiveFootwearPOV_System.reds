@@ -98,6 +98,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     } else {
       this.RecalculateEffectiveOffset(player);
     };
+    this.LogTFPState(player);
   }
 
   public func RecalculateEffectiveOffset(player: ref<PlayerPuppet>) -> Void {
@@ -173,12 +174,29 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if Equals(this.m_isInVehicle, inVehicle) { return; };
     this.m_isInVehicle = inVehicle;
     this.RecalculateEffectiveOffset(player);
+    if IsDefined(player) {
+      let eventName: String = inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)";
+      this.LogTFPEvent(eventName, 0.0, 0.0);
+      this.LogTFPState(player);
+    };
   }
 
   public func SetWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
     if Equals(this.m_isInWorkspot, inWorkspot) { return; };
     this.m_isInWorkspot = inWorkspot;
     this.RecalculateEffectiveOffset(player);
+    if IsDefined(player) {
+      let eventName: String = inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)";
+      this.LogTFPEvent(eventName, 0.0, 0.0);
+      this.LogTFPState(player);
+    };
+  }
+
+  public func OnWeaponAction(player: ref<PlayerPuppet>, actionName: String) -> Void {
+    if !IsDefined(player) { return; };
+    TFPHelper.SyncWeaponForCurrentFootwear(player.GetGame());
+    this.LogTFPEvent(s"WeaponAction (\(actionName))", 0.0, 0.0);
+    this.LogTFPState(player);
   }
 
   // -----------------------------------------------------------------------------
@@ -302,5 +320,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   public func LogTFPPolling(baseZ: Float, curZ: Float) -> Void {
     FootwearTelemetryLogger.LogTFPPolling(this, baseZ, curZ);
+  }
+
+  public func LogTFPState(player: ref<PlayerPuppet>) -> Void {
+    if !IsDefined(player) || !this.m_debugLogging { return; };
+    TFPHelper.LogState(player);
   }
 }
