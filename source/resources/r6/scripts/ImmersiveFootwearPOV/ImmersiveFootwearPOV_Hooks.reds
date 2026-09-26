@@ -78,9 +78,10 @@ public final func OnRestored() -> Void {
 }
 
 @wrapMethod(PlayerPuppet)
-protected cb func OnGameAttached() -> Void {
-  wrappedMethod();
+protected cb func OnGameAttached() -> Bool {
+  let result: Bool = wrappedMethod();
   FootwearHooksHelper.NotifyFootwearChanged(this);
+  return result;
 }
 
 // -----------------------------------------------------------------------------
