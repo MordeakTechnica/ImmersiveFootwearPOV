@@ -218,6 +218,61 @@ local function DrawStanceReadout(modState, shoeState, isAppended, sys)
     end
 end
 
+local function DrawHipSwayControls(modState, saveOverridesCallback)
+    ImGui.Spacing()
+    ImGui.Separator()
+    if ImGui.TreeNodeEx("[Experimental] Feminine Stride & Hip Sway", ImGuiTreeNodeFlags.DefaultOpen) then
+        local changed = false
+
+        -- 1. Master enable toggle
+        local enabled, clickedEnabled = ImGui.Checkbox("Enable Dynamic Hip Sway (Heels)##sway_enable", modState.enableHipSway)
+        if clickedEnabled then
+            modState.enableHipSway = enabled
+            changed = true
+        end
+
+        if modState.enableHipSway then
+            -- 2. First-Person Camera Motion / Head Bob toggle
+            local headBob, clickedBob = ImGui.Checkbox("Enable First-Person Camera Motion in Immersive First Person##sway_headbob", modState.enableFPPHeadBob)
+            if clickedBob then
+                modState.enableFPPHeadBob = headBob
+                changed = true
+            end
+            if not modState.enableFPPHeadBob then
+                ImGui.TextDisabled("Camera is stabilized steady-cam in First Person (Zero motion sickness).")
+            else
+                ImGui.TextDisabled("Camera receives natural spine motion matching walking gait.")
+            end
+
+            -- 3. Intensity Slider (0.50x to 1.50x)
+            local intensity, changedIntensity = ImGui.SliderFloat("Sway Intensity##sway_intensity", modState.hipSwayIntensity, 0.50, 1.50, "%.2fx")
+            if changedIntensity then
+                modState.hipSwayIntensity = intensity
+                changed = true
+            end
+
+            -- 4. Live diagnostic status
+            local strideMod = modState.stride
+            if strideMod and strideMod.GetStatus then
+                local status, roll, yaw, blend = strideMod.GetStatus()
+                ImGui.Spacing()
+                ImGui.TextColored(0.3, 0.9, 0.8, 1.0, string.format("Stride Status: %s", status))
+                if blend and blend > 0.01 then
+                    ImGui.TextDisabled(string.format("Live Hip Angles: Roll %+.1f° | Yaw %+.1f° | Blend: %.0f%%", roll or 0.0, yaw or 0.0, (blend or 0.0) * 100))
+                end
+            end
+        else
+            ImGui.TextDisabled("Procedural hip sway is disabled. Standard neutral walk cycle active.")
+        end
+
+        if changed and saveOverridesCallback then
+            saveOverridesCallback()
+        end
+
+        ImGui.TreePop()
+    end
+end
+
 -- -----------------------------------------------------------------------------
 -- Render Footwear Configuration Controls & Telemetry Readouts
 -- -----------------------------------------------------------------------------
@@ -229,6 +284,7 @@ local function DrawFootwearControls(modState, player, sys, heightLimits, saveOve
         if isAppended and not shoeState.isSuppressed and modState.ifpBaseHeightCm ~= 0.0 then
             ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(modState.ifpBaseHeightCm + 0.5)))
         end
+        DrawHipSwayControls(modState, saveOverridesCallback)
         return
     end
 
@@ -242,6 +298,7 @@ local function DrawFootwearControls(modState, player, sys, heightLimits, saveOve
 
     DrawHeightGuideAccordion()
     DrawPhotoModeOptions(modState, shoeState, saveOverridesCallback)
+    DrawHipSwayControls(modState, saveOverridesCallback)
     DrawStanceReadout(modState, shoeState, isAppended, sys)
 end
 

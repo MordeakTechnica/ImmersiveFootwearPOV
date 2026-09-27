@@ -9,6 +9,7 @@ local Config = require("modules/config")
 local Logger = require("modules/logger")
 local Transition = require("modules/transition")
 local State = require("modules/state")
+local Stride = require("modules/stride")
 local IFPIntegration = require("integrations/ifp")
 local PMIntegration = require("integrations/pm")
 
@@ -28,7 +29,11 @@ local mod = {
     overrides = {},
     autoElevatePMPlatform = true,
     debugLogs = false,
+    enableHipSway = true,
+    enableFPPHeadBob = true,
+    hipSwayIntensity = 1.0,
     isPhotoModeOpen = false,
+    stride = Stride,
 }
 
 -- Expose currentShoeState for integrations / UI
@@ -38,6 +43,9 @@ local function SaveAllOverrides()
     Config.Save(Config.FILE_NAME, mod.overrides, {
         autoElevatePM = mod.autoElevatePMPlatform,
         debugLogs = mod.debugLogs,
+        enableHipSway = mod.enableHipSway,
+        enableFPPHeadBob = mod.enableFPPHeadBob,
+        hipSwayIntensity = mod.hipSwayIntensity,
     })
 end
 
@@ -148,7 +156,11 @@ registerForEvent("onInit", function()
     mod.overrides = overrides
     mod.autoElevatePMPlatform = settings.autoElevatePM
     mod.debugLogs = settings.debugLogs
+    mod.enableHipSway = settings.enableHipSway
+    mod.enableFPPHeadBob = settings.enableFPPHeadBob
+    mod.hipSwayIntensity = settings.hipSwayIntensity
     Logger.Init(mod.debugLogs)
+    Stride.Init()
 
     PMIntegration.Init(mod)
     RefreshIFPBaseHeight()
@@ -168,11 +180,13 @@ registerForEvent("onInit", function()
         end
     end)
     RegisterConsoleShortcuts()
-    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Base: %.1f cm) | Debug: %s",
+    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
         itpInstalled and "ACTIVE" or "ABSENT",
         ifpInstalled and "ACTIVE" or "ABSENT",
         ifpEnabled and "YES" or "NO",
-        mod.ifpBaseHeightCm, mod.debugLogs and "ENABLED" or "DISABLED"))
+        mod.ifpBaseHeightCm,
+        mod.enableHipSway and "ENABLED" or "DISABLED",
+        mod.debugLogs and "ENABLED" or "DISABLED"))
 end)
 
 registerForEvent("onOverlayOpen", function()
@@ -383,6 +397,9 @@ registerForEvent("onUpdate", function(deltaTime)
 
     mod.currentShoeState.totalStanceCm = Transition.GetStanceCm()
     IFPIntegration.ApplyBlend(player, activeBlend, footElevationMeters)
+
+    -- Procedural Feminine Stride & Hip Sway
+    Stride.Update(deltaTime, player, mod.currentShoeState, isITPActive, mod, isSuppressed)
 end)
 
 -- -----------------------------------------------------------------------------
