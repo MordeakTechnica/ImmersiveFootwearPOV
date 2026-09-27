@@ -201,11 +201,7 @@ local function UpdatePMElevationFromOutfitName(controller, outfitName)
 
         local itemID = sys:ReadFootwearFromEquipmentExOutfit(CName.new(outfitName))
         if not itemID or not ItemID.IsValid(itemID) then
-            -- Outfit is confirmed barefoot / flat in Equipment-EX
-            PM.pendingInspectFrames = nil
-            LogPM("Outfit Switched -> '%s' (Barefoot / Flat) | Elevation: +0.0000 m", tostring(outfitName))
-            PM.ForceAttribute(PM_CONSTANTS.ATTR_V_UP_DOWN, 0.0)
-            return true
+            return false
         end
 
         local tdbid = ItemID.GetTDBID(itemID)

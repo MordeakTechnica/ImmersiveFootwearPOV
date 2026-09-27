@@ -2,6 +2,14 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [Unreleased] — 2026-09-27 · [**`v2.0.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.1)
+### `fix(equipment-ex): resolve REDscript compilation error on official Equipment-EX installations`
+* **Official Equipment-EX Compatibility:** Removed call to `outfitSys.GetOutfitParts(outfitName)`, which does not exist in official releases of Equipment-EX.
+* **Safe Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to query currently equipped items via official `EquipmentEx.OutfitSystem` APIs (`outfitSys.IsEquipped` and `outfitSys.GetEquippedItemInSlot`).
+* **Photo Mode Delayed Inspection Fallback:** Updated `pm.lua` so that when switching outfits in Photo Mode, any footwear not immediately resolvable by name gracefully defers to the existing 8-frame delayed mesh inspection on the puppet, guaranteeing accurate elevation for all shoes, platforms, and flat/barefoot outfits without errors.
+
+---
+
 ## [`5805e15`](https://github.com/mordeak/immersive-footwear-pov/commit/5805e15ee388b98cd763ddfcaedf9c2965186dad) — 2026-09-26 · [**`v2.0.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.0)
 ### `feat(logging): integrate RedLogger with centralized logging, dynamic mod tagging, and photo mode fix`
 * **RedLogger Centralized Logging:** Integrated [RedLogger](https://www.nexusmods.com/cyberpunk2077/mods/31920) via soft-dependency guards (`@if(ModuleExists("RedLogger"))`), channeling all REDscript and CET log statements into a single file at `r6\logs\mods\ImmersiveFootwearPOV__<timestamp>.log`.

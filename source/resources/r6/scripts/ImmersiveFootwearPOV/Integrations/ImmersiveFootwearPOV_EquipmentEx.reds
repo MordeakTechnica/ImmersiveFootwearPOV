@@ -1,7 +1,7 @@
 module ImmersiveFootwearPOV
 
 @if(ModuleExists("EquipmentEx"))
-import EquipmentEx.{OutfitSystem,OutfitPart}
+import EquipmentEx.OutfitSystem
 
 // -----------------------------------------------------------------------------
 // 3rd-Party Integration: Equipment-EX (Active Module Implementation)
@@ -55,31 +55,18 @@ public class EquipmentExHelper {
     return ItemID.None();
   }
 
-  // Resolves footwear ItemID directly from an Equipment-EX outfit name
+  // Resolves footwear ItemID directly from an Equipment-EX outfit if currently equipped
   public static func GetFootwearFromOutfit(game: GameInstance, outfitName: CName) -> ItemID {
     let outfitSys: ref<OutfitSystem> = OutfitSystem.GetInstance(game);
     if !IsDefined(outfitSys) {
       return ItemID.None();
     };
 
-    let parts: array<ref<OutfitPart>> = outfitSys.GetOutfitParts(outfitName);
-    let count: Int32 = ArraySize(parts);
-    let i: Int32 = 0;
-    let part: ref<OutfitPart>;
-    let slotID: TweakDBID;
-
-    while i < count {
-      part = parts[i];
-      if IsDefined(part) {
-        slotID = part.GetSlotID();
-        if Equals(slotID, t"OutfitSlots.Feet") || Equals(slotID, t"AttachmentSlots.Feet") || Equals(slotID, t"OutfitSlots.FeetOuter") || Equals(slotID, t"OutfitSlots.Legs") {
-          let itemID: ItemID = part.GetItemID();
-          if ItemID.IsValid(itemID) {
-            return itemID;
-          };
-        };
+    if outfitSys.IsEquipped(outfitName) {
+      let feetID: ItemID = outfitSys.GetEquippedItemInSlot(t"OutfitSlots.Feet");
+      if ItemID.IsValid(feetID) {
+        return feetID;
       };
-      i += 1;
     };
 
     return ItemID.None();
