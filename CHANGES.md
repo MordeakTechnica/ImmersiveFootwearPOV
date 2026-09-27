@@ -2,10 +2,18 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [Unreleased] — 2026-09-27 · [**`v2.0.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.1)
-### `fix(equipment-ex): resolve REDscript compilation error on official Equipment-EX installations`
+## [`a98f9d8`](https://github.com/mordeak/immersive-footwear-pov/commit/a98f9d86411516e8103c80ff4cae42ffdb0673d3) — 2026-09-27 · [**`v2.0.2`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.2)
+### `fix(equipment-ex): resolve unresolved GetEquippedItemInSlot method for official Equipment-EX`
+* **Official Equipment-EX Compatibility:** Resolved unresolved method compiler error (`method 'GetEquippedItemInSlot' not found on 'EquipmentEx.OutfitSystem'`).
+* **Universal Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to delegate directly to `EquipmentExHelper.GetActiveFootwear(player)` when the outfit is equipped, utilizing REDengine's native `TransactionSystem.GetItemInSlot` and standard Equipment-EX slot APIs supported across all official releases (v1.0 - v1.2.9+).
+* **Photo Mode Delayed Inspection Fallback:** Preserved `pm.lua` delayed puppet inspection fallback so that any asynchronous mesh attachment or unequipped outfit preview gracefully settles to accurate elevation without errors.
+
+---
+
+## [`a880177`](https://github.com/mordeak/immersive-footwear-pov/commit/a88017700f7e903ee624c2c2031769f7284f1c62) — 2026-09-27 · [**`v2.0.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.1)
+### `fix(equipment-ex): resolve REDscript compilation error on official Equipment-EX`
 * **Official Equipment-EX Compatibility:** Removed call to `outfitSys.GetOutfitParts(outfitName)`, which does not exist in official releases of Equipment-EX.
-* **Safe Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to query currently equipped items via official `EquipmentEx.OutfitSystem` APIs (`outfitSys.IsEquipped` and `outfitSys.GetEquippedItemInSlot`).
+* **Safe Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to query currently equipped items via `outfitSys.IsEquipped`.
 * **Photo Mode Delayed Inspection Fallback:** Updated `pm.lua` so that when switching outfits in Photo Mode, any footwear not immediately resolvable by name gracefully defers to the existing 8-frame delayed mesh inspection on the puppet, guaranteeing accurate elevation for all shoes, platforms, and flat/barefoot outfits without errors.
 
 ---
