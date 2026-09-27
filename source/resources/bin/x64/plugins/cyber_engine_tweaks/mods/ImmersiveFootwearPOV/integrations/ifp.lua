@@ -225,17 +225,17 @@ local function DrawHipSwayControls(modState, saveOverridesCallback)
         local changed = false
 
         -- 1. Master enable toggle
-        local enabled, clickedEnabled = ImGui.Checkbox("Enable Dynamic Hip Sway (Heels)##sway_enable", modState.enableHipSway)
-        if clickedEnabled then
-            modState.enableHipSway = enabled
+        local swayVal, swayChanged = ImGui.Checkbox("Enable Dynamic Hip Sway (Heels)##sway_enable", modState.enableHipSway)
+        if swayVal ~= modState.enableHipSway or swayChanged then
+            modState.enableHipSway = swayVal
             changed = true
         end
 
         if modState.enableHipSway then
             -- 2. First-Person Camera Motion / Head Bob toggle
-            local headBob, clickedBob = ImGui.Checkbox("Enable First-Person Camera Motion in Immersive First Person##sway_headbob", modState.enableFPPHeadBob)
-            if clickedBob then
-                modState.enableFPPHeadBob = headBob
+            local headBobVal, headBobChanged = ImGui.Checkbox("Enable First-Person Camera Motion in Immersive First Person##sway_headbob", modState.enableFPPHeadBob)
+            if headBobVal ~= modState.enableFPPHeadBob or headBobChanged then
+                modState.enableFPPHeadBob = headBobVal
                 changed = true
             end
             if not modState.enableFPPHeadBob then

@@ -10,26 +10,30 @@ local Stride = {
     currentBlend = 0.0,
     currentRoll = 0.0,
     currentYaw = 0.0,
-    currentPitch = 0.0,
+    currentSpineCounterYaw = 0.0,
+    currentSpineCounterRoll = 0.0,
     statusText = "Idle",
 
     -- Cached CNames for native animation variable publication
     rollVarName = nil,
-    pitchVarName = nil,
     yawVarName = nil,
+    spineCounterYawVarName = nil,
+    spineCounterRollVarName = nil,
     blendVarName = nil,
 
-    -- Kinematic baseline amplitudes (at 10 cm heel height, 1.0x intensity)
-    BASE_ROLL_DEG = 3.2,   -- Frontal plane pelvic drop / tilt
-    BASE_YAW_DEG = 3.8,    -- Transverse plane pelvic swivel
-    BASE_PITCH_DEG = 0.8,  -- Sagittal plane double-frequency tilt
+    -- Anatomical baseline amplitudes (at 10 cm heel height, 1.0x intensity)
+    BASE_ROLL_DEG = 2.8,   -- Frontal plane pelvic drop / tilt (Y_Axis, Forward rotation)
+    BASE_YAW_DEG = 3.4,    -- Transverse plane pelvic swivel (Z_Axis, Up rotation)
+    COUNTER_YAW_RATIO = -0.45,   -- Thoracic spine counter-yaw (stabilizes shoulders)
+    COUNTER_ROLL_RATIO = -0.35,  -- Thoracic spine counter-roll (keeps shoulders level)
 }
 
 function Stride.Init()
     if not Stride.rollVarName then
         Stride.rollVarName = CName.new("ifp_hip_sway_roll")
-        Stride.pitchVarName = CName.new("ifp_hip_sway_pitch")
         Stride.yawVarName = CName.new("ifp_hip_sway_yaw")
+        Stride.spineCounterYawVarName = CName.new("ifp_spine_counter_yaw")
+        Stride.spineCounterRollVarName = CName.new("ifp_spine_counter_roll")
         Stride.blendVarName = CName.new("ifp_hip_sway_blend")
     end
 end
@@ -111,7 +115,8 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         Stride.currentBlend = 0.0
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
-        Stride.currentPitch = 0.0
+        Stride.currentSpineCounterYaw = 0.0
+        Stride.currentSpineCounterRoll = 0.0
         Stride.statusText = "Disabled by User Setting"
         Stride.Publish(player)
         return
@@ -141,7 +146,8 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         Stride.currentBlend = 0.0
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
-        Stride.currentPitch = 0.0
+        Stride.currentSpineCounterYaw = 0.0
+        Stride.currentSpineCounterRoll = 0.0
         Stride.statusText = "Neutral Stride (Flat Footwear / 0 cm)"
         Stride.Publish(player)
         return
@@ -179,12 +185,13 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
     -- User intensity multiplier (0.5x - 1.5x)
     local intensity = (settings and settings.hipSwayIntensity) or 1.0
 
-    -- Instantaneous angles
+    -- Instantaneous anatomical angles (Yaw = advancing leg swivel, Roll = stance leg weight-bearing tilt)
     if Stride.currentBlend > 0.001 then
         local masterScale = heelScale * intensity * Stride.currentBlend
-        Stride.currentRoll = Stride.BASE_ROLL_DEG * math.sin(Stride.phase) * masterScale
-        Stride.currentYaw = Stride.BASE_YAW_DEG * math.cos(Stride.phase) * masterScale
-        Stride.currentPitch = Stride.BASE_PITCH_DEG * math.sin(2.0 * Stride.phase) * masterScale
+        Stride.currentYaw = Stride.BASE_YAW_DEG * math.sin(Stride.phase) * masterScale
+        Stride.currentRoll = Stride.BASE_ROLL_DEG * math.cos(Stride.phase) * masterScale
+        Stride.currentSpineCounterYaw = Stride.currentYaw * Stride.COUNTER_YAW_RATIO
+        Stride.currentSpineCounterRoll = Stride.currentRoll * Stride.COUNTER_ROLL_RATIO
 
         if not allowPerspective then
             Stride.statusText = "Steady-Cam in First Person (Head Bob Disabled)"
@@ -195,7 +202,8 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
     else
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
-        Stride.currentPitch = 0.0
+        Stride.currentSpineCounterYaw = 0.0
+        Stride.currentSpineCounterRoll = 0.0
         if not allowPerspective then
             Stride.statusText = "Steady-Cam in First Person (Head Bob Disabled)"
         else
@@ -215,8 +223,9 @@ function Stride.Publish(player)
     end
 
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.rollVarName, Stride.currentRoll)
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.pitchVarName, Stride.currentPitch)
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.yawVarName, Stride.currentYaw)
+    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.spineCounterYawVarName, Stride.currentSpineCounterYaw)
+    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.spineCounterRollVarName, Stride.currentSpineCounterRoll)
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.blendVarName, Stride.currentBlend)
 end
 
@@ -229,7 +238,8 @@ function Stride.Reset(player)
     Stride.currentBlend = 0.0
     Stride.currentRoll = 0.0
     Stride.currentYaw = 0.0
-    Stride.currentPitch = 0.0
+    Stride.currentSpineCounterYaw = 0.0
+    Stride.currentSpineCounterRoll = 0.0
     Stride.statusText = "Reset"
     if player then
         Stride.Publish(player)
