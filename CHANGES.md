@@ -2,7 +2,14 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [`a98f9d8`](https://github.com/mordeak/immersive-footwear-pov/commit/a98f9d86411516e8103c80ff4cae42ffdb0673d3) — 2026-09-27 · [**`v2.0.2`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.2)
+## [`0846e33`](https://github.com/mordeak/immersive-footwear-pov/commit/0846e337e6f80da1d8a4369e96e73bb93f0b2f56) — 2026-09-28 · [**`v2.0.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.3)
+### `fix(redlogger): use native FTLog in FootwearRedLogger fallback when RedLogger is not installed`
+* **Native REDengine Logging Compatibility:** Fixed compilation error (`function 'Log' not found`) occurring on players' systems where `RedLogger` is not installed.
+* **Vanilla Engine Functions:** Updated `FootwearRedLogger` fallback to use REDengine's universal native built-in logging functions (`FTLog`, `FTLogWarning`, and `FTLogError`), which are defined in base game `final.redscripts` and require zero third-party dependencies or external function declarations.
+
+---
+
+## [`ce7d088`](https://github.com/mordeak/immersive-footwear-pov/commit/ce7d0882e3c04be66e4aef9b26e109d73d2ff936) — 2026-09-27 · [**`v2.0.2`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.2)
 ### `fix(equipment-ex): resolve unresolved GetEquippedItemInSlot method for official Equipment-EX`
 * **Official Equipment-EX Compatibility:** Resolved unresolved method compiler error (`method 'GetEquippedItemInSlot' not found on 'EquipmentEx.OutfitSystem'`).
 * **Universal Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to delegate directly to `EquipmentExHelper.GetActiveFootwear(player)` when the outfit is equipped, utilizing REDengine's native `TransactionSystem.GetItemInSlot` and standard Equipment-EX slot APIs supported across all official releases (v1.0 - v1.2.9+).
