@@ -274,8 +274,8 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
     end
 
     if modState.enableHipSway then
-        -- 2. Sway Intensity Slider (0.25x to 2.50x)
-        local intensity, changedIntensity = ImGui.SliderFloat("Sway Intensity##sway_intensity", modState.hipSwayIntensity, 0.25, 2.50, "%.2fx")
+        -- 2. Sway Intensity Slider (0.25x to 1.50x)
+        local intensity, changedIntensity = ImGui.SliderFloat("Sway Intensity##sway_intensity", modState.hipSwayIntensity, 0.25, 1.50, "%.2fx")
         if changedIntensity then
             modState.hipSwayIntensity = intensity
             changed = true

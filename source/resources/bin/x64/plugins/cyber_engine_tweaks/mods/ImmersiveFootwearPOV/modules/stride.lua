@@ -110,7 +110,7 @@ function Stride.Update(deltaTime, player, sys, settings)
         end
     end
 
-    -- User intensity multiplier (0.25x - 2.50x)
+    -- User intensity multiplier (0.25x - 1.50x)
     local intensity = (settings and settings.hipSwayIntensity) or 1.0
 
     -- Compute instantaneous anatomical angles
