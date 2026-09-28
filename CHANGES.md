@@ -2,7 +2,25 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## Unreleased (`feat/feminine-stride`) — 2026-09-28
+## Unreleased (`feat/feminine-stride`) — 2026-09-29
+### `feat(stride): add variable catwalk sway scaling based on effective heel pitch`
+* **Effective Heel Pitch (Plantarflexion) Calculation:** Evaluated effective heel rise ($\max(0, \text{heelCm} - \text{platformCm})$) in native REDscript `SwayEvaluator`. Barefoot, flat shoes, and pure platforms (where platform sole matches or exceeds heel height) produce 0% sway, ensuring flatforms remain in a natural neutral stride.
+* **Biomechanical Inch Benchmarks:** Scaled catwalk pelvic roll and yaw according to empirical gait and ankle plantarflexion benchmarks:
+  * `< 2.0 cm` (`< 0.8"`): Flat / Barefoot / Pure Platform (0% sway — neutral baseline).
+  * `1.0"` (`~2.54 cm`): Low / Kitten Heel (~35% sway — subtle feminine hip roll).
+  * `2.0"` (`~5.08 cm`): Mid Heel (~70% sway — moderate catwalk stride).
+  * `>= 3.0"` (`7.50 cm` and above): High Heel / Stiletto (100% max sway — full runway catwalk locomotion).
+* **CET Overlay Biomechanical Breakdown:** Added a live footwear incline card in the "Catwalk Locomotion [Beta]" tab displaying effective heel rise in centimeters and inches, current sway tier, and scale percentage.
+
+---
+
+## [`b793d63`](https://github.com/mordeak/immersive-footwear-pov/commit/b793d63) — 2026-09-28
+### `tune(stride): cap hip sway intensity slider maximum to 1.50x`
+* **Slider Range:** Capped maximum user intensity multiplier on catwalk locomotion from `2.50x` to `1.50x`.
+
+---
+
+## [`daf338f`](https://github.com/mordeak/immersive-footwear-pov/commit/daf338f) — 2026-09-28
 ### `refactor(stride): delegate sway evaluation to REDscript and add tabbed UI in CET`
 * **REDscript Locomotion & Sway Evaluator:** Created `SwayContextData` and `SwayEvaluator` in `ImmersiveFootwearPOV_Suppression.reds` to authoritatively evaluate locomotion states, velocity thresholds, general suppression (vehicles, workspots, scenes, ladders, photo mode), PSM blackboards (crouch, sprint, jump, slide, dodge, climb, ADS), and non-linear heel-height scaling in native game code.
 * **Strict ITP Requirement & FPP Removal:** Enforced that catwalk locomotion strictly requires `Immersive Third Person (ITP)` installed and active (`IsITPPresent` and `IsTPPActive`). Dropped all FPP camera bobbing and headbob decoupling logic until future camera matrix revisions.

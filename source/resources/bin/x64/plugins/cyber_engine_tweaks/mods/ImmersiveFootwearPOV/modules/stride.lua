@@ -13,6 +13,8 @@ local Stride = {
     currentSpineCounterYaw = 0.0,
     currentSpineCounterRoll = 0.0,
     currentLegCounterRoll = 0.0,
+    currentHeelScale = 0.0,
+    currentPitchCm = 0.0,
     statusText = "Idle",
 
     -- Cached CNames for native animation variable publication
@@ -59,6 +61,8 @@ function Stride.Update(deltaTime, player, sys, settings)
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
         Stride.currentLegCounterRoll = 0.0
+        Stride.currentHeelScale = 0.0
+        Stride.currentPitchCm = 0.0
         Stride.statusText = "Disabled by User Setting"
         Stride.Publish(player)
         return
@@ -71,6 +75,8 @@ function Stride.Update(deltaTime, player, sys, settings)
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
         Stride.currentLegCounterRoll = 0.0
+        Stride.currentHeelScale = 0.0
+        Stride.currentPitchCm = 0.0
         Stride.statusText = "System Unavailable"
         Stride.Publish(player)
         return
@@ -86,6 +92,10 @@ function Stride.Update(deltaTime, player, sys, settings)
     local heelScale = ctx.heelScale or 0.0
     local speed = ctx.speed or 0.0
     local reason = ctx.suppressionReason or ""
+    local pitchCm = ctx.heelPitchCm or 0.0
+
+    Stride.currentHeelScale = heelScale
+    Stride.currentPitchCm = pitchCm
 
     local targetBlend = canSway and 1.0 or 0.0
 
@@ -128,8 +138,9 @@ function Stride.Update(deltaTime, player, sys, settings)
         Stride.currentSpineCounterRoll = Stride.currentRoll * Stride.COUNTER_ROLL_RATIO
         Stride.currentLegCounterRoll = Stride.currentRoll * Stride.COUNTER_LEG_ROLL_RATIO
 
-        Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Speed: %.1f m/s)",
-            Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, speed)
+        local pitchInches = pitchCm / 2.54
+        Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Pitch: %.1f cm / %.1f\", Scale: %.0f%%, Speed: %.1f m/s)",
+            Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, pitchCm, pitchInches, heelScale * 100, speed)
     else
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
@@ -170,6 +181,8 @@ function Stride.Reset(player)
     Stride.currentSpineCounterYaw = 0.0
     Stride.currentSpineCounterRoll = 0.0
     Stride.currentLegCounterRoll = 0.0
+    Stride.currentHeelScale = 0.0
+    Stride.currentPitchCm = 0.0
     Stride.statusText = "Reset"
     if player then
         Stride.Publish(player)
@@ -177,7 +190,7 @@ function Stride.Reset(player)
 end
 
 function Stride.GetStatus()
-    return Stride.statusText, Stride.currentRoll, Stride.currentYaw, Stride.currentBlend, Stride.currentLegCounterRoll
+    return Stride.statusText, Stride.currentRoll, Stride.currentYaw, Stride.currentBlend, Stride.currentLegCounterRoll, Stride.currentHeelScale, Stride.currentPitchCm
 end
 
 return Stride

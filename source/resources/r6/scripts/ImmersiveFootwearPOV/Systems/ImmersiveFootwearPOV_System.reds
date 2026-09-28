@@ -246,6 +246,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     return SwayEvaluator.Evaluate(this, player);
   }
 
+  public func GetEffectiveHeelPitch() -> Float {
+    return MaxF(0.0, this.m_currentHeelHeight - this.m_currentPlatformHeight);
+  }
+
   // -----------------------------------------------------------------------------
   // TFP Weapon Synchronization Tracking
   // -----------------------------------------------------------------------------

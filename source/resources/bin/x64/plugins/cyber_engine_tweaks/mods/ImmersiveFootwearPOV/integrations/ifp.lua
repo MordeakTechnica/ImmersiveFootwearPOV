@@ -285,7 +285,7 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
         -- 3. Live diagnostic status & angles
         local strideMod = modState.stride
         if strideMod and strideMod.GetStatus then
-            local status, roll, yaw, blend, legRoll = strideMod.GetStatus()
+            local status, roll, yaw, blend, legRoll, heelScale, pitchCm = strideMod.GetStatus()
             ImGui.Spacing()
             ImGui.Separator()
             ImGui.TextColored(0.3, 0.9, 0.8, 1.0, string.format("Stride Status: %s", status))
@@ -295,6 +295,40 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
             else
                 ImGui.TextDisabled("Sway activates when walking in 3rd-person (ITP) with footwear heels >= 2 cm.")
             end
+        end
+
+        -- 4. Footwear Incline & Biomechanical Sway Tier Breakdown
+        local shoeState = modState.currentShoeState
+        local heelCm = shoeState and shoeState.heelCm or 0.0
+        local platCm = shoeState and shoeState.platformCm or 0.0
+        local pitchCm = math.max(0.0, heelCm - platCm)
+        local pitchInches = pitchCm / 2.54
+
+        ImGui.Spacing()
+        ImGui.Separator()
+        ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "Footwear Incline & Biomechanical Sway Tier:")
+        if pitchCm < 2.0 then
+            if platCm >= 2.0 and pitchCm < 0.5 then
+                ImGui.Text(string.format("  * Heel Rise: %.1f cm (%.1f\") | Sole: %.1f cm -> Flat Platform (0%% Sway)", pitchCm, pitchInches, platCm))
+                ImGui.TextDisabled("    (Neutral stride: flat platforms have zero ankle incline)")
+            else
+                ImGui.Text(string.format("  * Heel Rise: %.1f cm (%.1f\") -> Flat Footwear (0%% Sway)", pitchCm, pitchInches))
+                ImGui.TextDisabled("    (Neutral stride: flat footwear / barefoot has zero ankle incline)")
+            end
+        elseif pitchCm < 5.08 then
+            local pct = math.floor(35 + 35 * ((pitchCm - 2.54) / (5.08 - 2.54)) + 0.5)
+            if pitchCm < 2.54 then
+                pct = math.floor(35 * ((pitchCm - 2.0) / (2.54 - 2.0)) + 0.5)
+            end
+            ImGui.Text(string.format("  * Heel Rise: %.1f cm (%.1f\") -> Low Heel Tier (~%d%% Sway)", pitchCm, pitchInches, pct))
+            ImGui.TextDisabled("    (Subtle feminine hip sway: ~1\" kitten / low block heel)")
+        elseif pitchCm < 7.50 then
+            local pct = math.floor(70 + 30 * ((pitchCm - 5.08) / (7.50 - 5.08)) + 0.5)
+            ImGui.Text(string.format("  * Heel Rise: %.1f cm (%.1f\") -> Mid Heel Tier (~%d%% Sway)", pitchCm, pitchInches, pct))
+            ImGui.TextDisabled("    (Moderate catwalk sway: ~2\" classic mid-heel pump)")
+        else
+            ImGui.Text(string.format("  * Heel Rise: %.1f cm (%.1f\") -> High Heel Tier (100%% Max Sway)", pitchCm, pitchInches))
+            ImGui.TextDisabled("    (Full catwalk locomotion: >= 3\" stiletto / high heel)")
         end
     else
         ImGui.TextDisabled("Procedural catwalk hip sway is disabled. Standard neutral walk cycle active.")

@@ -76,18 +76,44 @@ public class SwayContextData {
   public let heelScale: Float;
   public let suppressionReason: String;
   public let speed: Float;
+  public let heelPitchCm: Float;
 
-  public static func Create(canSway: Bool, heelScale: Float, reason: String, speed: Float) -> ref<SwayContextData> {
+  public static func Create(canSway: Bool, heelScale: Float, reason: String, speed: Float, opt pitchCm: Float) -> ref<SwayContextData> {
     let data: ref<SwayContextData> = new SwayContextData();
     data.canSway = canSway;
     data.heelScale = heelScale;
     data.suppressionReason = reason;
     data.speed = speed;
+    data.heelPitchCm = pitchCm;
     return data;
   }
 }
 
 public class SwayEvaluator {
+
+  // -----------------------------------------------------------------------------
+  // Calculates Biomechanical Catwalk Sway Scale (0.00x - 1.00x)
+  // Based on real-world gait kinematics & ankle plantarflexion benchmarks:
+  // - < 2.0 cm (< 0.8"): Flat / Platform (0% sway - neutral gait)
+  // - 1.0" (~2.54 cm): Low / Kitten Heel (~35% sway - subtle sway)
+  // - 2.0" (~5.08 cm): Mid Heel (~70% sway - moderate sway)
+  // - >= 3.0" (7.50 cm): High Heel / Stiletto (100% max sway)
+  // -----------------------------------------------------------------------------
+  public static func CalculateHeelScale(pitchCm: Float) -> Float {
+    if pitchCm < 2.0 {
+      return 0.0;
+    };
+    if pitchCm < 2.54 {
+      return 0.35 * ((pitchCm - 2.0) / 0.54);
+    };
+    if pitchCm < 5.08 {
+      return 0.35 + 0.35 * ((pitchCm - 2.54) / 2.54);
+    };
+    if pitchCm < 7.50 {
+      return 0.70 + 0.30 * ((pitchCm - 5.08) / 2.42);
+    };
+    return 1.0;
+  }
 
   public static func Evaluate(sys: ref<ImmersiveFootwearPOVSystem>, player: ref<PlayerPuppet>) -> ref<SwayContextData> {
     if !IsDefined(player) || !IsDefined(sys) {
@@ -153,15 +179,29 @@ public class SwayEvaluator {
       };
     };
 
-    // 6. Heel height scaling (in cm)
+    // 6. Effective heel pitch / inclination scaling (heel lift relative to platform sole)
     let heelCm: Float = sys.GetCurrentHeelHeight() * 100.0;
-    if heelCm < 2.0 {
-      return SwayContextData.Create(false, 0.0, "Neutral Stride (Flat Footwear / <2 cm)", speed);
+    let platCm: Float = sys.GetCurrentPlatformHeight() * 100.0;
+    let pitchCm: Float = MaxF(0.0, heelCm - platCm);
+
+    // Barefoot, flat shoes, or pure platforms (no heel incline) produce 0 sway
+    if pitchCm < 2.0 {
+      if platCm >= 2.0 && pitchCm < 0.5 {
+        return SwayContextData.Create(false, 0.0, "Neutral Stride (Flat Platform / No Incline)", speed, pitchCm);
+      };
+      return SwayContextData.Create(false, 0.0, "Neutral Stride (Flat Footwear / <2 cm)", speed, pitchCm);
     };
 
-    let norm: Float = MinF(1.50, (heelCm - 2.0) / 6.50);
-    let heelScale: Float = MaxF(0.40, MinF(1.20, 0.45 + 0.60 * SqrtF(norm)));
+    let heelScale: Float = SwayEvaluator.CalculateHeelScale(pitchCm);
+    let gaitDesc: String;
+    if pitchCm >= 7.50 {
+      gaitDesc = "Catwalk Stride (High Heel 3.0\"+ / Max Sway)";
+    } else if pitchCm >= 5.08 {
+      gaitDesc = "Catwalk Stride (Mid Heel 2.0\" - 3.0\")";
+    } else {
+      gaitDesc = "Catwalk Stride (Low Heel 1.0\" - 2.0\")";
+    };
 
-    return SwayContextData.Create(true, heelScale, "Walking / Jogging", speed);
+    return SwayContextData.Create(true, heelScale, gaitDesc, speed, pitchCm);
   }
 }
