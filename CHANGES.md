@@ -2,10 +2,25 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [Unreleased] — 2026-09-27 · [**`v2.0.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.1)
-### `fix(equipment-ex): resolve REDscript compilation error on official Equipment-EX installations`
+## [`0846e33`](https://github.com/mordeak/immersive-footwear-pov/commit/0846e337e6f80da1d8a4369e96e73bb93f0b2f56) — 2026-09-28 · [**`v2.0.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.3)
+### `fix(redlogger): use native FTLog in FootwearRedLogger fallback when RedLogger is not installed`
+* **Native REDengine Logging Compatibility:** Fixed compilation error (`function 'Log' not found`) occurring on players' systems where `RedLogger` is not installed.
+* **Vanilla Engine Functions:** Updated `FootwearRedLogger` fallback to use REDengine's universal native built-in logging functions (`FTLog`, `FTLogWarning`, and `FTLogError`), which are defined in base game `final.redscripts` and require zero third-party dependencies or external function declarations.
+
+---
+
+## [`ce7d088`](https://github.com/mordeak/immersive-footwear-pov/commit/ce7d0882e3c04be66e4aef9b26e109d73d2ff936) — 2026-09-27 · [**`v2.0.2`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.2)
+### `fix(equipment-ex): resolve unresolved GetEquippedItemInSlot method for official Equipment-EX`
+* **Official Equipment-EX Compatibility:** Resolved unresolved method compiler error (`method 'GetEquippedItemInSlot' not found on 'EquipmentEx.OutfitSystem'`).
+* **Universal Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to delegate directly to `EquipmentExHelper.GetActiveFootwear(player)` when the outfit is equipped, utilizing REDengine's native `TransactionSystem.GetItemInSlot` and standard Equipment-EX slot APIs supported across all official releases (v1.0 - v1.2.9+).
+* **Photo Mode Delayed Inspection Fallback:** Preserved `pm.lua` delayed puppet inspection fallback so that any asynchronous mesh attachment or unequipped outfit preview gracefully settles to accurate elevation without errors.
+
+---
+
+## [`a880177`](https://github.com/mordeak/immersive-footwear-pov/commit/a88017700f7e903ee624c2c2031769f7284f1c62) — 2026-09-27 · [**`v2.0.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.1)
+### `fix(equipment-ex): resolve REDscript compilation error on official Equipment-EX`
 * **Official Equipment-EX Compatibility:** Removed call to `outfitSys.GetOutfitParts(outfitName)`, which does not exist in official releases of Equipment-EX.
-* **Safe Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to query currently equipped items via official `EquipmentEx.OutfitSystem` APIs (`outfitSys.IsEquipped` and `outfitSys.GetEquippedItemInSlot`).
+* **Safe Footwear Resolution:** Updated `EquipmentExHelper.GetFootwearFromOutfit` to query currently equipped items via `outfitSys.IsEquipped`.
 * **Photo Mode Delayed Inspection Fallback:** Updated `pm.lua` so that when switching outfits in Photo Mode, any footwear not immediately resolvable by name gracefully defers to the existing 8-frame delayed mesh inspection on the puppet, guaranteeing accurate elevation for all shoes, platforms, and flat/barefoot outfits without errors.
 
 ---

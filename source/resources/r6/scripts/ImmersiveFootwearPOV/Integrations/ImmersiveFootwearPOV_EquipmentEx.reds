@@ -63,9 +63,9 @@ public class EquipmentExHelper {
     };
 
     if outfitSys.IsEquipped(outfitName) {
-      let feetID: ItemID = outfitSys.GetEquippedItemInSlot(t"OutfitSlots.Feet");
-      if ItemID.IsValid(feetID) {
-        return feetID;
+      let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(game).GetLocalPlayerMainGameObject() as PlayerPuppet;
+      if IsDefined(player) {
+        return EquipmentExHelper.GetActiveFootwear(player);
       };
     };
 

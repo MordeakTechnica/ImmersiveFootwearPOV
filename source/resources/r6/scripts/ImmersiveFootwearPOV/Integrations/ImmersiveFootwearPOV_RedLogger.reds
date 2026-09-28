@@ -44,36 +44,42 @@ public class FootwearRedLogger {
 
 // -----------------------------------------------------------------------------
 // Fallback Implementation (when RedLogger is NOT installed)
-// Routes messages to vanilla REDscript engine console / redscript.log
+// Routes messages to native REDengine console / log via FTLog
 // -----------------------------------------------------------------------------
 @if(!ModuleExists("RedLogger"))
 public class FootwearRedLogger {
 
   public static func Append(level: String, tag: String, message: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV][\(tag)][\(level)] \(message)");
+    if Equals(level, "WARN") {
+      FTLogWarning(s"[ImmersiveFootwearPOV][\(tag)][WARN] \(message)");
+    } else if Equals(level, "ERROR") {
+      FTLogError(s"[ImmersiveFootwearPOV][\(tag)][ERROR] \(message)");
+    } else {
+      FTLog(s"[ImmersiveFootwearPOV][\(tag)][\(level)] \(message)");
+    };
   }
 
   public static func AppendRaw(line: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV] \(line)");
+    FTLog(s"[ImmersiveFootwearPOV] \(line)");
   }
 
   public static func Log(tag: String, message: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV][\(tag)] \(message)");
+    FTLog(s"[ImmersiveFootwearPOV][\(tag)] \(message)");
   }
 
   public static func LogDebug(tag: String, message: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV][\(tag)][DEBUG] \(message)");
+    FTLog(s"[ImmersiveFootwearPOV][\(tag)][DEBUG] \(message)");
   }
 
   public static func LogInfo(tag: String, message: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV][\(tag)][INFO] \(message)");
+    FTLog(s"[ImmersiveFootwearPOV][\(tag)][INFO] \(message)");
   }
 
   public static func LogWarn(tag: String, message: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV][\(tag)][WARN] \(message)");
+    FTLogWarning(s"[ImmersiveFootwearPOV][\(tag)][WARN] \(message)");
   }
 
   public static func LogError(tag: String, message: String) -> Void {
-    Log(s"[ImmersiveFootwearPOV][\(tag)][ERROR] \(message)");
+    FTLogError(s"[ImmersiveFootwearPOV][\(tag)][ERROR] \(message)");
   }
 }
