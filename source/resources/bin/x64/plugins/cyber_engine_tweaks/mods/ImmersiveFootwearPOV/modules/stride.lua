@@ -12,6 +12,7 @@ local Stride = {
     currentYaw = 0.0,
     currentSpineCounterYaw = 0.0,
     currentSpineCounterRoll = 0.0,
+    currentLegCounterRoll = 0.0,
     statusText = "Idle",
 
     -- Cached CNames for native animation variable publication
@@ -19,13 +20,15 @@ local Stride = {
     yawVarName = nil,
     spineCounterYawVarName = nil,
     spineCounterRollVarName = nil,
+    legCounterRollVarName = nil,
     blendVarName = nil,
 
-    -- Anatomical baseline amplitudes (at 10 cm heel height, 1.0x intensity)
-    BASE_ROLL_DEG = 2.8,   -- Frontal plane pelvic drop / tilt (Y_Axis, Forward rotation)
-    BASE_YAW_DEG = 3.4,    -- Transverse plane pelvic swivel (Z_Axis, Up rotation)
-    COUNTER_YAW_RATIO = -0.45,   -- Thoracic spine counter-yaw (stabilizes shoulders)
-    COUNTER_ROLL_RATIO = -0.35,  -- Thoracic spine counter-roll (keeps shoulders level)
+    -- Anatomical catwalk baseline amplitudes (at 10 cm heel height, 1.0x intensity)
+    BASE_ROLL_DEG = 4.8,    -- Frontal plane pelvic teeter-totter (Y_Axis, ~4.8° provides ~3cm see-saw difference while preventing foot circumduction)
+    BASE_YAW_DEG = 2.0,     -- Transverse plane pelvic swivel (Z_Axis, subtle 2.0° forward reach guides legs straight forward along catwalk line)
+    COUNTER_YAW_RATIO = -0.52,   -- Thoracic spine counter-yaw on Spine2 (stabilizes shoulders & arm swing)
+    COUNTER_ROLL_RATIO = -1.25,  -- Thoracic spine counter-roll on Spine2 (-1.25 absorbs 100% hip roll + applies 25% opposite tilt to shoulders; head stays centered)
+    COUNTER_LEG_ROLL_RATIO = -0.75, -- Thigh counter-roll on LeftUpLeg & RightUpLeg (stabilizes thigh orientation to prevent circumduction and bowlegged arcs)
 }
 
 function Stride.Init()
@@ -34,6 +37,7 @@ function Stride.Init()
         Stride.yawVarName = CName.new("ifp_hip_sway_yaw")
         Stride.spineCounterYawVarName = CName.new("ifp_spine_counter_yaw")
         Stride.spineCounterRollVarName = CName.new("ifp_spine_counter_roll")
+        Stride.legCounterRollVarName = CName.new("ifp_leg_counter_roll")
         Stride.blendVarName = CName.new("ifp_hip_sway_blend")
     end
 end
@@ -117,6 +121,7 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         Stride.currentYaw = 0.0
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
+        Stride.currentLegCounterRoll = 0.0
         Stride.statusText = "Disabled by User Setting"
         Stride.Publish(player)
         return
@@ -134,11 +139,13 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         end
     end
 
-    -- Heel height scaling (0cm -> 0.0, 5cm -> 0.5, 10cm -> 1.0, 12cm+ -> 1.15)
+    -- Heel height scaling: kicks in smoothly for heels >= 2.0 cm, reaching ~75% at 5 cm and 100% at 8-10 cm
     local heelCm = (shoeState and shoeState.heelCm) or 0.0
     local heelScale = 0.0
-    if heelCm > 0.0 then
-        heelScale = math.min(1.20, heelCm / 10.0)
+    if heelCm >= 2.0 then
+        -- Smooth non-linear curve so moderate heels (4-7cm) have prominent catwalk sway
+        local norm = math.min(1.5, (heelCm - 2.0) / 6.5)
+        heelScale = math.max(0.40, math.min(1.20, 0.45 + 0.60 * math.sqrt(norm)))
     end
 
     if heelScale <= 0.001 then
@@ -148,7 +155,8 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         Stride.currentYaw = 0.0
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
-        Stride.statusText = "Neutral Stride (Flat Footwear / 0 cm)"
+        Stride.currentLegCounterRoll = 0.0
+        Stride.statusText = "Neutral Stride (Flat Footwear / <2 cm)"
         Stride.Publish(player)
         return
     end
@@ -187,23 +195,31 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
 
     -- Instantaneous anatomical angles (Yaw = advancing leg swivel, Roll = stance leg weight-bearing tilt)
     if Stride.currentBlend > 0.001 then
-        local masterScale = heelScale * intensity * Stride.currentBlend
+        -- Smoothly taper down during fast jogging so it doesn't look frantic
+        local speedDamp = 1.0
+        if speed > 3.0 then
+            speedDamp = math.max(0.40, 1.0 - (speed - 3.0) * 0.30)
+        end
+
+        local masterScale = heelScale * intensity * Stride.currentBlend * speedDamp
         Stride.currentYaw = Stride.BASE_YAW_DEG * math.sin(Stride.phase) * masterScale
         Stride.currentRoll = Stride.BASE_ROLL_DEG * math.cos(Stride.phase) * masterScale
         Stride.currentSpineCounterYaw = Stride.currentYaw * Stride.COUNTER_YAW_RATIO
         Stride.currentSpineCounterRoll = Stride.currentRoll * Stride.COUNTER_ROLL_RATIO
+        Stride.currentLegCounterRoll = Stride.currentRoll * Stride.COUNTER_LEG_ROLL_RATIO
 
         if not allowPerspective then
             Stride.statusText = "Steady-Cam in First Person (Head Bob Disabled)"
         else
-            Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Speed: %.1f m/s)",
-                Stride.currentRoll, Stride.currentYaw, speed)
+            Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Speed: %.1f m/s)",
+                Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, speed)
         end
     else
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
+        Stride.currentLegCounterRoll = 0.0
         if not allowPerspective then
             Stride.statusText = "Steady-Cam in First Person (Head Bob Disabled)"
         else
@@ -226,6 +242,7 @@ function Stride.Publish(player)
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.yawVarName, Stride.currentYaw)
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.spineCounterYawVarName, Stride.currentSpineCounterYaw)
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.spineCounterRollVarName, Stride.currentSpineCounterRoll)
+    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.legCounterRollVarName, Stride.currentLegCounterRoll)
     pcall(AnimationControllerComponent.SetInputFloat, player, Stride.blendVarName, Stride.currentBlend)
 end
 
@@ -240,6 +257,7 @@ function Stride.Reset(player)
     Stride.currentYaw = 0.0
     Stride.currentSpineCounterYaw = 0.0
     Stride.currentSpineCounterRoll = 0.0
+    Stride.currentLegCounterRoll = 0.0
     Stride.statusText = "Reset"
     if player then
         Stride.Publish(player)
@@ -247,7 +265,7 @@ function Stride.Reset(player)
 end
 
 function Stride.GetStatus()
-    return Stride.statusText, Stride.currentRoll, Stride.currentYaw, Stride.currentBlend
+    return Stride.statusText, Stride.currentRoll, Stride.currentYaw, Stride.currentBlend, Stride.currentLegCounterRoll
 end
 
 return Stride

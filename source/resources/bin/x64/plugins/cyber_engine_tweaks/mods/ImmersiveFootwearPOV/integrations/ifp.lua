@@ -244,8 +244,8 @@ local function DrawHipSwayControls(modState, saveOverridesCallback)
                 ImGui.TextDisabled("Camera receives natural spine motion matching walking gait.")
             end
 
-            -- 3. Intensity Slider (0.50x to 1.50x)
-            local intensity, changedIntensity = ImGui.SliderFloat("Sway Intensity##sway_intensity", modState.hipSwayIntensity, 0.50, 1.50, "%.2fx")
+            -- 3. Intensity Slider (0.25x to 2.50x)
+            local intensity, changedIntensity = ImGui.SliderFloat("Sway Intensity##sway_intensity", modState.hipSwayIntensity, 0.25, 2.50, "%.2fx")
             if changedIntensity then
                 modState.hipSwayIntensity = intensity
                 changed = true
@@ -254,11 +254,11 @@ local function DrawHipSwayControls(modState, saveOverridesCallback)
             -- 4. Live diagnostic status
             local strideMod = modState.stride
             if strideMod and strideMod.GetStatus then
-                local status, roll, yaw, blend = strideMod.GetStatus()
+                local status, roll, yaw, blend, legRoll = strideMod.GetStatus()
                 ImGui.Spacing()
                 ImGui.TextColored(0.3, 0.9, 0.8, 1.0, string.format("Stride Status: %s", status))
                 if blend and blend > 0.01 then
-                    ImGui.TextDisabled(string.format("Live Hip Angles: Roll %+.1f° | Yaw %+.1f° | Blend: %.0f%%", roll or 0.0, yaw or 0.0, (blend or 0.0) * 100))
+                    ImGui.TextDisabled(string.format("Live Hip/Leg Angles: Roll %+.1f° | Yaw %+.1f° | Leg: %+.1f° | Blend: %.0f%%", roll or 0.0, yaw or 0.0, legRoll or 0.0, (blend or 0.0) * 100))
                 end
             end
         else
