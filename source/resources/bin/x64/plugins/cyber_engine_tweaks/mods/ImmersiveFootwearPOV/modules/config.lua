@@ -14,7 +14,6 @@ function Config.Load(filePath)
         autoElevatePM = true,
         debugLogs = false,
         enableHipSway = true,
-        enableFPPHeadBob = true,
         hipSwayIntensity = 1.0,
     }
 
@@ -29,7 +28,6 @@ function Config.Load(filePath)
                     settings.autoElevatePM = (data["__settings"].autoElevatePM ~= false)
                     settings.debugLogs = (data["__settings"].debugLogs == true)
                     settings.enableHipSway = (data["__settings"].enableHipSway ~= false)
-                    settings.enableFPPHeadBob = (data["__settings"].enableFPPHeadBob ~= false)
                     settings.hipSwayIntensity = tonumber(data["__settings"].hipSwayIntensity) or 1.0
                 end
                 for k, v in pairs(data) do
@@ -67,7 +65,6 @@ function Config.Save(filePath, overrides, settings)
         autoElevatePM = settings and (settings.autoElevatePM ~= false) or true,
         debugLogs = settings and (settings.debugLogs == true) or false,
         enableHipSway = settings and (settings.enableHipSway ~= false) or true,
-        enableFPPHeadBob = settings and (settings.enableFPPHeadBob ~= false) or true,
         hipSwayIntensity = settings and (tonumber(settings.hipSwayIntensity) or 1.0) or 1.0,
     }
 

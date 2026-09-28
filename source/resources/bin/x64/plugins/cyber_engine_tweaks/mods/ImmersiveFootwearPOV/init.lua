@@ -30,7 +30,6 @@ local mod = {
     autoElevatePMPlatform = true,
     debugLogs = false,
     enableHipSway = true,
-    enableFPPHeadBob = true,
     hipSwayIntensity = 1.0,
     isPhotoModeOpen = false,
     stride = Stride,
@@ -44,7 +43,6 @@ local function SaveAllOverrides()
         autoElevatePM = mod.autoElevatePMPlatform,
         debugLogs = mod.debugLogs,
         enableHipSway = mod.enableHipSway,
-        enableFPPHeadBob = mod.enableFPPHeadBob,
         hipSwayIntensity = mod.hipSwayIntensity,
     })
 end
@@ -157,7 +155,6 @@ registerForEvent("onInit", function()
     mod.autoElevatePMPlatform = settings.autoElevatePM
     mod.debugLogs = settings.debugLogs
     mod.enableHipSway = settings.enableHipSway
-    mod.enableFPPHeadBob = settings.enableFPPHeadBob
     mod.hipSwayIntensity = settings.hipSwayIntensity
     Logger.Init(mod.debugLogs)
     Stride.Init()
@@ -399,7 +396,7 @@ registerForEvent("onUpdate", function(deltaTime)
     IFPIntegration.ApplyBlend(player, activeBlend, footElevationMeters)
 
     -- Procedural Feminine Stride & Hip Sway
-    Stride.Update(deltaTime, player, mod.currentShoeState, isITPActive, mod, isSuppressed)
+    Stride.Update(deltaTime, player, sys, mod)
 end)
 
 -- -----------------------------------------------------------------------------

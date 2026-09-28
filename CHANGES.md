@@ -2,6 +2,17 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## Unreleased (`feat/feminine-stride`) — 2026-09-28
+### `refactor(stride): delegate sway evaluation to REDscript and add tabbed UI in CET`
+* **REDscript Locomotion & Sway Evaluator:** Created `SwayContextData` and `SwayEvaluator` in `ImmersiveFootwearPOV_Suppression.reds` to authoritatively evaluate locomotion states, velocity thresholds, general suppression (vehicles, workspots, scenes, ladders, photo mode), PSM blackboards (crouch, sprint, jump, slide, dodge, climb, ADS), and non-linear heel-height scaling in native game code.
+* **Strict ITP Requirement & FPP Removal:** Enforced that catwalk locomotion strictly requires `Immersive Third Person (ITP)` installed and active (`IsITPPresent` and `IsTPPActive`). Dropped all FPP camera bobbing and headbob decoupling logic until future camera matrix revisions.
+* **Optimized CET Stride Loop:** Refactored `stride.lua` to remove redundant blackboard polling, querying `sys:GetSwayContext(player)` once per tick while preserving the high-frequency kinematic oscillator integration and animation variable publishing.
+* **Tabbed Dear ImGui Overlay:** Updated CET settings window to introduce a clean tabbed layout:
+  * **Tab 1: Footwear & Stance:** Houses active footwear diagnostics, height calibration slider, height guide accordion, and photo mode controls.
+  * **Tab 2: Catwalk Locomotion [Beta]:** Houses the 3rd-person catwalk sway master toggle, intensity slider, real-time diagnostic angles, and an ITP dependency validation card.
+
+---
+
 ## [`0846e33`](https://github.com/mordeak/immersive-footwear-pov/commit/0846e337e6f80da1d8a4369e96e73bb93f0b2f56) — 2026-09-28 · [**`v2.0.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.0.3)
 ### `fix(redlogger): use native FTLog in FootwearRedLogger fallback when RedLogger is not installed`
 * **Native REDengine Logging Compatibility:** Fixed compilation error (`function 'Log' not found`) occurring on players' systems where `RedLogger` is not installed.

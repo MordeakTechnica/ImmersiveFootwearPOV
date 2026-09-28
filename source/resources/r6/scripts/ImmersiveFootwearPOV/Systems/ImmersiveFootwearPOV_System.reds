@@ -236,7 +236,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func SetPhotoModeActive(active: Bool) -> Void { this.m_isPhotoModeActive = active; }
   public func IsIFPPresent() -> Bool { return this.m_isIFPPresent; }
   public func SetIFPPresent(present: Bool) -> Void { this.m_isIFPPresent = present; }
+  public func IsITPPresent() -> Bool { return this.m_isITPPresent; }
   public func SetITPPresent(present: Bool) -> Void { this.m_isITPPresent = present; }
+
+  // -----------------------------------------------------------------------------
+  // Feminine Locomotion & Catwalk Sway Context
+  // -----------------------------------------------------------------------------
+  public func GetSwayContext(player: ref<PlayerPuppet>) -> ref<SwayContextData> {
+    return SwayEvaluator.Evaluate(this, player);
+  }
 
   // -----------------------------------------------------------------------------
   // TFP Weapon Synchronization Tracking

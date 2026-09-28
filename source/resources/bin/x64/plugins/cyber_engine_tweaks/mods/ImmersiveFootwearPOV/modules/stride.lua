@@ -1,7 +1,7 @@
 -- =============================================================================
--- Immersive Footwear POV - Feminine Stride & Procedural Hip Sway Module
--- Computes real-time pelvic roll, yaw, and pitch oscillating with locomotion speed
--- Scales dynamically with footwear heel height and respects first-person camera preferences
+-- Immersive Footwear POV - Catwalk Locomotion & Feminine Stride Module
+-- Computes real-time pelvic roll, yaw, spine counter-balance, and femoral counter-rotation
+-- Powered by native REDscript SwayEvaluator; active exclusively in Immersive Third Person (ITP)
 -- =============================================================================
 
 local Stride = {
@@ -23,12 +23,12 @@ local Stride = {
     legCounterRollVarName = nil,
     blendVarName = nil,
 
-    -- Anatomical catwalk baseline amplitudes (at 10 cm heel height, 1.0x intensity)
-    BASE_ROLL_DEG = 4.8,    -- Frontal plane pelvic teeter-totter (Y_Axis, ~4.8° provides ~3cm see-saw difference while preventing foot circumduction)
-    BASE_YAW_DEG = 2.0,     -- Transverse plane pelvic swivel (Z_Axis, subtle 2.0° forward reach guides legs straight forward along catwalk line)
-    COUNTER_YAW_RATIO = -0.52,   -- Thoracic spine counter-yaw on Spine2 (stabilizes shoulders & arm swing)
-    COUNTER_ROLL_RATIO = -1.25,  -- Thoracic spine counter-roll on Spine2 (-1.25 absorbs 100% hip roll + applies 25% opposite tilt to shoulders; head stays centered)
-    COUNTER_LEG_ROLL_RATIO = -0.75, -- Thigh counter-roll on LeftUpLeg & RightUpLeg (stabilizes thigh orientation to prevent circumduction and bowlegged arcs)
+    -- Catwalk baseline amplitudes (at 10 cm heel height, 1.0x intensity)
+    BASE_ROLL_DEG = 4.8,            -- Frontal plane pelvic teeter-totter (Y_Axis, ~4.8° provides ~3cm see-saw difference)
+    BASE_YAW_DEG = 2.0,             -- Transverse plane pelvic swivel (Z_Axis, subtle 2.0° forward reach guides legs straight forward)
+    COUNTER_YAW_RATIO = -0.52,      -- Thoracic spine counter-yaw on Spine2 (stabilizes shoulders & arm swing)
+    COUNTER_ROLL_RATIO = -1.25,     -- Thoracic spine counter-roll on Spine2 (-1.25 absorbs 100% hip roll + 25% opposite tilt to shoulders)
+    COUNTER_LEG_ROLL_RATIO = -0.75, -- Thigh counter-roll on LeftUpLeg & RightUpLeg (stabilizes legs to track straight under pelvis)
 }
 
 function Stride.Init()
@@ -43,77 +43,14 @@ function Stride.Init()
 end
 
 -- -----------------------------------------------------------------------------
--- Evaluates Locomotion States (Blackboard & Velocity)
--- Returns: canSway (boolean), suppressionReason (string), speed (float)
--- -----------------------------------------------------------------------------
-local function EvaluateLocomotion(player, isSuppressed)
-    if isSuppressed then
-        return false, "Suppressed (External)", 0.0
-    end
-
-    if not player or not player.GetVelocity then
-        return false, "No Player", 0.0
-    end
-
-    local vel = player:GetVelocity()
-    if not vel or vel.x == nil then
-        return false, "Invalid Velocity", 0.0
-    end
-
-    local speed = math.sqrt(vel.x * vel.x + vel.y * vel.y)
-
-    -- Threshold for locomotion detection
-    if speed < 0.15 then
-        return false, "Standing Still", speed
-    end
-
-    -- Check player state machine blackboard for crouch, sprint, jump, aiming
-    local psmBlackboard = player.GetPlayerStateMachineBlackboard and player:GetPlayerStateMachineBlackboard()
-    if psmBlackboard and GetAllBlackboardDefs then
-        local psmDefs = GetAllBlackboardDefs().PlayerStateMachine
-        if psmDefs then
-            -- 1. Locomotion State (0 = Default/Stand, 1 = Crouch, 2 = Sprint, 3 = Jump/Fall)
-            local loco = psmBlackboard:GetInt(psmDefs.Locomotion)
-            if loco == 1 then
-                return false, "Crouching", speed
-            elseif loco == 2 or speed > 5.5 then
-                return false, "Sprinting", speed
-            elseif loco == 3 then
-                return false, "Airborne / Jumping", speed
-            end
-
-            -- 2. Detailed Locomotion (Dodge, Slide, Vault)
-            local detailedLoco = psmBlackboard:GetInt(psmDefs.LocomotionDetailed)
-            if detailedLoco == 5 or detailedLoco == 6 then
-                return false, "Dodging / Sliding", speed
-            elseif detailedLoco >= 8 and detailedLoco <= 13 then
-                return false, "Climbing / Vaulting", speed
-            end
-
-            -- 3. Combat Weapon Aiming (ADS)
-            local weapon = psmBlackboard:GetInt(psmDefs.Weapon)
-            if weapon == 2 then -- Aiming Down Sights
-                return false, "Aiming Weapon", speed
-            end
-        end
-    end
-
-    -- Speed-based sprint safeguard
-    if speed > 5.2 then
-        return false, "Sprinting", speed
-    end
-
-    return true, "Walking / Jogging", speed
-end
-
--- -----------------------------------------------------------------------------
 -- Main Per-Frame Update Loop
 -- Called from init.lua onUpdate
+-- Context, suppression, velocity, and heel-scaling are queried from native REDscript
 -- -----------------------------------------------------------------------------
-function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSuppressed)
+function Stride.Update(deltaTime, player, sys, settings)
     Stride.Init()
 
-    -- Master enable check
+    -- Master enable check from user settings
     local enabled = settings and (settings.enableHipSway ~= false)
     if not enabled then
         Stride.currentBlend = 0.0
@@ -127,47 +64,30 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         return
     end
 
-    -- First-person camera head bob check:
-    -- In Immersive Third Person (ITP), hip sway is always permitted.
-    -- In Immersive First Person (FPP), if the player has disabled 1st-person head bob,
-    -- clamp sway to 0.0 to guarantee steady-cam horizon stabilization with zero motion sickness.
-    local allowPerspective = true
-    if not isITPActive then
-        local headBobEnabled = settings and (settings.enableFPPHeadBob == true)
-        if not headBobEnabled then
-            allowPerspective = false
-        end
-    end
-
-    -- Heel height scaling: kicks in smoothly for heels >= 2.0 cm, reaching ~75% at 5 cm and 100% at 8-10 cm
-    local heelCm = (shoeState and shoeState.heelCm) or 0.0
-    local heelScale = 0.0
-    if heelCm >= 2.0 then
-        -- Smooth non-linear curve so moderate heels (4-7cm) have prominent catwalk sway
-        local norm = math.min(1.5, (heelCm - 2.0) / 6.5)
-        heelScale = math.max(0.40, math.min(1.20, 0.45 + 0.60 * math.sqrt(norm)))
-    end
-
-    if heelScale <= 0.001 then
-        -- Flat footwear / barefoot has no hip sway (standard neutral walk)
+    if not sys or not sys.GetSwayContext then
         Stride.currentBlend = 0.0
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
         Stride.currentLegCounterRoll = 0.0
-        Stride.statusText = "Neutral Stride (Flat Footwear / <2 cm)"
+        Stride.statusText = "System Unavailable"
         Stride.Publish(player)
         return
     end
 
-    -- Evaluate locomotion and suppression contexts
-    local canSway, locoReason, speed = EvaluateLocomotion(player, isSuppressed)
-
-    local targetBlend = 0.0
-    if canSway and allowPerspective then
-        targetBlend = 1.0
+    -- Query authoritative sway context from native REDscript (SwayEvaluator)
+    local ctx = sys:GetSwayContext(player)
+    if not ctx then
+        return
     end
+
+    local canSway = ctx.canSway
+    local heelScale = ctx.heelScale or 0.0
+    local speed = ctx.speed or 0.0
+    local reason = ctx.suppressionReason or ""
+
+    local targetBlend = canSway and 1.0 or 0.0
 
     -- Smooth attack (0.20s) and decay (0.16s) blend transition
     local blendSpeed = (targetBlend > Stride.currentBlend) and 5.0 or 6.0
@@ -190,10 +110,10 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         end
     end
 
-    -- User intensity multiplier (0.5x - 1.5x)
+    -- User intensity multiplier (0.25x - 2.50x)
     local intensity = (settings and settings.hipSwayIntensity) or 1.0
 
-    -- Instantaneous anatomical angles (Yaw = advancing leg swivel, Roll = stance leg weight-bearing tilt)
+    -- Compute instantaneous anatomical angles
     if Stride.currentBlend > 0.001 then
         -- Smoothly taper down during fast jogging so it doesn't look frantic
         local speedDamp = 1.0
@@ -208,23 +128,15 @@ function Stride.Update(deltaTime, player, shoeState, isITPActive, settings, isSu
         Stride.currentSpineCounterRoll = Stride.currentRoll * Stride.COUNTER_ROLL_RATIO
         Stride.currentLegCounterRoll = Stride.currentRoll * Stride.COUNTER_LEG_ROLL_RATIO
 
-        if not allowPerspective then
-            Stride.statusText = "Steady-Cam in First Person (Head Bob Disabled)"
-        else
-            Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Speed: %.1f m/s)",
-                Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, speed)
-        end
+        Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Speed: %.1f m/s)",
+            Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, speed)
     else
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
         Stride.currentLegCounterRoll = 0.0
-        if not allowPerspective then
-            Stride.statusText = "Steady-Cam in First Person (Head Bob Disabled)"
-        else
-            Stride.statusText = string.format("Suppressed (%s)", locoReason)
-        end
+        Stride.statusText = string.format("Inactive (%s)", reason)
     end
 
     Stride.Publish(player)
