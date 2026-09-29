@@ -120,8 +120,23 @@ function Stride.Update(deltaTime, player, sys, settings)
         end
     end
 
-    -- User intensity multiplier (0.25x - 1.50x)
-    local intensity = (settings and settings.hipSwayIntensity) or 1.0
+    -- User intensity multiplier per heel category (Low, Mid, High)
+    local intensity = 1.0
+    if settings then
+        local low = tonumber(settings.swayLow) or 1.0
+        local mid = tonumber(settings.swayMid) or 1.0
+        local high = tonumber(settings.swayHigh) or 1.0
+
+        if pitchCm >= 7.50 then
+            intensity = high
+        elseif pitchCm >= 5.08 then
+            intensity = mid
+        elseif pitchCm >= 2.0 then
+            intensity = low
+        else
+            intensity = 0.0
+        end
+    end
 
     -- Compute instantaneous anatomical angles
     if Stride.currentBlend > 0.001 then

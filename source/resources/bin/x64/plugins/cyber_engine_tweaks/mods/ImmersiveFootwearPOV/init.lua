@@ -30,7 +30,9 @@ local mod = {
     autoElevatePMPlatform = true,
     debugLogs = false,
     enableHipSway = true,
-    hipSwayIntensity = 1.0,
+    swayLow = 1.0,
+    swayMid = 1.0,
+    swayHigh = 1.0,
     isPhotoModeOpen = false,
     stride = Stride,
 }
@@ -43,7 +45,9 @@ local function SaveAllOverrides()
         autoElevatePM = mod.autoElevatePMPlatform,
         debugLogs = mod.debugLogs,
         enableHipSway = mod.enableHipSway,
-        hipSwayIntensity = mod.hipSwayIntensity,
+        swayLow = mod.swayLow,
+        swayMid = mod.swayMid,
+        swayHigh = mod.swayHigh,
     })
 end
 
@@ -151,7 +155,9 @@ registerForEvent("onInit", function()
     mod.autoElevatePMPlatform = settings.autoElevatePM
     mod.debugLogs = settings.debugLogs
     mod.enableHipSway = settings.enableHipSway
-    mod.hipSwayIntensity = settings.hipSwayIntensity
+    mod.swayLow = settings.swayLow or 1.0
+    mod.swayMid = settings.swayMid or 1.0
+    mod.swayHigh = settings.swayHigh or 1.0
     Logger.Init(mod.debugLogs)
     Stride.Init()
 

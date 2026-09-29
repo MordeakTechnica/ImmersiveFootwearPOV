@@ -14,7 +14,9 @@ function Config.Load(filePath)
         autoElevatePM = true,
         debugLogs = false,
         enableHipSway = true,
-        hipSwayIntensity = 1.0,
+        swayLow = 1.0,
+        swayMid = 1.0,
+        swayHigh = 1.0,
     }
 
     local file = io.open(targetPath, "r")
@@ -28,7 +30,10 @@ function Config.Load(filePath)
                     settings.autoElevatePM = (data["__settings"].autoElevatePM ~= false)
                     settings.debugLogs = (data["__settings"].debugLogs == true)
                     settings.enableHipSway = (data["__settings"].enableHipSway ~= false)
-                    settings.hipSwayIntensity = tonumber(data["__settings"].hipSwayIntensity) or 1.0
+                    local legacyIntensity = tonumber(data["__settings"].hipSwayIntensity)
+                    settings.swayLow = tonumber(data["__settings"].swayLow) or legacyIntensity or 1.0
+                    settings.swayMid = tonumber(data["__settings"].swayMid) or legacyIntensity or 1.0
+                    settings.swayHigh = tonumber(data["__settings"].swayHigh) or legacyIntensity or 1.0
                 end
                 for k, v in pairs(data) do
                     if k ~= "__settings" then
@@ -65,7 +70,9 @@ function Config.Save(filePath, overrides, settings)
         autoElevatePM = settings and (settings.autoElevatePM ~= false) or true,
         debugLogs = settings and (settings.debugLogs == true) or false,
         enableHipSway = settings and (settings.enableHipSway ~= false) or true,
-        hipSwayIntensity = settings and (tonumber(settings.hipSwayIntensity) or 1.0) or 1.0,
+        swayLow = settings and (tonumber(settings.swayLow) or 1.0) or 1.0,
+        swayMid = settings and (tonumber(settings.swayMid) or 1.0) or 1.0,
+        swayHigh = settings and (tonumber(settings.swayHigh) or 1.0) or 1.0,
     }
 
     local success, encoded = pcall(function() return json.encode(payload) end)

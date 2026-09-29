@@ -2,7 +2,16 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## Unreleased (`feat/feminine-stride`) — 2026-09-29
+## [**`v2.1.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.1.0) — 2026-09-29
+### `feat(stride): add per-heel sway multipliers and clean catwalk tab`
+* **Independent Heel Category Multipliers:** Added dedicated sliders for **Low Heel** (1.0" – 2.0" / ~2.0 – 5.0 cm), **Mid Heel** (2.0" – 3.0" / ~5.0 – 7.5 cm), and **High Heel** (3.0"+ / ~7.5+ cm) allowing players to fine-tune sway intensity independently per heel height (0.00x – 1.50x).
+* **Removed Global Multiplier:** Removed the legacy global sway intensity slider in favor of the per-heel multipliers, with automatic backwards compatibility for existing user configuration files.
+* **Simplified Hip Sway UI:** Renamed the second settings tab to "Hip Sway" and removed raw live diagnostic telemetry (stride status and live joint angles), cleanly displaying the master toggle, per-heel multipliers, and active shoe sway context.
+
+### `refactor(core): remove dead getter aliases and duplicate logic`
+* **REDscript Cleanup:** Removed obsolete unreferenced getters `GetCurrentShoeHeight` and `GetBodyOffset` from `ImmersiveFootwearPOV_System.reds`, consolidated `ReadShoeHeight` to forward to canonical `ReadHeelHeight` in `ImmersiveFootwearPOV_TweakReader.reds`, and standardized `EquipmentEx` integration.
+* **CET Optimization:** Removed redundant duplicate console shortcut declarations in `init.lua`.
+
 ### `feat(stride): synchronize pelvic z-axis yaw rotation with stepping leg`
 * **Advancing Leg Synchronization:** Inverted kinematic yaw phase so that positive Z-axis rotation aligns with the forward-reaching left leg and negative with the right leg, ensuring the pelvis naturally rotates forward with the reaching foot and back with the trailing foot.
 * **Calibrated Yaw Amplitude & Counter-Balance:** Adjusted baseline yaw to $3.0^\circ$ and increased thoracic counter-yaw ratio on `Spine2` to $-0.55\times$, preserving stable shoulders and natural arm swing.

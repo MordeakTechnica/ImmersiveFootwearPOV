@@ -274,30 +274,26 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
     end
 
     if modState.enableHipSway then
-        -- 2. Sway Intensity Slider (0.25x to 1.50x)
-        local intensity, changedIntensity = ImGui.SliderFloat("Sway Intensity##sway_intensity", modState.hipSwayIntensity, 0.25, 1.50, "%.2fx")
-        if changedIntensity then
-            modState.hipSwayIntensity = intensity
+        -- Multipliers per Heel Size
+        local lowVal, lowChanged = ImGui.SliderFloat("Low Heel##sway_low", modState.swayLow or 1.0, 0.0, 1.50, "%.2fx")
+        if lowChanged then
+            modState.swayLow = lowVal
             changed = true
         end
-        ImGui.TextDisabled("Scales overall hip sway motion.")
 
-        -- 3. Live diagnostic status & angles
-        local strideMod = modState.stride
-        if strideMod and strideMod.GetStatus then
-            local status, roll, yaw, blend, legRoll, heelScale, pitchCm = strideMod.GetStatus()
-            ImGui.Spacing()
-            ImGui.Separator()
-            ImGui.TextColored(0.3, 0.9, 0.8, 1.0, string.format("Stride Status: %s", status))
-            if blend and blend > 0.01 then
-                ImGui.TextDisabled(string.format("Live Angles: Roll %+.1f° | Yaw %+.1f° | Leg: %+.1f° | Blend: %.0f%%",
-                    roll or 0.0, yaw or 0.0, legRoll or 0.0, (blend or 0.0) * 100))
-            else
-                ImGui.TextDisabled("Sway activates when walking in 3rd-person (ITP) with heels.")
-            end
+        local midVal, midChanged = ImGui.SliderFloat("Mid Heel##sway_mid", modState.swayMid or 1.0, 0.0, 1.50, "%.2fx")
+        if midChanged then
+            modState.swayMid = midVal
+            changed = true
         end
 
-        -- 4. Heel Size & Sway Information
+        local highVal, highChanged = ImGui.SliderFloat("High Heel##sway_high", modState.swayHigh or 1.0, 0.0, 1.50, "%.2fx")
+        if highChanged then
+            modState.swayHigh = highVal
+            changed = true
+        end
+
+        -- Heel Size & Sway Information
         local shoeState = modState.currentShoeState
         local heelCm = shoeState and shoeState.heelCm or 0.0
         local platCm = shoeState and shoeState.platformCm or 0.0
@@ -308,16 +304,20 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
         if pitchCm < 2.0 then
             ImGui.Text(string.format("Current Footwear: Flat / Platform (%.1f cm) -> 0%% Sway", pitchCm))
             ImGui.TextDisabled("Flat shoes, bare feet, and flat platforms have no hip sway.")
-        elseif pitchCm < 7.50 then
-            local pct = math.floor(35 + 65 * ((pitchCm - 2.54) / (7.50 - 2.54)) + 0.5)
-            if pitchCm < 2.54 then
-                pct = math.floor(35 * ((pitchCm - 2.0) / (2.54 - 2.0)) + 0.5)
+        elseif pitchCm < 5.08 then
+            local pct = math.floor(35 * ((pitchCm - 2.0) / (2.54 - 2.0)) + 0.5)
+            if pitchCm >= 2.54 then
+                pct = math.floor(35 + 35 * ((pitchCm - 2.54) / (5.08 - 2.54)) + 0.5)
             end
-            ImGui.Text(string.format("Current Heel: %.1f cm -> %d%% Sway", pitchCm, pct))
-            ImGui.TextDisabled("Hip sway increases with heel height (reaches 100% at 3\" / 7.5 cm heels).")
+            ImGui.Text(string.format("Current Heel: %.1f cm (Low Heel) -> %d%% Base Sway (%.2fx)", pitchCm, pct, modState.swayLow or 1.0))
+            ImGui.TextDisabled("Controlled by the Low Heel multiplier.")
+        elseif pitchCm < 7.50 then
+            local pct = math.floor(70 + 30 * ((pitchCm - 5.08) / (7.50 - 5.08)) + 0.5)
+            ImGui.Text(string.format("Current Heel: %.1f cm (Mid Heel) -> %d%% Base Sway (%.2fx)", pitchCm, pct, modState.swayMid or 1.0))
+            ImGui.TextDisabled("Controlled by the Mid Heel multiplier.")
         else
-            ImGui.Text(string.format("Current Heel: %.1f cm -> 100%% Max Sway", pitchCm))
-            ImGui.TextDisabled("High heels (3\" / 7.5 cm and up) have full catwalk sway.")
+            ImGui.Text(string.format("Current Heel: %.1f cm (High Heel) -> 100%% Base Sway (%.2fx)", pitchCm, modState.swayHigh or 1.0))
+            ImGui.TextDisabled("Controlled by the High Heel multiplier.")
         end
     else
         ImGui.TextDisabled("Procedural catwalk hip sway is disabled. Standard neutral walk cycle active.")
@@ -337,7 +337,7 @@ local function DrawFootwearControls(modState, player, sys, heightLimits, saveOve
             DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, isAppended)
             ImGui.EndTabItem()
         end
-        if ImGui.BeginTabItem("Catwalk Locomotion [Beta]##TabCatwalk") then
+        if ImGui.BeginTabItem("Hip Sway##TabHipSway") then
             DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
             ImGui.EndTabItem()
         end
