@@ -76,7 +76,7 @@ Cyberpunk 2077 / REDengine uses a **Z-Up, Right-Handed Model Coordinate System**
 * **Z-Axis Rotation (Yaw):** Twists the pelvis horizontally around the spine.
   * $+Z^\circ$: Left hip rotates forward, right hip pulls back.
   * $-Z^\circ$: Right hip rotates forward, left hip pulls back.
-  * *In Mod:* Controlled by `ifp_hip_sway_yaw` (`BASE_YAW_DEG = 2.0°`). Helps the stepping leg reach straight ahead.
+  * *In Mod:* Controlled by `ifp_hip_sway_yaw` (`BASE_YAW_DEG = 3.0°`). Synchronized so the advancing hip rotates forward with the reaching leg.
 
 ---
 
@@ -111,10 +111,10 @@ Our mod controls specific bones in the skeleton using dedicated anim nodes:
 | Body Part | Skeleton Bone | Axis | Rotation Name | Variable Name | Role in Catwalk Locomotion |
 | :--- | :--- | :---: | :---: | :--- | :--- |
 | **Pelvis / Hips** | `Hips` | **Y** | **Roll** | `ifp_hip_sway_roll` | Primary catwalk see-saw tilt ($4.8^\circ$ base). |
-| **Pelvis / Hips** | `Hips` | **Z** | **Yaw** | `ifp_hip_sway_yaw` | Forward hip reach / swivel ($2.0^\circ$ base). |
+| **Pelvis / Hips** | `Hips` | **Z** | **Yaw** | `ifp_hip_sway_yaw` | Forward hip reach / swivel ($3.0^\circ$ base, matches forward leg). |
 | **Pelvis / Hips** | `Hips` | **Z (Pos)** | **Elevation** | `ifp_height_blend` | Vertical lift for high heels & platform soles. |
 | **Shoulders / Torso** | `Spine2` | **Y** | **Counter-Roll** | `ifp_spine_counter_roll` | Absorbs hip tilt ($-1.25\times$) so shoulders & head stay level. |
-| **Shoulders / Torso** | `Spine2` | **Z** | **Counter-Yaw** | `ifp_spine_counter_yaw` | Counters hip twist ($-0.52\times$) to stabilize arm swing. |
+| **Shoulders / Torso** | `Spine2` | **Z** | **Counter-Yaw** | `ifp_spine_counter_yaw` | Counters hip twist ($-0.55\times$) to stabilize arm swing. |
 | **Left Thigh** | `LeftUpLeg` | **Y** | **Counter-Roll** | `ifp_leg_counter_roll` | Cancels $75\%$ of hip tilt so the left leg tracks straight. |
 | **Right Thigh** | `RightUpLeg`| **Y** | **Counter-Roll** | `ifp_leg_counter_roll` | Cancels $75\%$ of hip tilt so the right leg tracks straight. |
 

@@ -27,8 +27,8 @@ local Stride = {
 
     -- Catwalk baseline amplitudes (at 10 cm heel height, 1.0x intensity)
     BASE_ROLL_DEG = 4.8,            -- Frontal plane pelvic teeter-totter (Y_Axis, ~4.8° provides ~3cm see-saw difference)
-    BASE_YAW_DEG = 2.0,             -- Transverse plane pelvic swivel (Z_Axis, subtle 2.0° forward reach guides legs straight forward)
-    COUNTER_YAW_RATIO = -0.52,      -- Thoracic spine counter-yaw on Spine2 (stabilizes shoulders & arm swing)
+    BASE_YAW_DEG = 3.0,             -- Transverse plane pelvic swivel (Z_Axis, 3.0° forward reach guides stepping leg forward)
+    COUNTER_YAW_RATIO = -0.55,      -- Thoracic spine counter-yaw on Spine2 (stabilizes shoulders & arm swing)
     COUNTER_ROLL_RATIO = -1.25,     -- Thoracic spine counter-roll on Spine2 (-1.25 absorbs 100% hip roll + 25% opposite tilt to shoulders)
     COUNTER_LEG_ROLL_RATIO = -0.75, -- Thigh counter-roll on LeftUpLeg & RightUpLeg (stabilizes legs to track straight under pelvis)
 }
@@ -132,7 +132,8 @@ function Stride.Update(deltaTime, player, sys, settings)
         end
 
         local masterScale = heelScale * intensity * Stride.currentBlend * speedDamp
-        Stride.currentYaw = Stride.BASE_YAW_DEG * math.sin(Stride.phase) * masterScale
+        -- Inverted sine aligns positive Z-rotation with the forward-reaching left leg and negative with the right leg
+        Stride.currentYaw = -Stride.BASE_YAW_DEG * math.sin(Stride.phase) * masterScale
         Stride.currentRoll = Stride.BASE_ROLL_DEG * math.cos(Stride.phase) * masterScale
         Stride.currentSpineCounterYaw = Stride.currentYaw * Stride.COUNTER_YAW_RATIO
         Stride.currentSpineCounterRoll = Stride.currentRoll * Stride.COUNTER_ROLL_RATIO

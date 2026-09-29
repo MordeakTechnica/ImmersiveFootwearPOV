@@ -3,6 +3,14 @@
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
 ## Unreleased (`feat/feminine-stride`) — 2026-09-29
+### `feat(stride): synchronize pelvic z-axis yaw rotation with stepping leg`
+* **Advancing Leg Synchronization:** Inverted kinematic yaw phase so that positive Z-axis rotation aligns with the forward-reaching left leg and negative with the right leg, ensuring the pelvis naturally rotates forward with the reaching foot and back with the trailing foot.
+* **Calibrated Yaw Amplitude & Counter-Balance:** Adjusted baseline yaw to $3.0^\circ$ and increased thoracic counter-yaw ratio on `Spine2` to $-0.55\times$, preserving stable shoulders and natural arm swing.
+* **Reference Documentation:** Updated `AXIS_REFERENCE.md` with the synchronized forward-reach descriptions and new baseline values.
+
+---
+
+## [`152db69`](https://github.com/mordeak/immersive-footwear-pov/commit/152db69) — 2026-09-29
 ### `feat(stride): add variable catwalk sway scaling based on effective heel pitch`
 * **Effective Heel Pitch (Plantarflexion) Calculation:** Evaluated effective heel rise ($\max(0, \text{heelCm} - \text{platformCm})$) in native REDscript `SwayEvaluator`. Barefoot, flat shoes, and pure platforms (where platform sole matches or exceeds heel height) produce 0% sway, ensuring flatforms remain in a natural neutral stride.
 * **Biomechanical Inch Benchmarks:** Scaled catwalk pelvic roll and yaw according to empirical gait and ankle plantarflexion benchmarks:
