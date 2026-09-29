@@ -126,3 +126,9 @@ You can write tag values in any of the following standard formats (up to **25 cm
    * The mod overlay will immediately display `Tags: Official TweakDB Metadata (Locked)` in green, showing your parsed Heel and Platform values.
 4. **CET Console Verification:**
    * Open the CET console and run `GetMod("ImmersiveFootwearPOV"):DumpState()` to view an instant diagnostics dump of your item's resolved metadata, parsed meters, and stance math.
+
+---
+
+## 📐 Motion & Coordinate System Reference
+
+For a complete visual breakdown of character coordinates, bone rotations (Roll, Pitch, Yaw), and motion terminology, see the [Axis & Motion Reference Guide](AXIS_REFERENCE.md).
