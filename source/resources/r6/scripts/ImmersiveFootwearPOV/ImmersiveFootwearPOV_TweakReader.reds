@@ -71,8 +71,7 @@ public class ShoeHeightParser {
 
   // Reads primary active height (heel height) for FPP elevation
   public static func ReadShoeHeight(itemID: ItemID) -> Float {
-    let data: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(itemID);
-    return data.heelHeight;
+    return ShoeHeightParser.ReadHeelHeight(itemID);
   }
 
   // Reads primary heel height in meters from an ItemID

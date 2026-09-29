@@ -122,11 +122,7 @@ local function RegisterConsoleShortcuts()
     end
 end
 RegisterConsoleShortcuts()
-ToggleIFPDebug = function() return mod.ToggleDebug() end
-IFPDebug = function(enabled) return mod.SetDebug(enabled) end
-IFPStatus = function() return mod.DumpState() end
-ForceStance = function(cm) return mod.ForceStance(cm) end
-IFPForceStance = function(cm) return mod.ForceStance(cm) end
+
 
 local function CheckIsITPInstalled()
     if GetMod then

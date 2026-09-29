@@ -209,7 +209,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func GetSuppressionReason() -> String { return this.m_suppressionReason; }
   public func GetCurrentHeelHeight() -> Float { return this.m_currentHeelHeight; }
   public func GetCurrentPlatformHeight() -> Float { return this.m_currentPlatformHeight; }
-  public func GetCurrentShoeHeight() -> Float { return this.m_currentHeelHeight; }
   public func GetEffectiveOffset() -> Float { return this.m_effectiveOffset; }
   public func GetEffectivePlatformOffset() -> Float {
     if this.m_isSuppressed {
@@ -219,7 +218,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
   public func HasOfficialTweakTags() -> Bool { return this.m_hasOfficialTags; }
   public func HasCustomOverride() -> Bool { return this.m_hasCustomOverride; }
-  public func GetBodyOffset(player: ref<PlayerPuppet>) -> Float { return this.m_effectiveOffset; }
   public func GetEquippedFootwearID() -> ItemID { return this.m_equippedFootwearID; }
   public func GetActiveSource() -> String { return this.m_activeSource; }
   public func IsInVehicle() -> Bool { return this.m_isInVehicle; }

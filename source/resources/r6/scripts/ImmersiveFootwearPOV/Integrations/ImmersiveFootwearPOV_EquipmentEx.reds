@@ -45,7 +45,7 @@ public class EquipmentExHelper {
       slotObj = transactionSystem.GetItemInSlot(player, usedSlots[i]);
       if IsDefined(slotObj) {
         slotItem = slotObj.GetItemID();
-        if ItemID.IsValid(slotItem) && ShoeHeightParser.ReadShoeHeight(slotItem) > 0.0 {
+        if ItemID.IsValid(slotItem) && ShoeHeightParser.ReadHeelHeight(slotItem) > 0.0 {
           return slotItem;
         };
       };
