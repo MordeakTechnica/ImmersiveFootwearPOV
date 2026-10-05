@@ -10,6 +10,9 @@ local Transition = {
     targetBlend = 0.50,
     elapsed = 0.20,
     isTransitioning = false,
+    lastLoggedTargetStanceCm = nil,
+    lastLoggedBaseReason = nil,
+    lastLoggedSettledStanceCm = nil,
 }
 
 local function smoothstep(t)
@@ -32,6 +35,9 @@ function Transition.SetImmediate(newTarget)
     Transition.targetBlend = target
     Transition.elapsed = Transition.DURATION
     Transition.isTransitioning = false
+    Transition.lastLoggedTargetStanceCm = nil
+    Transition.lastLoggedBaseReason = nil
+    Transition.lastLoggedSettledStanceCm = nil
     return target
 end
 
@@ -43,7 +49,19 @@ function Transition.SetTarget(newTarget, reason, onLogCallback)
 
     local startStanceCm = (Transition.currentBlend * 1.00 - 0.50) * 100.0
     local targetStanceCm = (newTarget * 1.00 - 0.50) * 100.0
-    if onLogCallback and type(onLogCallback) == "function" then
+
+    -- Divide the metric measurement (in cm) by 0.5, and only log if the modulo is 0
+    local metricUnits = math.floor(math.abs(targetStanceCm) * 10.0 + 0.5)
+    local isModuloZero = (metricUnits % 5 == 0)
+
+    -- Ignore embedded stance cm numbers in reason when checking for state transitions
+    local baseReason = string.gsub(reason or "", "%+%d+%.?%d*%s*cm", "")
+    local stateChanged = (baseReason ~= Transition.lastLoggedBaseReason)
+    local stanceChanged = (Transition.lastLoggedTargetStanceCm == nil or math.abs(targetStanceCm - Transition.lastLoggedTargetStanceCm) > 0.05)
+
+    if (stateChanged or (stanceChanged and isModuloZero)) and onLogCallback and type(onLogCallback) == "function" then
+        Transition.lastLoggedTargetStanceCm = targetStanceCm
+        Transition.lastLoggedBaseReason = baseReason
         onLogCallback(string.format("Transition started: Blend %.3f (%+.1f cm) -> %.3f (%+.1f cm) over %.2fs | Trigger: %s",
             Transition.currentBlend, startStanceCm, newTarget, targetStanceCm, Transition.DURATION, reason or "State Update"))
     end
@@ -70,7 +88,13 @@ function Transition.Update(deltaTime, onLogCallback)
             Transition.isTransitioning = false
             Transition.currentBlend = Transition.targetBlend
             local settledStanceCm = (Transition.targetBlend * 1.00 - 0.50) * 100.0
-            if onLogCallback and type(onLogCallback) == "function" then
+
+            local metricUnits = math.floor(math.abs(settledStanceCm) * 10.0 + 0.5)
+            local isModuloZero = (metricUnits % 5 == 0)
+            local settledChanged = (Transition.lastLoggedSettledStanceCm == nil or math.abs(settledStanceCm - Transition.lastLoggedSettledStanceCm) > 0.05)
+
+            if (settledChanged and isModuloZero) and onLogCallback and type(onLogCallback) == "function" then
+                Transition.lastLoggedSettledStanceCm = settledStanceCm
                 onLogCallback(string.format("Transition settled: Blend %.3f (Stance: %+.1f cm)", Transition.targetBlend, settledStanceCm))
             end
         end

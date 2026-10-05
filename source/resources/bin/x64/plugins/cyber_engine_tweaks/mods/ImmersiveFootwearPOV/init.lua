@@ -166,6 +166,7 @@ registerForEvent("onInit", function()
 
     local ifpInstalled = IFPIntegration.IsInstalled()
     local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
+    local ifpHeightEnabled = IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false
     local itpInstalled = CheckIsITPInstalled()
     pcall(function()
         local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
@@ -174,15 +175,16 @@ registerForEvent("onInit", function()
                 sys:SetITPPresent(itpInstalled)
             end
             if sys.SetIFPPresent then
-                sys:SetIFPPresent(ifpInstalled and ifpEnabled)
+                sys:SetIFPPresent(ifpInstalled and ifpEnabled and ifpHeightEnabled)
             end
         end
     end)
     RegisterConsoleShortcuts()
-    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
+    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Height Adj: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
         itpInstalled and "ACTIVE" or "ABSENT",
         ifpInstalled and "ACTIVE" or "ABSENT",
         ifpEnabled and "YES" or "NO",
+        ifpHeightEnabled and "YES" or "NO",
         mod.ifpBaseHeightCm,
         mod.enableHipSway and "ENABLED" or "DISABLED",
         mod.debugLogs and "ENABLED" or "DISABLED"))
@@ -281,7 +283,8 @@ registerForEvent("onUpdate", function(deltaTime)
                 sys:SetITPPresent(CheckIsITPInstalled())
             end
             if sys.SetIFPPresent then
-                sys:SetIFPPresent(IFPIntegration.IsInstalled() and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false))
+                local isIFPActiveAndHeightEnabled = IFPIntegration.IsInstalled() and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false) and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false)
+                sys:SetIFPPresent(isIFPActiveAndHeightEnabled)
             end
         end)
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveAllOverrides)
@@ -359,10 +362,17 @@ registerForEvent("onUpdate", function(deltaTime)
         -- -------------------------------------------------------------------------
         footElevationMeters = 0.0
 
+        local ifpHeightAdjustmentEnabled = ifpInstalled and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false)
+
         if isTFP then
             -- True First Person handles camera height via native REDscript camera matrices
             targetBlend = 0.50
             reason = "True First Person Native (Skeletal Blend Neutral)"
+        elseif ifpInstalled and not ifpHeightAdjustmentEnabled then
+            -- IFP is installed, but height adjustment is disabled:
+            -- Strictly reset skeletal stance to neutral baseline (0.0 cm / blend 0.50)
+            targetBlend = 0.50
+            reason = "IFP Height Adjustment Disabled (Neutral Baseline)"
         elseif sys.IsITPPresent and sys:IsITPPresent() and not ifpInstalled then
             -- Pure ITP without IFP installed: First Person operates with zero skeletal offset
             targetBlend = 0.50

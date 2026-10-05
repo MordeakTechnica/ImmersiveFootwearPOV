@@ -117,15 +117,17 @@ function State.DumpDiagnostics(sys, modSettings, ifpIntegration, transitionMgr)
     local eqExPresent = (sys and sys.IsEquipmentExPresent) and sys:IsEquipmentExPresent() or false
     local ifpInstalled = ifpIntegration.IsInstalled()
     local ifpEnabled = ifpIntegration.IsEnabled and ifpIntegration.IsEnabled() or false
+    local ifpHeightEnabled = ifpIntegration.IsHeightAdjustmentEnabled and ifpIntegration.IsHeightAdjustmentEnabled() or false
     local ifpBaseHeightCm, _ = ifpIntegration.GetState()
 
     local currentBlend = transitionMgr and transitionMgr.GetBlend() or 0.50
     local targetBlend = transitionMgr and transitionMgr.targetBlend or 0.50
 
     print("================ [Immersive Footwear POV Diagnostics] ================")
-    print(string.format(" Frameworks Active: IFP: %s (Enabled: %s) | TFP: %s | Equipment-EX: %s",
+    print(string.format(" Frameworks Active: IFP: %s (Enabled: %s, Height Adj: %s) | TFP: %s | Equipment-EX: %s",
         ifpInstalled and "INSTALLED" or "ABSENT",
         ifpEnabled and "YES" or "NO",
+        ifpHeightEnabled and "YES" or "NO",
         tfpPresent and "INSTALLED" or "ABSENT",
         eqExPresent and "INSTALLED" or "ABSENT"))
     print(string.format(" Debug Logging:     %s", modSettings.debugLogs and "ENABLED" or "DISABLED"))

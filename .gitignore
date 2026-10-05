@@ -14,6 +14,8 @@ tools
 
 # User logs & caches
 *.log
+logs/
+**/logs/
 install_log.xml
 
 # Antigravity Agent Configuration

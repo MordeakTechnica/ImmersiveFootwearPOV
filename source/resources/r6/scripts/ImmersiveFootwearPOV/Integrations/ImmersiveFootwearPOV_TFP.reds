@@ -60,7 +60,8 @@ public class TFPHelper {
           msg = s"Footwear Height Applied -> Shoe: '\(shoeName)' [\(shoeSource)] | Lift: +\(liftCm)cm | TFP Base: \(baseZCm)cm -> Total CameraZ: \(targetZCm)cm (was \(oldCamZCm)cm)";
         };
 
-        if povSys.IsDebugLogging() {
+        let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
+        if povSys.IsDebugLogging() && (isModuloZero || isSuppressed) {
           FootwearRedLogger.LogDebug(tag, msg);
         };
       };
@@ -95,9 +96,10 @@ public class TFPHelper {
         povSys.SetTFPLastWeaponKey(key);
 
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
+        let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
         let tag: String = povSys.GetActiveModTag(player);
         let msg: String = s"Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
-        if povSys.IsDebugLogging() {
+        if povSys.IsDebugLogging() && isModuloZero {
           FootwearRedLogger.LogDebug(tag, msg);
         };
       };
