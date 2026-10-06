@@ -1,25 +1,32 @@
 -- =============================================================================
 -- Immersive Footwear POV - Perspective & Camera Detection Service
 -- Detects active camera perspective (FPP vs TPP) via REDengine CameraSystem transforms
--- Optimized for high-frequency execution: caches transforms, CNames, and components
+-- Optimized: lazy-initializes CNames to avoid startup crashes, caches transforms and components
 -- =============================================================================
 
 local Perspective = {}
 
--- Cached static data
+-- Cached static data (lazy-initialized to protect against boot-time VM unreadiness)
 local isITPInstalledCache = nil
-local fppCamName = CName.new("camera")
-local tppCamName = CName.new("tppCamera")
+local fppCamName = nil
+local tppCamName = nil
 local reusableTransform = nil
 local cachedPlayerID = nil
 local cachedFPPCam = nil
 local cachedTPPCam = nil
 
---- Query whether Immersive Third Person (ITP) mod is installed (cached after first evaluation)
+local function EnsureCamNames()
+    if not fppCamName and CName and CName.new then
+        fppCamName = CName.new("camera")
+        tppCamName = CName.new("tppCamera")
+    end
+end
+
+--- Query whether Immersive Third Person (ITP) mod is installed
 ---@return boolean
 function Perspective.IsITPInstalled()
-    if isITPInstalledCache ~= nil then
-        return isITPInstalledCache
+    if isITPInstalledCache == true then
+        return true
     end
 
     if GetMod then
@@ -32,17 +39,28 @@ function Perspective.IsITPInstalled()
 
     local installed = false
     pcall(function()
-        local bridge = Game.GetScriptableSystemsContainer():Get("TPPCameraVisibleRenderBridge")
-        if bridge ~= nil then installed = true end
+        local container = Game.GetScriptableSystemsContainer and Game.GetScriptableSystemsContainer()
+        if container then
+            local bridge = container:Get("TPPCameraVisibleRenderBridge")
+            if not bridge and CName and CName.new then
+                bridge = container:Get(CName.new("TPPCameraVisibleRenderBridge"))
+            end
+            if bridge ~= nil then installed = true end
+        end
     end)
+
     if not installed then
-        local player = Game.GetPlayer()
-        if player and player:FindComponentByName(tppCamName) then
+        EnsureCamNames()
+        local player = Game.GetPlayer and Game.GetPlayer()
+        if player and tppCamName and player:FindComponentByName(tppCamName) then
             installed = true
         end
     end
 
-    isITPInstalledCache = installed
+    if installed then
+        isITPInstalledCache = true
+    end
+
     return installed
 end
 
@@ -61,26 +79,22 @@ function Perspective.GetCameraWorldPosition(camera)
 end
 
 --- Determine whether Third Person Perspective (TPP) camera is actively rendering
---- Optimized: early exits when ITP is absent, reuses single Transform instance, caches camera components
 ---@param player table
 ---@return boolean
 function Perspective.IsTPPActive(player)
     if not player then return false end
 
-    -- Early exit: if ITP is absent, third person camera cannot be active in normal gameplay
-    if not Perspective.IsITPInstalled() then
-        return false
-    end
+    EnsureCamNames()
 
     -- Invalidate or update cached camera components if player changed
     local playerID = player:GetEntityID()
     if cachedPlayerID == nil or playerID.hash ~= cachedPlayerID.hash then
         cachedPlayerID = playerID
-        cachedFPPCam = player:FindComponentByName(fppCamName)
-        cachedTPPCam = player:FindComponentByName(tppCamName)
+        cachedFPPCam = fppCamName and player:FindComponentByName(fppCamName) or nil
+        cachedTPPCam = tppCamName and player:FindComponentByName(tppCamName) or nil
     else
-        if not cachedFPPCam then cachedFPPCam = player:FindComponentByName(fppCamName) end
-        if not cachedTPPCam then cachedTPPCam = player:FindComponentByName(tppCamName) end
+        if not cachedFPPCam and fppCamName then cachedFPPCam = player:FindComponentByName(fppCamName) end
+        if not cachedTPPCam and tppCamName then cachedTPPCam = player:FindComponentByName(tppCamName) end
     end
 
     -- Primary: REDengine CameraSystem distance to active camera
@@ -107,7 +121,11 @@ function Perspective.IsTPPActive(player)
                         local dtx, dty, dtz = activePos.x - tppWorld.x, activePos.y - tppWorld.y, activePos.z - tppWorld.z
                         local distFPP2 = dfx * dfx + dfy * dfy + dfz * dfz
                         local distTPP2 = dtx * dtx + dty * dty + dtz * dtz
-                        return distTPP2 < distFPP2
+                        if distTPP2 < distFPP2 then
+                            isITPInstalledCache = true
+                            return true
+                        end
+                        return false
                     end
                 end
 
@@ -117,7 +135,10 @@ function Perspective.IsTPPActive(player)
                     local dy = activePos.y - playerPos.y
                     local dz = activePos.z - (playerPos.z + 1.55)
                     local distSq = dx * dx + dy * dy + dz * dz
-                    return distSq >= 0.64
+                    if distSq >= 0.64 then
+                        isITPInstalledCache = true
+                        return true
+                    end
                 end
             end
         end
@@ -127,7 +148,10 @@ function Perspective.IsTPPActive(player)
     if cachedTPPCam and cachedTPPCam.GetLocalPosition then
         local ok, pos = pcall(function() return cachedTPPCam:GetLocalPosition() end)
         if ok and pos and pos.y ~= nil then
-            return (pos.y <= -0.75 or (pos.x ~= nil and math.abs(pos.x) >= 0.40))
+            if (pos.y <= -0.75 or (pos.x ~= nil and math.abs(pos.x) >= 0.40)) then
+                isITPInstalledCache = true
+                return true
+            end
         end
     end
 

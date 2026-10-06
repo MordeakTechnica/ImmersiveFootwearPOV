@@ -226,7 +226,9 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
     ImGui.Spacing()
 
     -- Check if ITP is installed
-    local itpInstalled = (sys and sys.IsITPPresent and sys:IsITPPresent()) or false
+    local itpInstalled = (sys and sys.IsITPPresent and sys:IsITPPresent())
+        or (modState and modState.isITPActive)
+        or false
     if not itpInstalled then
         ImGui.TextColored(1.0, 0.75, 0.2, 1.0, "[!] Immersive Third Person (ITP) Required")
         ImGui.Spacing()

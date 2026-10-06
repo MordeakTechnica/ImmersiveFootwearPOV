@@ -12,6 +12,9 @@ local Transition = require("modules/transition")
 local State = require("modules/state")
 local Stride = require("modules/stride")
 local Perspective = require("modules/perspective")
+if not Perspective then
+    print("[ImmersiveFootwearPOV] CRITICAL: Failed to load Perspective module!")
+end
 local StanceResolver = require("modules/stance")
 local ConsoleManager = require("modules/console")
 local UIManager = require("modules/ui")
@@ -163,7 +166,7 @@ registerForEvent("onInit", function()
     local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
     local ifpHeightEnabled = IFPIntegration.IsHeightAdjustmentEnabled(true)
     mod.ifpHeightAdjustmentEnabled = ifpHeightEnabled
-    local itpInstalled = Perspective.IsITPInstalled()
+    local itpInstalled = (Perspective and Perspective.IsITPInstalled and Perspective.IsITPInstalled()) or false
 
     local sys = GetSystem()
     if sys then
@@ -217,7 +220,7 @@ registerForEvent("onUpdate", function(deltaTime)
         sys:UpdateEquippedFootwear(player)
 
         -- Only send presence flags across FFI if value has changed
-        local itpInstalled = Perspective.IsITPInstalled()
+        local itpInstalled = (Perspective and Perspective.IsITPInstalled and Perspective.IsITPInstalled()) or false
         if lastSentITP ~= itpInstalled then
             lastSentITP = itpInstalled
             pcall(function() if sys.SetITPPresent then sys:SetITPPresent(itpInstalled) end end)
@@ -239,7 +242,7 @@ registerForEvent("onUpdate", function(deltaTime)
     PMIntegration.OnUpdate(deltaTime)
 
     -- Detect if Immersive Third Person (ITP) camera is currently active
-    local isITPActive = Perspective.IsTPPActive(player)
+    local isITPActive = (Perspective and Perspective.IsTPPActive and Perspective.IsTPPActive(player)) or false
     if isITPActive ~= mod.isITPActive then
         local wasITP = mod.isITPActive
         mod.isITPActive = isITPActive

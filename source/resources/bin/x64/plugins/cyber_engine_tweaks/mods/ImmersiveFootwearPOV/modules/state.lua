@@ -62,8 +62,10 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
     end)
 
     local shoeID = sys:GetEquippedFootwearID()
-    local hasShoe = shoeID and shoeID.hash ~= 0
-    local shoeKey = sys:GetResolvedShoeTDBIDString()
+    local shoeKey = sys:GetResolvedShoeTDBIDString() or ""
+    local hasShoe = (#shoeKey > 0)
+        or (shoeID and ItemID and ItemID.IsValid and ItemID.IsValid(shoeID))
+        or false
     local isOfficial = sys:HasOfficialTweakTags()
     local sourceName = sys:GetActiveSource()
     local displayName = sys:GetResolvedShoeDisplayName()
