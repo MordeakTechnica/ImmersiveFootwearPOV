@@ -237,10 +237,13 @@ Items.Custom_Chunky_Platforms_01:
 - [x] **Step 7.5: Native REDscript Compilation Verification**
   - Compiled and verified against live game cache via `scc.exe` with 0 errors and 0 warnings.
 - [x] **Step 7.6: Perspective-Aware Dual Height Dispatch (FPP Heel Lift & TPP Platform Lift)**
-  - Re-architected perspective detection (`CheckIsTPPActive` in CET and `ITPController.IsTPPActive` in REDscript) to query `CameraSystem.GetActiveCameraWorldTransform`. Accurately checks whether the active rendering camera is located at the head/eyes (FPP) or pulled back in 3rd person (TPP).
-  - In FPP (First Person / IFP): `ifp_height_blend` dynamically elevates V's first-person eye height and body based on footwear heel height + IFP base slider (`IFPIntegration.CalculateTargetBlend`). Third-person puppet offset (`foot_elevation_offset`) is strictly zeroed.
-  - In TPP (Immersive Third Person): `ifp_height_blend` and `foot_elevation_offset` dynamically elevate the character model puppet based on front platform sole thickness, keeping thick platform soles and heels from clipping into the terrain.
-  - Resolved perspective conflict where FPP was previously hardcoded to neutral `0.50`, ensuring high heels function identically whether playing pure IFP (optional archive uninstalled) or toggling between IFP and ITP.
+- [x] **Step 7.7: Manual Height Input with Auto-Clamping & Non-Negative Validation**
+  - Added dedicated manual numerical entry fields (`ImGui.InputFloat`) alongside sliders in CET overlay UI (`DrawCustomFootwearControls` in `integrations/ifp.lua`).
+  - Implemented automatic boundary clamping:
+    - Custom Heel Height automatically clamps to `40.0 cm` max (`FootwearHeightLimits.MAX_HEEL_CM`).
+    - Custom Platform Height automatically clamps to `30.0 cm` max (`FootwearHeightLimits.MAX_PLATFORM_CM`).
+    - Negative values are strictly disallowed and automatically set to `0.0 cm` minimum.
+  - Added CET console shortcuts `SetFootwearHeight(heelCm, platformCm)` and `SetCustomHeight(heelCm, platformCm)` in `init.lua` with identical auto-clamping and non-negative enforcement.
 
 ---
 

@@ -187,56 +187,91 @@ local function DrawOfficialFootwearView(shoeState)
     end
 end
 
+local function ClampHeightInput(val, maxVal)
+    local n = tonumber(val) or 0.0
+    if n < 0.0 then
+        return 0.0
+    elseif n > maxVal then
+        return maxVal
+    end
+    return n
+end
+
+local function ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeKey, heelCm, platCm, saveOverridesCallback)
+    shoeState.heelCm = heelCm
+    shoeState.platformCm = platCm
+    if not modState.overrides[shoeKey] then
+        modState.overrides[shoeKey] = {}
+    end
+    modState.overrides[shoeKey].heel = heelCm
+    modState.overrides[shoeKey].platform = platCm
+    if saveOverridesCallback then
+        saveOverridesCallback()
+    end
+
+    local heelMeters = heelCm / 100.0
+    local platMeters = platCm / 100.0
+    if player and sys and sys.SetCustomHeightOverride then
+        sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+    end
+end
+
 local function DrawCustomFootwearControls(modState, player, sys, shoeState, heightLimits, saveOverridesCallback)
     ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
 
     local shoeKey = shoeState.key
+    local canEdit = player and sys and #shoeKey > 0
 
-    -- Custom Heel Height Slider (Drives catwalk sway pitch and FPP elevation capped at 25cm in IFP)
-    local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (FPP / Sway)##ifp_custom_heel", shoeState.heelCm, 0.0, heightLimits.MAX_HEEL_CM, "%.1f cm")
-    ImGui.TextDisabled("  -> Total heel height: drives catwalk sway pitch; elevates FPP camera up to 25.0 cm max in IFP")
-    if heelChanged and player and sys and #shoeKey > 0 then
-        shoeState.heelCm = heelVal
-        if not modState.overrides[shoeKey] then
-            modState.overrides[shoeKey] = {}
-        end
-        modState.overrides[shoeKey].heel = heelVal
-        modState.overrides[shoeKey].platform = shoeState.platformCm
-        saveOverridesCallback()
+    local maxHeel = heightLimits.MAX_HEEL_CM or 40.0
+    local maxPlat = heightLimits.MAX_PLATFORM_CM or 30.0
 
-        local heelMeters = heelVal / 100.0
-        local platMeters = shoeState.platformCm / 100.0
-        sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+    -- -------------------------------------------------------------------------
+    -- Custom Heel Height Controls (Slider + Manual Numerical Input)
+    -- -------------------------------------------------------------------------
+    local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel Slider##ifp_custom_heel", shoeState.heelCm, 0.0, maxHeel, "%.1f cm")
+    if heelChanged and canEdit then
+        local clampedHeel = ClampHeightInput(heelVal, maxHeel)
+        ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeKey, clampedHeel, shoeState.platformCm, saveOverridesCallback)
     end
+
+    local manualHeel, manualHeelChanged = ImGui.InputFloat("Manual Heel (cm)##ifp_manual_heel", shoeState.heelCm, 0.5, 2.0, "%.1f")
+    if manualHeelChanged and canEdit then
+        local clampedHeel = ClampHeightInput(manualHeel, maxHeel)
+        ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeKey, clampedHeel, shoeState.platformCm, saveOverridesCallback)
+    end
+    ImGui.TextDisabled(string.format("  -> Total heel: drives catwalk sway pitch; elevates FPP camera up to %.1f cm max in IFP", heightLimits.MAX_IFP_CM or 25.0))
+    ImGui.TextDisabled(string.format("  -> Manual input: Type exact cm or use +/- (Auto-clamps: 0.0 to %.1f cm; negative values disallowed)", maxHeel))
 
     ImGui.Spacing()
 
-    -- Custom Platform Height Slider (Lifts character puppet in Third Person & Photo Mode)
-    local platVal, platChanged = ImGui.SliderFloat("Custom Platform (3rd Person / PM)##ifp_custom_plat", shoeState.platformCm, 0.0, heightLimits.MAX_PLATFORM_CM, "%.1f cm")
-    ImGui.TextDisabled("  -> Front sole thickness: lifts character puppet in Third Person & Photo Mode")
-    if platChanged and player and sys and #shoeKey > 0 then
-        shoeState.platformCm = platVal
-        if not modState.overrides[shoeKey] then
-            modState.overrides[shoeKey] = {}
-        end
-        modState.overrides[shoeKey].heel = shoeState.heelCm
-        modState.overrides[shoeKey].platform = platVal
-        saveOverridesCallback()
-
-        local heelMeters = shoeState.heelCm / 100.0
-        local platMeters = platVal / 100.0
-        sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+    -- -------------------------------------------------------------------------
+    -- Custom Platform Height Controls (Slider + Manual Numerical Input)
+    -- -------------------------------------------------------------------------
+    local platVal, platChanged = ImGui.SliderFloat("Custom Platform Slider##ifp_custom_plat", shoeState.platformCm, 0.0, maxPlat, "%.1f cm")
+    if platChanged and canEdit then
+        local clampedPlat = ClampHeightInput(platVal, maxPlat)
+        ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeKey, shoeState.heelCm, clampedPlat, saveOverridesCallback)
     end
+
+    local manualPlat, manualPlatChanged = ImGui.InputFloat("Manual Platform (cm)##ifp_manual_plat", shoeState.platformCm, 0.5, 2.0, "%.1f")
+    if manualPlatChanged and canEdit then
+        local clampedPlat = ClampHeightInput(manualPlat, maxPlat)
+        ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeKey, shoeState.heelCm, clampedPlat, saveOverridesCallback)
+    end
+    ImGui.TextDisabled("  -> Front sole thickness: lifts character puppet in Third Person & Photo Mode")
+    ImGui.TextDisabled(string.format("  -> Manual input: Type exact cm or use +/- (Auto-clamps: 0.0 to %.1f cm; negative values disallowed)", maxPlat))
 
     ImGui.Spacing()
 
     -- Reset custom overrides for current shoe
-    if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and player and sys and #shoeKey > 0 then
+    if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and canEdit then
         shoeState.heelCm = 0.0
         shoeState.platformCm = 0.0
         if modState.overrides[shoeKey] then
             modState.overrides[shoeKey] = nil
-            saveOverridesCallback()
+            if saveOverridesCallback then
+                saveOverridesCallback()
+            end
         end
         sys:ClearCustomHeightOverride(player)
     end

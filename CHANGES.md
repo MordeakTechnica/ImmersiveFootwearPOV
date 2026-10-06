@@ -3,6 +3,12 @@
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
 ## [`Unreleased`] — 2026-10-06
+### `feat(ui): add manual height inputs with auto-clamping and non-negative validation`
+* **Direct Numerical Input:** Added `Manual Heel (cm)` and `Manual Platform (cm)` input fields (`ImGui.InputFloat`) alongside the sliders in the CET overlay (`DrawCustomFootwearControls`), allowing players to type exact decimal values or click `+`/`-` stepper buttons.
+* **Auto-Clamping on Exceeding Limits:** When manually entering values exceeding the maximum limits, values are automatically capped to the maximum allowed limit (`40.0 cm` for Heel Height, `30.0 cm` for Platform Height).
+* **Non-Negative Value Enforcement:** Negative values are strictly disallowed and automatically clamped to `0.0 cm`.
+* **CET Console Shortcuts:** Added `SetFootwearHeight(heelCm, platformCm)` and `SetCustomHeight(heelCm, platformCm)` console commands supporting the same bounds clamping and auto-saving per equipped shoe.
+
 ### `feat(height-limits): raise platform to 30cm and heel to 40cm for sway, with strict 25cm IFP cap`
 * **Third-Person & Photo Mode Platform (30cm):** Increased maximum platform height limit (`MaxPlatformCm`) from `25cm` to `30cm` across REDscript and CET overlay (`FootwearHeightLimits.MAX_PLATFORM_CM = 30.0`).
 * **Third-Person Sway Incline (40cm Heel):** Increased maximum heel height limit (`MaxHeightCm`) to `40cm` (`FootwearHeightLimits.MAX_HEEL_CM = 40.0`), allowing up to +10cm effective heel pitch on 30cm maxed-out platforms to activate 100% max catwalk sway.

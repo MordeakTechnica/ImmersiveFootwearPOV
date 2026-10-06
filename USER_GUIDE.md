@@ -15,11 +15,14 @@ A comprehensive guide for configuring custom footwear heights and getting accura
 
 1. Equip your footwear using **Inventory**, **Vanilla Wardrobe (Transmog)**, or **Equipment-EX**.
 2. Open the **Cyber Engine Tweaks (CET) Overlay** (`~`).
-3. In the mod window, adjust the sliders:
+3. In the mod window, adjust using either the **Sliders** or direct **Manual Numerical Input**:
    * **Custom Heel (cm):** Sets total shoe heel height (`0.0` – `40.0 cm`). Elevates 1st-person camera in IFP (capped at `25.0 cm` max), and drives 3rd-person catwalk sway pitch.
    * **Custom Platform (cm):** Sets Third Person and Photo Mode platform sole lift (`0.0` – `30.0 cm`).
-4. **Auto-Save:** Settings are automatically saved per shoe model in `user_shoe_overrides.json`.
-5. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
+   * **Manual Input & Auto-Clamping:** Type exact numbers into the `Manual Heel (cm)` or `Manual Platform (cm)` fields (or use the `+` / `-` stepper buttons). Any entered value exceeding the maximum allowed height automatically clamps to the maximum (`40.0 cm` heel, `30.0 cm` platform). Negative values are strictly disallowed and automatically set to `0.0 cm`.
+4. **Console Shortcuts:** You can also set custom heights directly via the CET console using:
+   * `SetFootwearHeight(heelCm, platformCm)` or `SetCustomHeight(heelCm, platformCm)` (with the same auto-clamping and non-negative enforcement).
+5. **Auto-Save:** Settings are automatically saved per shoe model in `user_shoe_overrides.json`.
+6. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
 
 ---
 

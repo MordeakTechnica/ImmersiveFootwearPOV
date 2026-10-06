@@ -111,6 +111,51 @@ function mod.ForceStance(cm, extra)
     end
 end
 
+function mod.SetCustomHeight(heelCm, platformCm)
+    local player = Game.GetPlayer()
+    if not player then
+        print("[ImmersiveFootwearPOV] Error: Player not found.")
+        return "Error: Player not found"
+    end
+    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+    if not sys then
+        print("[ImmersiveFootwearPOV] Error: System not found.")
+        return "Error: System not found"
+    end
+
+    local shoeState = mod.currentShoeState
+    if not shoeState or not shoeState.key or #shoeState.key == 0 then
+        print("[ImmersiveFootwearPOV] Error: No shoe equipped to override.")
+        return "Error: No shoe equipped"
+    end
+
+    local maxHeel = FootwearHeightLimits.MAX_HEEL_CM
+    local maxPlat = FootwearHeightLimits.MAX_PLATFORM_CM
+
+    local h = tonumber(heelCm) or 0.0
+    local p = tonumber(platformCm) or 0.0
+
+    if h < 0.0 then h = 0.0 elseif h > maxHeel then h = maxHeel end
+    if p < 0.0 then p = 0.0 elseif p > maxPlat then p = maxPlat end
+
+    shoeState.heelCm = h
+    shoeState.platformCm = p
+
+    if not mod.overrides[shoeState.key] then
+        mod.overrides[shoeState.key] = {}
+    end
+    mod.overrides[shoeState.key].heel = h
+    mod.overrides[shoeState.key].platform = p
+
+    SaveAllOverrides()
+    sys:SetCustomHeightOverride(player, h / 100.0, p / 100.0)
+
+    local msg = string.format("Set custom height for '%s': Heel = %.1f cm (max %.1f cm), Platform = %.1f cm (max %.1f cm)",
+        shoeState.displayName or shoeState.key, h, maxHeel, p, maxPlat)
+    print(string.format("[ImmersiveFootwearPOV] %s", msg))
+    return msg
+end
+
 -- Export global CET Console shortcut aliases to both _G and mod environment
 local function RegisterConsoleShortcuts()
     local shortcuts = {
@@ -119,6 +164,8 @@ local function RegisterConsoleShortcuts()
         IFPStatus = function() return mod.DumpState() end,
         ForceStance = function(cm) return mod.ForceStance(cm) end,
         IFPForceStance = function(cm) return mod.ForceStance(cm) end,
+        SetCustomHeight = function(h, p) return mod.SetCustomHeight(h, p) end,
+        SetFootwearHeight = function(h, p) return mod.SetCustomHeight(h, p) end,
     }
     for name, fn in pairs(shortcuts) do
         if _G then
