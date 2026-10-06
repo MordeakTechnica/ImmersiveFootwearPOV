@@ -129,16 +129,19 @@ end
 -- -----------------------------------------------------------------------------
 -- Calculate Animgraph Height Blend (Additive: IFP Base Slider + Footwear Heel)
 -- Range: -50cm (-0.50m) to +50cm (+0.50m) mapped to [0.0, 1.0], Neutral = 0.50
+-- In IFP, footwear height offset strictly capped to max 25cm (0.25m) by default
 -- -----------------------------------------------------------------------------
-function IFP.CalculateTargetBlend(shoeOffsetMeters, ifpBaseHeightCm, isSuppressed)
+function IFP.CalculateTargetBlend(shoeOffsetMeters, ifpBaseHeightCm, isSuppressed, maxShoeMeters)
     local totalOffsetMeters = 0.0
 
     if isSuppressed then
         -- In suppressed contexts (vehicles, workspots, scenes), return to neutral (0.0m)
         totalOffsetMeters = 0.0
     else
+        local maxMeters = maxShoeMeters or 0.25
+        local clampedShoe = math.min(math.max(0.0, shoeOffsetMeters or 0.0), maxMeters)
         local baseMeters = (ifpBaseHeightCm or 0.0) / 100.0
-        totalOffsetMeters = baseMeters + (shoeOffsetMeters or 0.0)
+        totalOffsetMeters = baseMeters + clampedShoe
     end
 
     local blend = (totalOffsetMeters + 0.50) / 1.00

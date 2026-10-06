@@ -136,7 +136,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
     this.m_hasCustomOverride = true;
     this.m_customHeelHeight = ShoeHeightParser.ClampHeight(heel);
-    this.m_customPlatformHeight = ShoeHeightParser.ClampHeight(platform);
+    this.m_customPlatformHeight = ShoeHeightParser.ClampPlatformHeight(platform);
     this.m_currentHeelHeight = this.m_customHeelHeight;
     this.m_currentPlatformHeight = this.m_customPlatformHeight;
 

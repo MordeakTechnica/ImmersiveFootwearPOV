@@ -2,6 +2,15 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [`Unreleased`] — 2026-10-06
+### `feat(height-limits): raise 3rd-person & photo mode platform limit to 30cm and enforce 25cm cap in IFP`
+* **Third-Person & Photo Mode (30cm):** Increased maximum platform height limit (`MaxPlatformCm`) from `25cm` to `30cm` across REDscript and CET overlay (`FootwearHeightLimits.MAX_PLATFORM_CM = 30.0`).
+* **Platform Parsing & Clamping:** Added `ShoeHeightParser.ClampPlatformHeight` and `ConvertPlatformValueToMeters` supporting up to `30cm / 0.30m` (`300mm`) for third-person (ITP) character puppet elevation and Photo Mode (`ATTR_V_UP_DOWN`) sole lifting.
+* **Strict IFP 25cm Ceiling:** Maintained and enforced that First-Person / IFP height adjustments (`ifp_height_blend` and heel elevation) never exceed `25cm / 0.25m` (`MaxHeightCm`), including capping fallback platform-only shoe conversions to 25cm in FPP.
+* **UI & Documentation:** Updated Custom Platform slider range to `0.0 – 30.0 cm` in the CET overlay, player guide (`USER_GUIDE.md`), `README.md`, and `PROJECT.md`.
+
+---
+
 ## [**`v2.1.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.1.0) — 2026-09-29
 ### `feat(stride): add per-heel sway multipliers and clean catwalk tab`
 * **Independent Heel Category Multipliers:** Added dedicated sliders for **Low Heel** (1.0" – 2.0" / ~2.0 – 5.0 cm), **Mid Heel** (2.0" – 3.0" / ~5.0 – 7.5 cm), and **High Heel** (3.0"+ / ~7.5+ cm) allowing players to fine-tune sway intensity independently per heel height (0.00x – 1.50x).

@@ -15,10 +15,11 @@ public class ITPController {
       return false;
     };
 
-    let blend: Float = FootwearAnimgraphHelper.CalculateHeightBlend(offsetMeters);
+    let clampedOffset: Float = ShoeHeightParser.ClampPlatformHeight(offsetMeters);
+    let blend: Float = FootwearAnimgraphHelper.CalculateHeightBlend(clampedOffset);
 
     // Native REDengine API queues AnimInputSetterFloat directly into active animgraph
-    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", offsetMeters);
+    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
     AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", blend);
     return true;
   }

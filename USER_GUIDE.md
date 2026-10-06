@@ -17,7 +17,7 @@ A comprehensive guide for configuring custom footwear heights and getting accura
 2. Open the **Cyber Engine Tweaks (CET) Overlay** (`~`).
 3. In the mod window, adjust the sliders:
    * **Custom Heel (cm):** Sets active 1st-person gameplay height elevation (`0.0` – `25.0 cm`).
-   * **Custom Platform (cm):** Sets Photo Mode platform sole lift (`0.0` – `25.0 cm`).
+   * **Custom Platform (cm):** Sets Third Person and Photo Mode platform sole lift (`0.0` – `30.0 cm`).
 4. **Auto-Save:** Settings are automatically saved per shoe model in `user_shoe_overrides.json`.
 5. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
 

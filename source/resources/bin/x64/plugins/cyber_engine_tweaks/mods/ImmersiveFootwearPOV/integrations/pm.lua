@@ -179,7 +179,8 @@ end
 
 local function CalculatePMElevation(platformCm)
     local autoElevate = PM.modState and (PM.modState.autoElevatePMPlatform ~= false) or true
-    local elevationMeters = (autoElevate and platformCm > 0.0) and (platformCm / 100.0) or 0.0
+    local clampedPlatCm = math.min(math.max(0.0, platformCm or 0.0), 30.0)
+    local elevationMeters = (autoElevate and clampedPlatCm > 0.0) and (clampedPlatCm / 100.0) or 0.0
     return elevationMeters, autoElevate
 end
 

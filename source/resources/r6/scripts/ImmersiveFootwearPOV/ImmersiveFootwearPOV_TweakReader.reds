@@ -6,7 +6,7 @@ module ImmersiveFootwearPOV
 // -----------------------------------------------------------------------------
 public enum FootwearHeightLimit {
   MaxHeightCm = 25,
-  MaxPlatformCm = 25
+  MaxPlatformCm = 30
 }
 
 public class FootwearHeightLimits {
@@ -123,9 +123,10 @@ public class ShoeHeightParser {
     };
 
     // Compatibility Fallback:
-    // If only a platform tag was specified without a heel tag, use platform value as heel height
+    // If only a platform tag was specified without a heel tag, use platform value as heel height.
+    // In IFP, height offset must strictly not exceed 25cm (MaxHeightMeters).
     if parsedHeel == 0.0 && parsedPlatform > 0.0 {
-      parsedHeel = parsedPlatform;
+      parsedHeel = ShoeHeightParser.ClampHeight(parsedPlatform);
     };
 
     return ShoeHeightData.Create(parsedHeel, parsedPlatform);
@@ -182,10 +183,10 @@ public class ShoeHeightParser {
     };
 
     let valueStr: String = StrMid(tagStr, prefixLen, totalLen - prefixLen);
-    return ShoeHeightParser.ConvertValueToMeters(valueStr);
+    return ShoeHeightParser.ConvertPlatformValueToMeters(valueStr);
   }
 
-  // Converts parsed tag value string to meters
+  // Converts parsed heel tag value string to meters (IFP limit: max 25cm / 0.25m)
   // Supports:
   // - Direct decimal meters: "0.06" -> 0.06m
   // - Centimeter tags: "006" -> 0.06m, "008" -> 0.08m, "010" -> 0.10m, "6" -> 0.06m, "25" -> 0.25m
@@ -223,12 +224,62 @@ public class ShoeHeightParser {
     return 0.0;
   }
 
-  // Safety clamp to prevent extreme offsets
+  // Converts parsed platform tag value string to meters (third-person and PM limit: max 30cm / 0.30m)
+  // Supports:
+  // - Direct decimal meters: "0.06" -> 0.06m, "0.30" -> 0.30m
+  // - Centimeter tags: "006" -> 0.06m, "030" -> 0.30m, "6" -> 0.06m, "30" -> 0.30m
+  // - Millimeter tags: "60" -> 0.06m, "300" -> 0.30m
+  public static func ConvertPlatformValueToMeters(valueStr: String) -> Float {
+    if StrLen(valueStr) == 0 {
+      return 0.0;
+    };
+
+    // If decimal point exists (e.g. "0.06", "0.10", "0.30")
+    if StrFindFirst(valueStr, ".") >= 0 {
+      let rawVal: Float = StringToFloat(valueStr);
+      return ShoeHeightParser.ClampPlatformHeight(rawVal);
+    };
+
+    let intVal: Int32 = StringToInt(valueStr);
+    if intVal <= 0 {
+      return 0.0;
+    };
+
+    let floatVal: Float = Cast<Float>(intVal);
+    let maxCm: Float = FootwearHeightLimits.GetMaxPlatformCm();
+
+    // If value is in range 1..maxCm, treat as centimeters (e.g. 6cm = 0.06m, 30cm = 0.30m)
+    if floatVal >= 1.0 && floatVal <= maxCm {
+      return ShoeHeightParser.ClampPlatformHeight(floatVal / 100.0);
+    };
+
+    // If value is in range (maxCm + 1)..(maxCm * 10), treat as millimeters (e.g. 60mm = 0.06m, 300mm = 0.30m)
+    if floatVal > maxCm && floatVal <= (maxCm * 10.0) {
+      return ShoeHeightParser.ClampPlatformHeight(floatVal / 1000.0);
+    };
+
+    // If value is greater than max millimeters, return 0.0
+    return 0.0;
+  }
+
+  // Safety clamp to prevent extreme offsets (Heel / FPP gameplay in IFP: max 25cm / 0.25m)
   public static func ClampHeight(val: Float) -> Float {
     if val < 0.0 {
       return 0.0;
     };
     let maxMeters: Float = FootwearHeightLimits.GetMaxHeightMeters();
+    if val > maxMeters {
+      return maxMeters;
+    };
+    return val;
+  }
+
+  // Safety clamp to prevent extreme offsets (Platform / Third-Person / PM: max 30cm / 0.30m)
+  public static func ClampPlatformHeight(val: Float) -> Float {
+    if val < 0.0 {
+      return 0.0;
+    };
+    let maxMeters: Float = FootwearHeightLimits.GetMaxPlatformMeters();
     if val > maxMeters {
       return maxMeters;
     };

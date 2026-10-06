@@ -18,7 +18,7 @@ local PMIntegration = require("integrations/pm")
 -- -----------------------------------------------------------------------------
 local FootwearHeightLimits = {
     MAX_HEEL_CM = 25.0,
-    MAX_PLATFORM_CM = 25.0,
+    MAX_PLATFORM_CM = 30.0,
 }
 
 local mod = {
@@ -346,8 +346,9 @@ registerForEvent("onUpdate", function(deltaTime)
             if platOffset <= 0.0 and mod.currentShoeState and mod.currentShoeState.platformCm then
                 platOffset = (mod.currentShoeState.platformCm or 0.0) / 100.0
             end
+            platOffset = math.min(math.max(0.0, platOffset), (FootwearHeightLimits.MAX_PLATFORM_CM / 100.0))
             footElevationMeters = isSuppressed and 0.0 or platOffset
-            targetBlend, _ = IFPIntegration.CalculateTargetBlend(platOffset, 0.0, isSuppressed)
+            targetBlend, _ = IFPIntegration.CalculateTargetBlend(platOffset, 0.0, isSuppressed, (FootwearHeightLimits.MAX_PLATFORM_CM / 100.0))
             if mod.isPhotoModeOpen then
                 reason = "Photo Mode Active (Locomotion Neutralized)"
             elseif mod.currentShoeState.isSuppressed then
@@ -379,8 +380,10 @@ registerForEvent("onUpdate", function(deltaTime)
             reason = "First Person Neutral Baseline (Identical as in ITP)"
         else
             -- IFP Active (or Standalone): Combine footwear heel height + IFP base slider
+            -- In IFP, height offset must strictly not exceed 25cm (0.25m)
             local currentOffset = sys:GetEffectiveOffset()
-            targetBlend, _ = IFPIntegration.CalculateTargetBlend(currentOffset, mod.ifpBaseHeightCm, isSuppressed)
+            local ifpFootwearOffset = math.min(math.max(0.0, currentOffset), (FootwearHeightLimits.MAX_HEEL_CM / 100.0))
+            targetBlend, _ = IFPIntegration.CalculateTargetBlend(ifpFootwearOffset, mod.ifpBaseHeightCm, isSuppressed, (FootwearHeightLimits.MAX_HEEL_CM / 100.0))
 
             if mod.isPhotoModeOpen then
                 reason = "Photo Mode Active (Locomotion Neutralized)"
