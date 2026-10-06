@@ -111,38 +111,10 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
     return ifpHeight
 end
 
+local Diagnostics = require("modules/diagnostics")
+
 function State.DumpDiagnostics(sys, modSettings, ifpIntegration, transitionMgr)
-    local shoe = State.currentShoeState
-    local tfpPresent = (sys and sys.IsTFPPresent) and sys:IsTFPPresent() or false
-    local eqExPresent = (sys and sys.IsEquipmentExPresent) and sys:IsEquipmentExPresent() or false
-    local ifpInstalled = ifpIntegration.IsInstalled()
-    local ifpEnabled = ifpIntegration.IsEnabled and ifpIntegration.IsEnabled() or false
-    local ifpHeightEnabled = ifpIntegration.IsHeightAdjustmentEnabled and ifpIntegration.IsHeightAdjustmentEnabled() or false
-    local ifpBaseHeightCm, _ = ifpIntegration.GetState()
-
-    local currentBlend = transitionMgr and transitionMgr.GetBlend() or 0.50
-    local targetBlend = transitionMgr and transitionMgr.targetBlend or 0.50
-
-    print("================ [Immersive Footwear POV Diagnostics] ================")
-    print(string.format(" Frameworks Active: IFP: %s (Enabled: %s, Height Adj: %s) | TFP: %s | Equipment-EX: %s",
-        ifpInstalled and "INSTALLED" or "ABSENT",
-        ifpEnabled and "YES" or "NO",
-        ifpHeightEnabled and "YES" or "NO",
-        tfpPresent and "INSTALLED" or "ABSENT",
-        eqExPresent and "INSTALLED" or "ABSENT"))
-    print(string.format(" Debug Logging:     %s", modSettings.debugLogs and "ENABLED" or "DISABLED"))
-    print(string.format(" Photo Mode Active: %s (Auto-Elevate: %s)", tostring(modSettings.isPhotoModeOpen), tostring(modSettings.autoElevatePMPlatform)))
-    print(string.format(" Equipped Footwear: %s", tostring(shoe.displayName)))
-    print(string.format(" Item TDBID String: %s", tostring(shoe.key)))
-    print(string.format(" Resolution Source: %s (Official Tags: %s)", tostring(shoe.source), tostring(shoe.isOfficial)))
-    print(string.format(" Heel Height (FPP): +%.1f cm (%.4f m)", shoe.heelCm, shoe.heelCm / 100.0))
-    print(string.format(" Platform Sole (PM):+%.1f cm (%.4f m)", shoe.platformCm, shoe.platformCm / 100.0))
-    print(string.format(" IFP Base Height:   %+d cm", math.floor(ifpBaseHeightCm + 0.5)))
-    print(string.format(" Effective Shoe Lift:+%.1f cm", shoe.effectiveCm))
-    print(string.format(" Current Blend:     %.4f (Stance: %+.1f cm)", currentBlend, (currentBlend - 0.50) * 100.0))
-    print(string.format(" Target Blend:      %.4f (Stance: %+.1f cm)", targetBlend, (targetBlend - 0.50) * 100.0))
-    print(string.format(" Is Suppressed:     %s (Reason: '%s')", tostring(shoe.isSuppressed), tostring(shoe.suppressionReason)))
-    print("=====================================================================")
+    Diagnostics.Dump(sys, modSettings, ifpIntegration, transitionMgr, State.currentShoeState)
 end
 
 return State

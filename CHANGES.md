@@ -3,6 +3,18 @@
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
 ## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-06
+### `refactor(cet): apply SOLID principles and modular design patterns`
+* **Single Responsibility (SRP):** Split monolithic concerns out of `init.lua` and `integrations/ifp.lua` into dedicated domain modules:
+  * `modules/perspective.lua`: Isolates REDengine `CameraSystem` world-space transforms, distance checking, and ITP installation queries.
+  * `modules/stance.lua`: Implements the Strategy pattern for stance resolution (`StanceResolver.ResolveTarget`) separating forced overrides, 3rd-person platform puppet lifts, and 1st-person heel + IFP slider combinations.
+  * `modules/console.lua`: Implements the Command / Dispatcher pattern for CET console shortcuts, debug controls, and manual height setting.
+  * `modules/diagnostics.lua`: Formats and outputs system state, framework statuses, and footwear diagnostics (`Diagnostics.Dump`).
+  * `modules/ui.lua`: Extracted ImGui presentation (~350 lines) into a dedicated presenter service (`UIManager.DrawUI`), leaving `integrations/ifp.lua` as a pure adapter.
+* **Open/Closed Principle (OCP):** Stance calculation now dispatches through modular perspective strategies (`ResolveForcedStance`, `ResolveTPPStance`, `ResolveFPPStance`), allowing future POV perspectives or camera systems to plug in without modifying existing resolution logic.
+* **Interface Segregation (ISP):** UI components interact only with presentation state and callback dispatchers without tight coupling to underlying anim controllers or system buses.
+* **Dependency Inversion (DIP):** Composition root in `init.lua` orchestrates high-level lifecycle events by delegating to specialized services (`ConsoleManager`, `Perspective`, `StanceResolver`, `UIManager`, `State`, `Transition`, `Stride`).
+* **Backward Compatibility & Safety:** Maintained 100% backward compatibility for all CET console shortcut aliases (`ForceStance`, `SetCustomHeight`, `SetFootwearHeight`, `IFPStatus`, etc.), external `IFP.DrawUI` calls, and preserved `user_shoe_overrides.json` during deployment.
+
 ### `feat(ui): add manual height inputs with auto-clamping and non-negative validation`
 * **Direct Numerical Input:** Added `Manual Heel (cm)` and `Manual Platform (cm)` input fields (`ImGui.InputFloat`) alongside the sliders in the CET overlay (`DrawCustomFootwearControls`), allowing players to type exact decimal values or click `+`/`-` stepper buttons.
 * **Auto-Clamping on Exceeding Limits:** When manually entering values exceeding the maximum limits, values are automatically capped to the maximum allowed limit (`40.0 cm` for Heel Height, `30.0 cm` for Platform Height).

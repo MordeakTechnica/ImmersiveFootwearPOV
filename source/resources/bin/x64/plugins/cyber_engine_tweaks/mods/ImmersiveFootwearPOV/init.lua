@@ -2,7 +2,7 @@
 -- Immersive Footwear POV - Cyber Engine Tweaks (CET) Core Orchestrator
 -- Dynamically combines IFP base height slider + footwear heel height
 -- Features smooth 0.20s transitions and context-aware suppression
--- Modular architecture with dedicated subsystems in ./modules/ and ./integrations/
+-- Modular architecture following SOLID principles and design patterns
 -- =============================================================================
 
 local Config = require("modules/config")
@@ -10,11 +10,15 @@ local Logger = require("modules/logger")
 local Transition = require("modules/transition")
 local State = require("modules/state")
 local Stride = require("modules/stride")
+local Perspective = require("modules/perspective")
+local StanceResolver = require("modules/stance")
+local ConsoleManager = require("modules/console")
+local UIManager = require("modules/ui")
 local IFPIntegration = require("integrations/ifp")
 local PMIntegration = require("integrations/pm")
 
 -- -----------------------------------------------------------------------------
--- Global Height Configuration Limits (Configurable Enum)
+-- Global Height Configuration Limits
 -- -----------------------------------------------------------------------------
 local FootwearHeightLimits = {
     MAX_HEEL_CM = 40.0,
@@ -59,18 +63,14 @@ local function RefreshIFPBaseHeight()
 end
 
 -- -----------------------------------------------------------------------------
--- Console API & Diagnostics Functions
+-- Console API & Diagnostics (Delegated to ConsoleManager)
 -- -----------------------------------------------------------------------------
 function mod.SetDebug(enabled)
-    mod.debugLogs = Logger.SetDebug(enabled, function(newVal)
-        mod.debugLogs = newVal
-        SaveAllOverrides()
-    end)
-    return mod.debugLogs
+    return ConsoleManager.SetDebug(mod, enabled, SaveAllOverrides)
 end
 
 function mod.ToggleDebug()
-    return mod.SetDebug(not mod.debugLogs)
+    return ConsoleManager.ToggleDebug(mod, SaveAllOverrides)
 end
 
 function mod.GetDebug()
@@ -79,124 +79,25 @@ end
 
 function mod.DumpState()
     local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
-    State.DumpDiagnostics(sys, mod, IFPIntegration, Transition)
+    ConsoleManager.DumpState(sys, mod, IFPIntegration, Transition)
 end
 
 function mod.ForceStance(cm, extra)
-    -- Support both mod.ForceStance(val) and mod:ForceStance(val)
-    if type(cm) == "table" and cm == mod then
-        cm = extra
-    end
-    if cm == nil or tostring(cm):lower() == "clear" or tostring(cm):lower() == "reset" then
-        mod.forcedBlend = nil
-        local player = Game.GetPlayer()
-        if player then
-            IFPIntegration.ApplyBlend(player, 0.50, 0.0)
-        end
-        print("[ImmersiveFootwearPOV] Stance override CLEARED. Dynamic footwear logic resumed.")
-        return "Cleared"
-    else
-        local cmNum = tonumber(cm) or 0.0
-        local meters = cmNum / 100.0
-        local blend = math.max(0.0, math.min(1.0, (meters + 0.50) / 1.00))
-        mod.forcedBlend = blend
-        local player = Game.GetPlayer()
-        if player then
-            IFPIntegration.ApplyBlend(player, blend, meters)
-        end
-        local msg = string.format("FORCED stance to %+.1f cm (Offset: %.3f m | Blend: %.3f)", cmNum, meters, blend)
-        print(string.format("[ImmersiveFootwearPOV] %s", msg))
-        Logger.LogFile("%s", msg)
-        return msg
-    end
+    return ConsoleManager.ForceStance(mod, IFPIntegration, cm, extra)
 end
 
 function mod.SetCustomHeight(heelCm, platformCm)
     local player = Game.GetPlayer()
-    if not player then
-        print("[ImmersiveFootwearPOV] Error: Player not found.")
-        return "Error: Player not found"
-    end
     local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
-    if not sys then
-        print("[ImmersiveFootwearPOV] Error: System not found.")
-        return "Error: System not found"
-    end
-
-    local shoeState = mod.currentShoeState
-    if not shoeState or not shoeState.key or #shoeState.key == 0 then
-        print("[ImmersiveFootwearPOV] Error: No shoe equipped to override.")
-        return "Error: No shoe equipped"
-    end
-
-    local maxHeel = FootwearHeightLimits.MAX_HEEL_CM
-    local maxPlat = FootwearHeightLimits.MAX_PLATFORM_CM
-
-    local h = tonumber(heelCm) or 0.0
-    local p = tonumber(platformCm) or 0.0
-
-    if h < 0.0 then h = 0.0 elseif h > maxHeel then h = maxHeel end
-    if p < 0.0 then p = 0.0 elseif p > maxPlat then p = maxPlat end
-
-    shoeState.heelCm = h
-    shoeState.platformCm = p
-
-    if not mod.overrides[shoeState.key] then
-        mod.overrides[shoeState.key] = {}
-    end
-    mod.overrides[shoeState.key].heel = h
-    mod.overrides[shoeState.key].platform = p
-
-    SaveAllOverrides()
-    sys:SetCustomHeightOverride(player, h / 100.0, p / 100.0)
-
-    local msg = string.format("Set custom height for '%s': Heel = %.1f cm (max %.1f cm), Platform = %.1f cm (max %.1f cm)",
-        shoeState.displayName or shoeState.key, h, maxHeel, p, maxPlat)
-    print(string.format("[ImmersiveFootwearPOV] %s", msg))
-    return msg
+    return ConsoleManager.SetCustomHeight(mod, sys, player, FootwearHeightLimits, heelCm, platformCm, SaveAllOverrides)
 end
 
--- Export global CET Console shortcut aliases to both _G and mod environment
-local function RegisterConsoleShortcuts()
-    local shortcuts = {
-        ToggleIFPDebug = function() return mod.ToggleDebug() end,
-        IFPDebug = function(enabled) return mod.SetDebug(enabled) end,
-        IFPStatus = function() return mod.DumpState() end,
-        ForceStance = function(cm) return mod.ForceStance(cm) end,
-        IFPForceStance = function(cm) return mod.ForceStance(cm) end,
-        SetCustomHeight = function(h, p) return mod.SetCustomHeight(h, p) end,
-        SetFootwearHeight = function(h, p) return mod.SetCustomHeight(h, p) end,
-    }
-    for name, fn in pairs(shortcuts) do
-        if _G then
-            rawset(_G, name, fn)
-        end
-    end
-end
-RegisterConsoleShortcuts()
+-- Register global CET Console shortcuts
+ConsoleManager.RegisterShortcuts(mod)
 
-
-local function CheckIsITPInstalled()
-    if GetMod then
-        local itpMod = GetMod("immersive_third_person") or GetMod("ImmersiveThirdPerson") or GetMod("ITP")
-        if itpMod ~= nil then
-            return true
-        end
-    end
-    local installed = false
-    pcall(function()
-        local bridge = Game.GetScriptableSystemsContainer():Get("TPPCameraVisibleRenderBridge")
-        if bridge ~= nil then installed = true end
-    end)
-    if not installed then
-        local player = Game.GetPlayer()
-        if player and player:FindComponentByName(CName.new("tppCamera")) then
-            installed = true
-        end
-    end
-    return installed
-end
-
+-- -----------------------------------------------------------------------------
+-- Lifecycle Events
+-- -----------------------------------------------------------------------------
 registerForEvent("onInit", function()
     local overrides, settings = Config.Load(Config.FILE_NAME)
     mod.overrides = overrides
@@ -215,7 +116,8 @@ registerForEvent("onInit", function()
     local ifpInstalled = IFPIntegration.IsInstalled()
     local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
     local ifpHeightEnabled = IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false
-    local itpInstalled = CheckIsITPInstalled()
+    local itpInstalled = Perspective.IsITPInstalled()
+
     pcall(function()
         local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
         if sys then
@@ -227,7 +129,9 @@ registerForEvent("onInit", function()
             end
         end
     end)
-    RegisterConsoleShortcuts()
+
+    ConsoleManager.RegisterShortcuts(mod)
+
     print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Height Adj: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
         itpInstalled and "ACTIVE" or "ABSENT",
         ifpInstalled and "ACTIVE" or "ABSENT",
@@ -248,72 +152,6 @@ registerForEvent("onOverlayClose", function()
     RefreshIFPBaseHeight()
 end)
 
-local function GetCameraWorldPosition(camera)
-    if not camera or not camera.GetLocalToWorld then return nil end
-    local okTransform, transform = pcall(function() return camera:GetLocalToWorld() end)
-    if not okTransform or not transform or not transform.GetTranslation then return nil end
-    local okTranslation, translation = pcall(function() return transform:GetTranslation() end)
-    if okTranslation and translation and translation.x ~= nil then
-        return translation
-    end
-    return nil
-end
-
-local function CheckIsTPPActive(player)
-    if not player then return false end
-
-    -- Primary: REDengine CameraSystem distance to active camera
-    local cameraSystem = Game.GetCameraSystem and Game.GetCameraSystem()
-    if cameraSystem and cameraSystem.GetActiveCameraWorldTransform then
-        local transform = (Transform and Transform.new and Transform.new())
-            or (WorldTransform and WorldTransform.new and WorldTransform.new())
-        if transform and cameraSystem:GetActiveCameraWorldTransform(transform) then
-            local activePos = transform.position
-            if activePos == nil and transform.GetPosition then activePos = transform:GetPosition() end
-            if activePos == nil and transform.GetTranslation then activePos = transform:GetTranslation() end
-            if activePos == nil and transform.GetWorldPosition and WorldPosition and WorldPosition.ToVector4 then
-                activePos = WorldPosition.ToVector4(transform:GetWorldPosition())
-            end
-            if activePos and activePos.x ~= nil then
-                -- Check against both camera components (matches ITP mod.activeCameraOwner)
-                local fppCam = player:FindComponentByName(CName.new("camera"))
-                local tppCam = player:FindComponentByName(CName.new("tppCamera"))
-                if fppCam and tppCam then
-                    local fppWorld = GetCameraWorldPosition(fppCam)
-                    local tppWorld = GetCameraWorldPosition(tppCam)
-                    if fppWorld and tppWorld then
-                        local dfx, dfy, dfz = activePos.x - fppWorld.x, activePos.y - fppWorld.y, activePos.z - fppWorld.z
-                        local dtx, dty, dtz = activePos.x - tppWorld.x, activePos.y - tppWorld.y, activePos.z - tppWorld.z
-                        local distFPP2 = dfx * dfx + dfy * dfy + dfz * dfz
-                        local distTPP2 = dtx * dtx + dty * dty + dtz * dtz
-                        return distTPP2 < distFPP2
-                    end
-                end
-
-                local playerPos = player:GetWorldPosition()
-                if playerPos and playerPos.x ~= nil then
-                    local dx = activePos.x - playerPos.x
-                    local dy = activePos.y - playerPos.y
-                    local dz = activePos.z - (playerPos.z + 1.55)
-                    local distSq = dx * dx + dy * dy + dz * dz
-                    return distSq >= 0.64
-                end
-            end
-        end
-    end
-
-    -- Fallback: tppCamera component Y offset (behind player)
-    local tppCam = player:FindComponentByName(CName.new("tppCamera"))
-    if tppCam and tppCam.GetLocalPosition then
-        local ok, pos = pcall(function() return tppCam:GetLocalPosition() end)
-        if ok and pos and pos.y ~= nil then
-            return (pos.y <= -0.75 or (pos.x ~= nil and math.abs(pos.x) >= 0.40))
-        end
-    end
-
-    return false
-end
-
 registerForEvent("onUpdate", function(deltaTime)
     local player = Game.GetPlayer()
     if not player then return end
@@ -328,10 +166,12 @@ registerForEvent("onUpdate", function(deltaTime)
         sys:UpdateEquippedFootwear(player)
         pcall(function()
             if sys.SetITPPresent then
-                sys:SetITPPresent(CheckIsITPInstalled())
+                sys:SetITPPresent(Perspective.IsITPInstalled())
             end
             if sys.SetIFPPresent then
-                local isIFPActiveAndHeightEnabled = IFPIntegration.IsInstalled() and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false) and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false)
+                local isIFPActiveAndHeightEnabled = IFPIntegration.IsInstalled()
+                    and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false)
+                    and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false)
                 sys:SetIFPPresent(isIFPActiveAndHeightEnabled)
             end
         end)
@@ -342,7 +182,7 @@ registerForEvent("onUpdate", function(deltaTime)
     PMIntegration.OnUpdate(deltaTime)
 
     -- Detect if Immersive Third Person (ITP) camera is currently active
-    local isITPActive = CheckIsTPPActive(player)
+    local isITPActive = Perspective.IsTPPActive(player)
     if isITPActive ~= mod.isITPActive then
         local wasITP = mod.isITPActive
         mod.isITPActive = isITPActive
@@ -354,8 +194,7 @@ registerForEvent("onUpdate", function(deltaTime)
             mod.currentShoeState.platformCm or 0.0)
 
         if not isITPActive then
-            -- Returning to First Person (FPP):
-            -- Immediately zero out 3rd-person puppet elevation variable
+            -- Returning to First Person (FPP): zero out 3rd-person puppet elevation variable
             if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
                 pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), 0.0)
             end
@@ -369,82 +208,25 @@ registerForEvent("onUpdate", function(deltaTime)
         RefreshIFPBaseHeight()
     end
 
-    -- Determine stance height based on perspective:
-    -- Third Person (ITP Active): Elevate character model with platform height (or forced override)
-    -- First Person (FPP): Drive eye level and body via heel height + IFP base slider
-    local isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false
+    -- Resolve target stance via StanceResolver (Strategy Pattern)
     local ifpInstalled = IFPIntegration.IsInstalled()
-    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+    local stanceContext = {
+        forcedBlend = mod.forcedBlend,
+        isTPPActive = isITPActive,
+        sys = sys,
+        shoeState = mod.currentShoeState,
+        isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen,
+        isPhotoModeOpen = mod.isPhotoModeOpen,
+        heightLimits = FootwearHeightLimits,
+        ifpIntegration = IFPIntegration,
+        ifpInstalled = ifpInstalled,
+        ifpHeightAdjustmentEnabled = ifpInstalled and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false),
+        ifpBaseHeightCm = mod.ifpBaseHeightCm,
+        isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false,
+    }
+    local targetBlend, footElevationMeters, reason = StanceResolver.ResolveTarget(stanceContext)
 
-    local targetBlend = 0.50
-    local footElevationMeters = 0.0
-    local reason = "Neutral Baseline"
-
-    if isITPActive then
-        -- -------------------------------------------------------------------------
-        -- Third Person Perspective (ITP Active)
-        -- Elevate character model puppet by platform sole height
-        -- -------------------------------------------------------------------------
-        if mod.forcedBlend ~= nil then
-            targetBlend = mod.forcedBlend
-            footElevationMeters = (targetBlend - 0.50) * 1.00
-            reason = string.format("Forced Stance Override (Blend: %.3f)", mod.forcedBlend)
-        else
-            local platOffset = (sys.GetEffectivePlatformOffset and sys:GetEffectivePlatformOffset()) or 0.0
-            if platOffset <= 0.0 and mod.currentShoeState and mod.currentShoeState.platformCm then
-                platOffset = (mod.currentShoeState.platformCm or 0.0) / 100.0
-            end
-            platOffset = math.min(math.max(0.0, platOffset), (FootwearHeightLimits.MAX_PLATFORM_CM / 100.0))
-            footElevationMeters = isSuppressed and 0.0 or platOffset
-            targetBlend, _ = IFPIntegration.CalculateTargetBlend(platOffset, 0.0, isSuppressed, (FootwearHeightLimits.MAX_PLATFORM_CM / 100.0))
-            if mod.isPhotoModeOpen then
-                reason = "Photo Mode Active (Locomotion Neutralized)"
-            elseif mod.currentShoeState.isSuppressed then
-                reason = "Suppression (" .. tostring(mod.currentShoeState.suppressionReason) .. ")"
-            else
-                reason = string.format("ITP 3rd-Person Active (Platform: +%.1f cm)", (mod.currentShoeState.platformCm or 0.0))
-            end
-        end
-    else
-        -- -------------------------------------------------------------------------
-        -- First Person Perspective (FPP)
-        -- -------------------------------------------------------------------------
-        footElevationMeters = 0.0
-
-        local ifpHeightAdjustmentEnabled = ifpInstalled and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false)
-
-        if isTFP then
-            -- True First Person handles camera height via native REDscript camera matrices
-            targetBlend = 0.50
-            reason = "True First Person Native (Skeletal Blend Neutral)"
-        elseif ifpInstalled and not ifpHeightAdjustmentEnabled then
-            -- IFP is installed, but height adjustment is disabled:
-            -- Strictly reset skeletal stance to neutral baseline (0.0 cm / blend 0.50)
-            targetBlend = 0.50
-            reason = "IFP Height Adjustment Disabled (Neutral Baseline)"
-        elseif sys.IsITPPresent and sys:IsITPPresent() and not ifpInstalled then
-            -- Pure ITP without IFP installed: First Person operates with zero skeletal offset
-            targetBlend = 0.50
-            reason = "First Person Neutral Baseline (Identical as in ITP)"
-        else
-            -- IFP Active (or Standalone): Combine footwear heel height + IFP base slider
-            -- In IFP, height offset must strictly not exceed 25cm (0.25m)
-            local currentOffset = sys:GetEffectiveOffset()
-            local ifpFootwearOffset = math.min(math.max(0.0, currentOffset), (FootwearHeightLimits.MAX_IFP_CM / 100.0))
-            targetBlend, _ = IFPIntegration.CalculateTargetBlend(ifpFootwearOffset, mod.ifpBaseHeightCm, isSuppressed, (FootwearHeightLimits.MAX_IFP_CM / 100.0))
-
-            if mod.isPhotoModeOpen then
-                reason = "Photo Mode Active (Locomotion Neutralized)"
-            elseif mod.currentShoeState.isSuppressed then
-                reason = "Suppression (" .. tostring(mod.currentShoeState.suppressionReason) .. ")"
-            elseif mod.currentShoeState.hasShoe then
-                reason = string.format("Footwear Active (%s: +%.1f cm)", tostring(mod.currentShoeState.displayName), (mod.currentShoeState.heelCm or 0.0))
-            else
-                reason = "Barefoot / Neutral Stance"
-            end
-        end
-    end
-
+    -- Smooth transition handling
     local isTFPForLog = mod.currentShoeState and mod.currentShoeState.isTFP
     Transition.SetTarget(targetBlend, reason, function(msg)
         Logger.LogFPP(isTFPForLog, "%s", msg)
@@ -473,7 +255,7 @@ registerForEvent("onDraw", function()
     local player = Game.GetPlayer()
     local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
 
-    IFPIntegration.DrawUI(mod, player, sys, FootwearHeightLimits, SaveAllOverrides)
+    UIManager.DrawUI(mod, player, sys, FootwearHeightLimits, SaveAllOverrides, IFPIntegration)
 end)
 
 return mod
