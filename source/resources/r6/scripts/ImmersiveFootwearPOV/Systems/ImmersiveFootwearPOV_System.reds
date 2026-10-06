@@ -236,6 +236,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func SetIFPPresent(present: Bool) -> Void { this.m_isIFPPresent = present; }
   public func IsITPPresent() -> Bool { return this.m_isITPPresent; }
   public func SetITPPresent(present: Bool) -> Void { this.m_isITPPresent = present; }
+  public func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
+    return ITPController.IsTPPActive(player);
+  }
 
   // -----------------------------------------------------------------------------
   // Feminine Locomotion & Catwalk Sway Context

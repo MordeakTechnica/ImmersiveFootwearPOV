@@ -80,9 +80,19 @@ end
 
 --- Determine whether Third Person Perspective (TPP) camera is actively rendering
 ---@param player table
+---@param sys table|nil
 ---@return boolean
-function Perspective.IsTPPActive(player)
+function Perspective.IsTPPActive(player, sys)
     if not player then return false end
+
+    -- Strategy 1: Native REDscript system query (fastest, most authoritative)
+    if sys and sys.IsTPPActive then
+        local ok, active = pcall(function() return sys:IsTPPActive(player) end)
+        if ok and type(active) == "boolean" then
+            if active then isITPInstalledCache = true end
+            return active
+        end
+    end
 
     EnsureCamNames()
 
@@ -97,54 +107,46 @@ function Perspective.IsTPPActive(player)
         if not cachedTPPCam and tppCamName then cachedTPPCam = player:FindComponentByName(tppCamName) end
     end
 
-    -- Primary: REDengine CameraSystem distance to active camera
+    -- Strategy 2: REDengine CameraSystem distance from active camera to player head
+    -- In FPP, active camera is inside player head (distSq < 0.25)
+    -- In TPP/ITP, active camera is behind/around player (distSq >= 0.64, i.e. >= 0.80m)
     local cameraSystem = Game.GetCameraSystem and Game.GetCameraSystem()
     if cameraSystem and cameraSystem.GetActiveCameraWorldTransform then
         if not reusableTransform then
-            reusableTransform = (Transform and Transform.new and Transform.new())
-                or (WorldTransform and WorldTransform.new and WorldTransform.new())
+            reusableTransform = (WorldTransform and WorldTransform.new and WorldTransform.new())
+                or (Transform and Transform.new and Transform.new())
         end
-        if reusableTransform and cameraSystem:GetActiveCameraWorldTransform(reusableTransform) then
-            local activePos = reusableTransform.position
-            if activePos == nil and reusableTransform.GetPosition then activePos = reusableTransform:GetPosition() end
-            if activePos == nil and reusableTransform.GetTranslation then activePos = reusableTransform:GetTranslation() end
-            if activePos == nil and reusableTransform.GetWorldPosition and WorldPosition and WorldPosition.ToVector4 then
-                activePos = WorldPosition.ToVector4(reusableTransform:GetWorldPosition())
-            end
-            if activePos and activePos.x ~= nil then
-                -- Check against both camera components (matches ITP mod.activeCameraOwner)
-                if cachedFPPCam and cachedTPPCam then
-                    local fppWorld = Perspective.GetCameraWorldPosition(cachedFPPCam)
-                    local tppWorld = Perspective.GetCameraWorldPosition(cachedTPPCam)
-                    if fppWorld and tppWorld then
-                        local dfx, dfy, dfz = activePos.x - fppWorld.x, activePos.y - fppWorld.y, activePos.z - fppWorld.z
-                        local dtx, dty, dtz = activePos.x - tppWorld.x, activePos.y - tppWorld.y, activePos.z - tppWorld.z
-                        local distFPP2 = dfx * dfx + dfy * dfy + dfz * dfz
-                        local distTPP2 = dtx * dtx + dty * dty + dtz * dtz
-                        if distTPP2 < distFPP2 then
-                            isITPInstalledCache = true
-                            return true
-                        end
-                        return false
-                    end
+        if reusableTransform then
+            local okXf = pcall(function() return cameraSystem:GetActiveCameraWorldTransform(reusableTransform) end)
+            if okXf then
+                local activePos = nil
+                if reusableTransform.GetPosition then activePos = reusableTransform:GetPosition() end
+                if not activePos and reusableTransform.position then activePos = reusableTransform.position end
+                if not activePos and reusableTransform.GetTranslation then activePos = reusableTransform:GetTranslation() end
+                if not activePos and reusableTransform.GetWorldPosition and WorldPosition and WorldPosition.ToVector4 then
+                    activePos = WorldPosition.ToVector4(reusableTransform:GetWorldPosition())
                 end
 
-                local playerPos = player:GetWorldPosition()
-                if playerPos and playerPos.x ~= nil then
-                    local dx = activePos.x - playerPos.x
-                    local dy = activePos.y - playerPos.y
-                    local dz = activePos.z - (playerPos.z + 1.55)
-                    local distSq = dx * dx + dy * dy + dz * dz
-                    if distSq >= 0.64 then
-                        isITPInstalledCache = true
-                        return true
+                if activePos and activePos.x ~= nil then
+                    local playerPos = player:GetWorldPosition()
+                    if playerPos and playerPos.x ~= nil then
+                        local dx = activePos.x - playerPos.x
+                        local dy = activePos.y - playerPos.y
+                        local dz = activePos.z - (playerPos.z + 1.55)
+                        local distSq = dx * dx + dy * dy + dz * dz
+                        if distSq >= 0.64 then
+                            isITPInstalledCache = true
+                            return true
+                        elseif distSq < 0.25 then
+                            return false
+                        end
                     end
                 end
             end
         end
     end
 
-    -- Fallback: tppCamera component Y offset (behind player)
+    -- Strategy 3: Fallback via tppCamera component local Y offset (behind player)
     if cachedTPPCam and cachedTPPCam.GetLocalPosition then
         local ok, pos = pcall(function() return cachedTPPCam:GetLocalPosition() end)
         if ok and pos and pos.y ~= nil then

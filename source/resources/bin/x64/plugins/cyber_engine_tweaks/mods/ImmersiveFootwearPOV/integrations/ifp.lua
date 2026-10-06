@@ -203,28 +203,26 @@ end
 
 -- -----------------------------------------------------------------------------
 -- Apply Active Blend Value to Character Animation Component
--- Optimized: avoids duplicate SetInputFloat calls when blend and offset are settled
+-- Feeds anim input values continuously each frame to prevent engine animgraph resets
 -- -----------------------------------------------------------------------------
 function IFP.ApplyBlend(player, activeBlend, offsetMeters)
     if not player or not AnimationControllerComponent or not AnimationControllerComponent.SetInputFloat then
         return
     end
 
-    if not IFP.inputName then
+    if not IFP.inputName and CName and CName.new then
         IFP.inputName = CName.new("ifp_height_blend")
     end
-    if not IFP.footElevationName then
+    if not IFP.footElevationName and CName and CName.new then
         IFP.footElevationName = CName.new("foot_elevation_offset")
     end
 
-    if math.abs(activeBlend - lastAppliedBlend) > 0.00005 then
-        AnimationControllerComponent.SetInputFloat(player, IFP.inputName, activeBlend)
-        lastAppliedBlend = activeBlend
+    if IFP.inputName and activeBlend ~= nil then
+        pcall(AnimationControllerComponent.SetInputFloat, player, IFP.inputName, activeBlend)
     end
 
-    if offsetMeters ~= nil and math.abs(offsetMeters - lastAppliedOffset) > 0.00005 then
-        AnimationControllerComponent.SetInputFloat(player, IFP.footElevationName, offsetMeters)
-        lastAppliedOffset = offsetMeters
+    if IFP.footElevationName and offsetMeters ~= nil then
+        pcall(AnimationControllerComponent.SetInputFloat, player, IFP.footElevationName, offsetMeters)
     end
 end
 

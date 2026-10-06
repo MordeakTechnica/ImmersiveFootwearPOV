@@ -242,7 +242,7 @@ registerForEvent("onUpdate", function(deltaTime)
     PMIntegration.OnUpdate(deltaTime)
 
     -- Detect if Immersive Third Person (ITP) camera is currently active
-    local isITPActive = (Perspective and Perspective.IsTPPActive and Perspective.IsTPPActive(player)) or false
+    local isITPActive = (Perspective and Perspective.IsTPPActive and Perspective.IsTPPActive(player, sys)) or false
     if isITPActive ~= mod.isITPActive then
         local wasITP = mod.isITPActive
         mod.isITPActive = isITPActive
