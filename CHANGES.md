@@ -2,7 +2,7 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [`Unreleased`] — 2026-10-06
+## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-06
 ### `feat(ui): add manual height inputs with auto-clamping and non-negative validation`
 * **Direct Numerical Input:** Added `Manual Heel (cm)` and `Manual Platform (cm)` input fields (`ImGui.InputFloat`) alongside the sliders in the CET overlay (`DrawCustomFootwearControls`), allowing players to type exact decimal values or click `+`/`-` stepper buttons.
 * **Auto-Clamping on Exceeding Limits:** When manually entering values exceeding the maximum limits, values are automatically capped to the maximum allowed limit (`40.0 cm` for Heel Height, `30.0 cm` for Platform Height).
