@@ -17,8 +17,9 @@ local PMIntegration = require("integrations/pm")
 -- Global Height Configuration Limits (Configurable Enum)
 -- -----------------------------------------------------------------------------
 local FootwearHeightLimits = {
-    MAX_HEEL_CM = 25.0,
+    MAX_HEEL_CM = 40.0,
     MAX_PLATFORM_CM = 30.0,
+    MAX_IFP_CM = 25.0,
 }
 
 local mod = {
@@ -382,8 +383,8 @@ registerForEvent("onUpdate", function(deltaTime)
             -- IFP Active (or Standalone): Combine footwear heel height + IFP base slider
             -- In IFP, height offset must strictly not exceed 25cm (0.25m)
             local currentOffset = sys:GetEffectiveOffset()
-            local ifpFootwearOffset = math.min(math.max(0.0, currentOffset), (FootwearHeightLimits.MAX_HEEL_CM / 100.0))
-            targetBlend, _ = IFPIntegration.CalculateTargetBlend(ifpFootwearOffset, mod.ifpBaseHeightCm, isSuppressed, (FootwearHeightLimits.MAX_HEEL_CM / 100.0))
+            local ifpFootwearOffset = math.min(math.max(0.0, currentOffset), (FootwearHeightLimits.MAX_IFP_CM / 100.0))
+            targetBlend, _ = IFPIntegration.CalculateTargetBlend(ifpFootwearOffset, mod.ifpBaseHeightCm, isSuppressed, (FootwearHeightLimits.MAX_IFP_CM / 100.0))
 
             if mod.isPhotoModeOpen then
                 reason = "Photo Mode Active (Locomotion Neutralized)"

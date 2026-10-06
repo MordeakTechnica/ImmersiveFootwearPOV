@@ -177,7 +177,11 @@ end
 
 local function DrawOfficialFootwearView(shoeState)
     ImGui.TextColored(0.2, 0.9, 0.3, 1.0, "Tags: Official TweakDB Metadata (Locked)")
-    ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP Eye Lift)", shoeState.heelCm))
+    if shoeState.heelCm > 25.0 then
+        ImGui.Text(string.format("Heel Height:     +%.1f cm (FPP Eye Lift: 25.0 cm max | Sway Pitch: +%.1f cm)", shoeState.heelCm, math.max(0.0, shoeState.heelCm - shoeState.platformCm)))
+    else
+        ImGui.Text(string.format("Heel Height:     +%.1f cm (Active FPP Eye Lift)", shoeState.heelCm))
+    end
     if shoeState.platformCm > 0.0 then
         ImGui.Text(string.format("Platform Sole:   +%.1f cm (Photo Mode Puppet Lift)", shoeState.platformCm))
     end
@@ -188,9 +192,9 @@ local function DrawCustomFootwearControls(modState, player, sys, shoeState, heig
 
     local shoeKey = shoeState.key
 
-    -- Custom Heel Height Slider (Elevates 1st-person camera in gameplay)
-    local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (FPP)##ifp_custom_heel", shoeState.heelCm, 0.0, heightLimits.MAX_HEEL_CM, "%.1f cm")
-    ImGui.TextDisabled("  -> Total heel lift: elevates V's 1st-person camera in gameplay")
+    -- Custom Heel Height Slider (Drives catwalk sway pitch and FPP elevation capped at 25cm in IFP)
+    local heelVal, heelChanged = ImGui.SliderFloat("Custom Heel (FPP / Sway)##ifp_custom_heel", shoeState.heelCm, 0.0, heightLimits.MAX_HEEL_CM, "%.1f cm")
+    ImGui.TextDisabled("  -> Total heel height: drives catwalk sway pitch; elevates FPP camera up to 25.0 cm max in IFP")
     if heelChanged and player and sys and #shoeKey > 0 then
         shoeState.heelCm = heelVal
         if not modState.overrides[shoeKey] then

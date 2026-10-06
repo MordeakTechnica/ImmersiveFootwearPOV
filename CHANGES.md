@@ -3,11 +3,12 @@
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
 ## [`Unreleased`] — 2026-10-06
-### `feat(height-limits): raise 3rd-person & photo mode platform limit to 30cm and enforce 25cm cap in IFP`
-* **Third-Person & Photo Mode (30cm):** Increased maximum platform height limit (`MaxPlatformCm`) from `25cm` to `30cm` across REDscript and CET overlay (`FootwearHeightLimits.MAX_PLATFORM_CM = 30.0`).
-* **Platform Parsing & Clamping:** Added `ShoeHeightParser.ClampPlatformHeight` and `ConvertPlatformValueToMeters` supporting up to `30cm / 0.30m` (`300mm`) for third-person (ITP) character puppet elevation and Photo Mode (`ATTR_V_UP_DOWN`) sole lifting.
-* **Strict IFP 25cm Ceiling:** Maintained and enforced that First-Person / IFP height adjustments (`ifp_height_blend` and heel elevation) never exceed `25cm / 0.25m` (`MaxHeightCm`), including capping fallback platform-only shoe conversions to 25cm in FPP.
-* **UI & Documentation:** Updated Custom Platform slider range to `0.0 – 30.0 cm` in the CET overlay, player guide (`USER_GUIDE.md`), `README.md`, and `PROJECT.md`.
+### `feat(height-limits): raise platform to 30cm and heel to 40cm for sway, with strict 25cm IFP cap`
+* **Third-Person & Photo Mode Platform (30cm):** Increased maximum platform height limit (`MaxPlatformCm`) from `25cm` to `30cm` across REDscript and CET overlay (`FootwearHeightLimits.MAX_PLATFORM_CM = 30.0`).
+* **Third-Person Sway Incline (40cm Heel):** Increased maximum heel height limit (`MaxHeightCm`) to `40cm` (`FootwearHeightLimits.MAX_HEEL_CM = 40.0`), allowing up to +10cm effective heel pitch on 30cm maxed-out platforms to activate 100% max catwalk sway.
+* **Strict IFP 25cm Ceiling:** Maintained and enforced that First-Person / IFP camera elevation and effective height offset (`m_effectiveOffset`, `HeightController`, and `FootwearHeightLimits.MAX_IFP_CM`) never exceed `25cm / 0.25m` (`MaxIFPCm`).
+* **Platform & Heel Parsing:** Added `ShoeHeightParser.ClampPlatformHeight`, `ClampIFPHeight`, and `ConvertPlatformValueToMeters` supporting up to `30cm` platform and `40cm` heel tags.
+* **UI & Documentation:** Updated Custom Heel slider (`0.0 – 40.0 cm`) and Custom Platform slider (`0.0 – 30.0 cm`) in the CET overlay, player guide (`USER_GUIDE.md`), `README.md`, and `PROJECT.md`.
 
 ---
 

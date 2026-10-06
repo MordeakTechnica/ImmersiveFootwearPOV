@@ -110,7 +110,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if suppressed {
       this.m_effectiveOffset = 0.0;
     } else {
-      this.m_effectiveOffset = this.m_currentHeelHeight;
+      this.m_effectiveOffset = ShoeHeightParser.ClampIFPHeight(this.m_currentHeelHeight);
     };
 
     let effectivePlatform: Float = suppressed ? 0.0 : this.m_currentPlatformHeight;

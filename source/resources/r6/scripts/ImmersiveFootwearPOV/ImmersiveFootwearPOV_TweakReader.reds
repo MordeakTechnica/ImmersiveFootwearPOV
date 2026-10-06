@@ -5,8 +5,9 @@ module ImmersiveFootwearPOV
 // Easy access to alter maximum allowed heel and platform limits across the mod
 // -----------------------------------------------------------------------------
 public enum FootwearHeightLimit {
-  MaxHeightCm = 25,
-  MaxPlatformCm = 30
+  MaxHeightCm = 40,
+  MaxPlatformCm = 30,
+  MaxIFPCm = 25
 }
 
 public class FootwearHeightLimits {
@@ -24,6 +25,14 @@ public class FootwearHeightLimits {
 
   public static func GetMaxPlatformMeters() -> Float {
     return Cast<Float>(EnumInt(FootwearHeightLimit.MaxPlatformCm)) / 100.0;
+  }
+
+  public static func GetMaxIFPCm() -> Float {
+    return Cast<Float>(EnumInt(FootwearHeightLimit.MaxIFPCm));
+  }
+
+  public static func GetMaxIFPMeters() -> Float {
+    return Cast<Float>(EnumInt(FootwearHeightLimit.MaxIFPCm)) / 100.0;
   }
 }
 
@@ -124,9 +133,9 @@ public class ShoeHeightParser {
 
     // Compatibility Fallback:
     // If only a platform tag was specified without a heel tag, use platform value as heel height.
-    // In IFP, height offset must strictly not exceed 25cm (MaxHeightMeters).
+    // (Flat platforms have heel = platform -> 0 pitch, while IFP elevation is clamped in System.reds)
     if parsedHeel == 0.0 && parsedPlatform > 0.0 {
-      parsedHeel = ShoeHeightParser.ClampHeight(parsedPlatform);
+      parsedHeel = parsedPlatform;
     };
 
     return ShoeHeightData.Create(parsedHeel, parsedPlatform);
@@ -262,12 +271,24 @@ public class ShoeHeightParser {
     return 0.0;
   }
 
-  // Safety clamp to prevent extreme offsets (Heel / FPP gameplay in IFP: max 25cm / 0.25m)
+  // Safety clamp to prevent extreme offsets (Heel / Sway pitch: max 40cm / 0.40m)
   public static func ClampHeight(val: Float) -> Float {
     if val < 0.0 {
       return 0.0;
     };
     let maxMeters: Float = FootwearHeightLimits.GetMaxHeightMeters();
+    if val > maxMeters {
+      return maxMeters;
+    };
+    return val;
+  }
+
+  // Safety clamp for First-Person / IFP camera elevation (strictly capped at 25cm / 0.25m)
+  public static func ClampIFPHeight(val: Float) -> Float {
+    if val < 0.0 {
+      return 0.0;
+    };
+    let maxMeters: Float = FootwearHeightLimits.GetMaxIFPMeters();
     if val > maxMeters {
       return maxMeters;
     };

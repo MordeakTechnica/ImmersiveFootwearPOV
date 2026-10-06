@@ -172,7 +172,7 @@ Items.Custom_Chunky_Platforms_01:
   - Hooked `onDraw` in `init.lua` using `ImGui.Begin("Immersive First Person")` to render live telemetry into IFP's window.
 - [x] **Per-Shoe Custom Height Overrides & Persistence:**
   - Added JSON persistence (`user_shoe_overrides.json`) for untagged shoes.
-  - Interactive sliders for Custom Heel Height ($0.0\text{--}25.0\,\text{cm}$) and Custom Platform ($0.0\text{--}30.0\,\text{cm}$).
+  - Interactive sliders for Custom Heel Height ($0.0\text{--}40.0\,\text{cm}$) and Custom Platform ($0.0\text{--}30.0\,\text{cm}$).
   - Live shoe switching: updates immediately as V changes footwear across Equipment-EX, Wardrobe, and Inventory.
 - [x] **Official TweakDB Precedence & Auto-Discard:**
   - Official TweakDB tags automatically lock controls to official metadata.

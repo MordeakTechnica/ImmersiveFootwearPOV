@@ -103,17 +103,17 @@ You can measure your shoe dimensions directly in your 3D modeling software (Blen
 
 ## 🔢 Supported Number Formats & Tag Aliases
 
-You can write tag values in any of the following standard formats (up to **25 cm / 0.25 m** for heels in IFP, and up to **30 cm / 0.30 m** for platforms in Third Person and Photo Mode):
+You can write tag values in any of the following standard formats (up to **40 cm / 0.40 m** for heels, and up to **30 cm / 0.30 m** for platforms; first-person IFP camera elevation is strictly capped at **25 cm**):
 
 * **Centimeters (Recommended):**  
-  `HeelHeight_003` (3 cm), `HeelHeight_006` (6 cm), `HeelHeight_008` (8 cm), `HeelHeight_010` (10 cm), `HeelHeight_25` (25 cm), `PlatformHeight_030` (30 cm)
+  `HeelHeight_003` (3 cm), `HeelHeight_006` (6 cm), `HeelHeight_008` (8 cm), `HeelHeight_010` (10 cm), `HeelHeight_25` (25 cm), `HeelHeight_038` (38 cm), `PlatformHeight_030` (30 cm)
 * **Millimeters:**  
-  `HeelHeight_30` (30 mm), `HeelHeight_60` (60 mm), `HeelHeight_80` (80 mm), `HeelHeight_250` (250 mm), `PlatformHeight_300` (300 mm)
+  `HeelHeight_30` (30 mm), `HeelHeight_60` (60 mm), `HeelHeight_80` (80 mm), `HeelHeight_250` (250 mm), `HeelHeight_380` (380 mm), `PlatformHeight_300` (300 mm)
 * **Decimal Meters:**  
-  `HeelHeight_0.03` (0.03 m), `HeelHeight_0.06` (0.06 m), `HeelHeight_0.25` (0.25 m), `PlatformHeight_0.30` (0.30 m)
+  `HeelHeight_0.03` (0.03 m), `HeelHeight_0.06` (0.06 m), `HeelHeight_0.25` (0.25 m), `HeelHeight_0.38` (0.38 m), `PlatformHeight_0.30` (0.30 m)
 
 ### Supported Tag Aliases
-* **Heel Tag Formats (max 25 cm):** `HeelHeight_XXX`, `Heel_XXX`, `ShoeHeel_XXX`, `ShoeHeight_XXX`, `FootwearHeight_XXX`
+* **Heel Tag Formats (max 40 cm):** `HeelHeight_XXX`, `Heel_XXX`, `ShoeHeel_XXX`, `ShoeHeight_XXX`, `FootwearHeight_XXX`
 * **Platform Tag Formats (max 30 cm):** `PlatformHeight_XXX`, `Platform_XXX`, `ShoePlatform_XXX`
 
 ---

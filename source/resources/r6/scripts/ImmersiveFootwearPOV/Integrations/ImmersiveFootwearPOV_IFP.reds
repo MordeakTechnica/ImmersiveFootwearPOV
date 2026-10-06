@@ -20,7 +20,7 @@ public class HeightController {
       return false;
     };
 
-    let clampedOffset: Float = ShoeHeightParser.ClampHeight(offsetZ);
+    let clampedOffset: Float = ShoeHeightParser.ClampIFPHeight(offsetZ);
     let blend: Float = FootwearAnimgraphHelper.CalculateHeightBlend(clampedOffset);
     AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", blend);
     return true;
