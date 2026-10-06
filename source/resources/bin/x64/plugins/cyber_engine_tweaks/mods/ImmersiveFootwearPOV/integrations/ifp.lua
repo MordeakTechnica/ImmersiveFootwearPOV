@@ -1,6 +1,7 @@
 -- =============================================================================
 -- Immersive Footwear POV - Immersive First Person (IFP) Integration Adapter
 -- Adapts IFP native state polling, animgraph blend calculation, and animation inputs
+-- Optimized: caches installation state, throttles height adjustment queries, deduplicates anim inputs
 -- =============================================================================
 
 local UIManager = require("modules/ui")
@@ -10,12 +11,25 @@ local IFP = {
     footElevationName = nil,
 }
 
+local isIFPInstalledCache = nil
+local cachedHeightAdjEnabled = nil
+local lastHeightAdjCheck = 0.0
+local cachedConfigSetting = nil
+local lastConfigFileCheck = 0.0
+
+local lastAppliedBlend = -999.0
+local lastAppliedOffset = -999.0
+
 -- -----------------------------------------------------------------------------
--- Query IFP Installation Status
+-- Query IFP Installation Status (Cached after first evaluation)
 -- -----------------------------------------------------------------------------
 function IFP.IsInstalled()
+    if isIFPInstalledCache ~= nil then
+        return isIFPInstalledCache
+    end
     local ifp = GetMod("ImmersiveFirstPerson") or GetMod("immersive_first_person")
-    return ifp ~= nil
+    isIFPInstalledCache = (ifp ~= nil)
+    return isIFPInstalledCache
 end
 
 -- -----------------------------------------------------------------------------
@@ -35,21 +49,26 @@ function IFP.IsEnabled()
     return true
 end
 
-local cachedConfigSetting = nil
-local lastConfigFileCheck = 0.0
-
 -- -----------------------------------------------------------------------------
 -- Query IFP Height Adjustment Status
 -- Checks if IFP itself is enabled AND if height adjustment is enabled
+-- Throttled to 0.25s internally to avoid per-frame reflection/filesystem overhead
 -- -----------------------------------------------------------------------------
-function IFP.IsHeightAdjustmentEnabled()
+function IFP.IsHeightAdjustmentEnabled(force)
     local ifp = GetMod("ImmersiveFirstPerson") or GetMod("immersive_first_person")
     if not ifp then
         return false
     end
 
+    local now = os.clock and os.clock() or 0.0
+    if force ~= true and cachedHeightAdjEnabled ~= nil and (now - lastHeightAdjCheck < 0.25) then
+        return cachedHeightAdjEnabled
+    end
+    lastHeightAdjCheck = now
+
     -- If IFP is globally disabled, height adjustment is effectively disabled
     if not IFP.IsEnabled() then
+        cachedHeightAdjEnabled = false
         return false
     end
 
@@ -57,39 +76,59 @@ function IFP.IsHeightAdjustmentEnabled()
     if ifp.api then
         if type(ifp.api.IsHeightAdjustmentEnabled) == "function" then
             local ok, val = pcall(ifp.api.IsHeightAdjustmentEnabled)
-            if ok and val ~= nil then return val == true end
+            if ok and val ~= nil then
+                cachedHeightAdjEnabled = (val == true)
+                return cachedHeightAdjEnabled
+            end
         end
         if type(ifp.api.IsHeightEnabled) == "function" then
             local ok, val = pcall(ifp.api.IsHeightEnabled)
-            if ok and val ~= nil then return val == true end
+            if ok and val ~= nil then
+                cachedHeightAdjEnabled = (val == true)
+                return cachedHeightAdjEnabled
+            end
         end
         if type(ifp.api.GetHeightAdjustmentEnabled) == "function" then
             local ok, val = pcall(ifp.api.GetHeightAdjustmentEnabled)
-            if ok and val ~= nil then return val == true end
+            if ok and val ~= nil then
+                cachedHeightAdjEnabled = (val == true)
+                return cachedHeightAdjEnabled
+            end
         end
         if type(ifp.api.GetHeightState) == "function" then
             local ok, state = pcall(ifp.api.GetHeightState)
             if ok and type(state) == "table" then
-                if state.heightAdjustmentEnabled ~= nil then return state.heightAdjustmentEnabled == true end
-                if state.isHeightAdjustmentEnabled ~= nil then return state.isHeightAdjustmentEnabled == true end
-                if state.enabled ~= nil then return state.enabled == true end
+                if state.heightAdjustmentEnabled ~= nil then
+                    cachedHeightAdjEnabled = (state.heightAdjustmentEnabled == true)
+                    return cachedHeightAdjEnabled
+                end
+                if state.isHeightAdjustmentEnabled ~= nil then
+                    cachedHeightAdjEnabled = (state.isHeightAdjustmentEnabled == true)
+                    return cachedHeightAdjEnabled
+                end
+                if state.enabled ~= nil then
+                    cachedHeightAdjEnabled = (state.enabled == true)
+                    return cachedHeightAdjEnabled
+                end
             end
         end
     end
 
     -- 2. Query in-memory configuration objects
     if type(ifp.config) == "table" and ifp.config.heightAdjustmentEnabled ~= nil then
-        return ifp.config.heightAdjustmentEnabled == true
+        cachedHeightAdjEnabled = (ifp.config.heightAdjustmentEnabled == true)
+        return cachedHeightAdjEnabled
     end
     if type(ifp.settings) == "table" and ifp.settings.heightAdjustmentEnabled ~= nil then
-        return ifp.settings.heightAdjustmentEnabled == true
+        cachedHeightAdjEnabled = (ifp.settings.heightAdjustmentEnabled == true)
+        return cachedHeightAdjEnabled
     end
     if type(ifp.Config) == "table" and type(ifp.Config.inner) == "table" and ifp.Config.inner.heightAdjustmentEnabled ~= nil then
-        return ifp.Config.inner.heightAdjustmentEnabled == true
+        cachedHeightAdjEnabled = (ifp.Config.inner.heightAdjustmentEnabled == true)
+        return cachedHeightAdjEnabled
     end
 
     -- 3. File fallback: read IFP's config.json (throttled check)
-    local now = os.clock and os.clock() or 0.0
     if now - lastConfigFileCheck >= 0.5 or cachedConfigSetting == nil then
         lastConfigFileCheck = now
         local configPath = "bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFirstPerson/config.json"
@@ -107,9 +146,11 @@ function IFP.IsHeightAdjustmentEnabled()
     end
 
     if cachedConfigSetting ~= nil then
-        return cachedConfigSetting
+        cachedHeightAdjEnabled = cachedConfigSetting
+        return cachedHeightAdjEnabled
     end
 
+    cachedHeightAdjEnabled = true
     return true
 end
 
@@ -138,7 +179,6 @@ function IFP.CalculateTargetBlend(shoeOffsetMeters, ifpBaseHeightCm, isSuppresse
     local totalOffsetMeters = 0.0
 
     if isSuppressed then
-        -- In suppressed contexts (vehicles, workspots, scenes), return to neutral (0.0m)
         totalOffsetMeters = 0.0
     else
         local maxMeters = maxShoeMeters or 0.25
@@ -154,18 +194,37 @@ function IFP.CalculateTargetBlend(shoeOffsetMeters, ifpBaseHeightCm, isSuppresse
 end
 
 -- -----------------------------------------------------------------------------
+-- Reset Blend Cache (e.g., upon perspective switch or teleport)
+-- -----------------------------------------------------------------------------
+function IFP.ResetBlendCache()
+    lastAppliedBlend = -999.0
+    lastAppliedOffset = -999.0
+end
+
+-- -----------------------------------------------------------------------------
 -- Apply Active Blend Value to Character Animation Component
+-- Optimized: avoids duplicate SetInputFloat calls when blend and offset are settled
 -- -----------------------------------------------------------------------------
 function IFP.ApplyBlend(player, activeBlend, offsetMeters)
+    if not player or not AnimationControllerComponent or not AnimationControllerComponent.SetInputFloat then
+        return
+    end
+
     if not IFP.inputName then
         IFP.inputName = CName.new("ifp_height_blend")
     end
     if not IFP.footElevationName then
         IFP.footElevationName = CName.new("foot_elevation_offset")
     end
-    AnimationControllerComponent.SetInputFloat(player, IFP.inputName, activeBlend)
-    if offsetMeters ~= nil then
+
+    if math.abs(activeBlend - lastAppliedBlend) > 0.00005 then
+        AnimationControllerComponent.SetInputFloat(player, IFP.inputName, activeBlend)
+        lastAppliedBlend = activeBlend
+    end
+
+    if offsetMeters ~= nil and math.abs(offsetMeters - lastAppliedOffset) > 0.00005 then
         AnimationControllerComponent.SetInputFloat(player, IFP.footElevationName, offsetMeters)
+        lastAppliedOffset = offsetMeters
     end
 end
 

@@ -3,6 +3,7 @@
 -- Dynamically combines IFP base height slider + footwear heel height
 -- Features smooth 0.20s transitions and context-aware suppression
 -- Modular architecture following SOLID principles and design patterns
+-- High-performance runtime: zero per-frame heap allocations, optimized polling
 -- =============================================================================
 
 local Config = require("modules/config")
@@ -30,6 +31,7 @@ local mod = {
     pollTimer = 0.0,
     ifpPollTimer = 0.0,
     ifpBaseHeightCm = 0.0,
+    ifpHeightAdjustmentEnabled = true,
     isOverlayOpen = false,
     overrides = {},
     autoElevatePMPlatform = true,
@@ -45,6 +47,49 @@ local mod = {
 -- Expose currentShoeState for integrations / UI
 mod.currentShoeState = State.GetShoeState()
 
+-- Cached engine singletons & FFI state tracking
+local cachedSys = nil
+local lastSentITP = nil
+local lastSentIFP = nil
+
+-- Pre-allocated reusable stance context table (Zero per-frame table allocations)
+local stanceContext = {
+    forcedBlend = nil,
+    isTPPActive = false,
+    sys = nil,
+    shoeState = nil,
+    isSuppressed = false,
+    isPhotoModeOpen = false,
+    heightLimits = FootwearHeightLimits,
+    ifpIntegration = IFPIntegration,
+    ifpInstalled = false,
+    ifpHeightAdjustmentEnabled = true,
+    ifpBaseHeightCm = 0.0,
+    isTFP = false,
+}
+
+-- Reusable static logging callbacks (Zero per-frame closure allocations)
+local function LogTransitionTarget(msg)
+    local isTFP = mod.currentShoeState and mod.currentShoeState.isTFP
+    Logger.LogFPP(isTFP, "%s", msg)
+    Logger.LogFile("%s", msg)
+end
+
+local function LogTransitionSettled(msg)
+    local isTFP = mod.currentShoeState and mod.currentShoeState.isTFP
+    Logger.LogFPP(isTFP, "%s", msg)
+    Logger.LogFile("%s", msg)
+end
+
+local function GetSystem()
+    if not cachedSys then
+        pcall(function()
+            cachedSys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+        end)
+    end
+    return cachedSys
+end
+
 local function SaveAllOverrides()
     Config.Save(Config.FILE_NAME, mod.overrides, {
         autoElevatePM = mod.autoElevatePMPlatform,
@@ -59,6 +104,7 @@ end
 local function RefreshIFPBaseHeight()
     local height, _ = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
+    mod.ifpHeightAdjustmentEnabled = IFPIntegration.IsHeightAdjustmentEnabled(false)
     return height
 end
 
@@ -78,7 +124,7 @@ function mod.GetDebug()
 end
 
 function mod.DumpState()
-    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+    local sys = GetSystem()
     ConsoleManager.DumpState(sys, mod, IFPIntegration, Transition)
 end
 
@@ -88,7 +134,7 @@ end
 
 function mod.SetCustomHeight(heelCm, platformCm)
     local player = Game.GetPlayer()
-    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+    local sys = GetSystem()
     return ConsoleManager.SetCustomHeight(mod, sys, player, FootwearHeightLimits, heelCm, platformCm, SaveAllOverrides)
 end
 
@@ -115,20 +161,24 @@ registerForEvent("onInit", function()
 
     local ifpInstalled = IFPIntegration.IsInstalled()
     local ifpEnabled = IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false
-    local ifpHeightEnabled = IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false
+    local ifpHeightEnabled = IFPIntegration.IsHeightAdjustmentEnabled(true)
+    mod.ifpHeightAdjustmentEnabled = ifpHeightEnabled
     local itpInstalled = Perspective.IsITPInstalled()
 
-    pcall(function()
-        local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
-        if sys then
+    local sys = GetSystem()
+    if sys then
+        pcall(function()
             if sys.SetITPPresent then
                 sys:SetITPPresent(itpInstalled)
+                lastSentITP = itpInstalled
             end
             if sys.SetIFPPresent then
-                sys:SetIFPPresent(ifpInstalled and ifpEnabled and ifpHeightEnabled)
+                local ifpActive = ifpInstalled and ifpEnabled and ifpHeightEnabled
+                sys:SetIFPPresent(ifpActive)
+                lastSentIFP = ifpActive
             end
-        end
-    end)
+        end)
+    end
 
     ConsoleManager.RegisterShortcuts(mod)
 
@@ -156,29 +206,36 @@ registerForEvent("onUpdate", function(deltaTime)
     local player = Game.GetPlayer()
     if not player then return end
 
-    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+    local sys = GetSystem()
     if not sys then return end
 
-    -- Check for footwear / state changes periodically (every 0.15s)
+    -- Fallback periodic sync: check for footwear / state changes (0.40s)
+    -- Native equip hooks in REDscript intercept immediately on equip; this poll is a safety fallback
     mod.pollTimer = mod.pollTimer + deltaTime
-    if mod.pollTimer >= 0.15 then
+    if mod.pollTimer >= 0.40 then
         mod.pollTimer = 0.0
         sys:UpdateEquippedFootwear(player)
-        pcall(function()
-            if sys.SetITPPresent then
-                sys:SetITPPresent(Perspective.IsITPInstalled())
-            end
-            if sys.SetIFPPresent then
-                local isIFPActiveAndHeightEnabled = IFPIntegration.IsInstalled()
-                    and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false)
-                    and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false)
-                sys:SetIFPPresent(isIFPActiveAndHeightEnabled)
-            end
-        end)
+
+        -- Only send presence flags across FFI if value has changed
+        local itpInstalled = Perspective.IsITPInstalled()
+        if lastSentITP ~= itpInstalled then
+            lastSentITP = itpInstalled
+            pcall(function() if sys.SetITPPresent then sys:SetITPPresent(itpInstalled) end end)
+        end
+
+        local ifpActive = IFPIntegration.IsInstalled()
+            and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false)
+            and (IFPIntegration.IsHeightAdjustmentEnabled(false) or false)
+        if lastSentIFP ~= ifpActive then
+            lastSentIFP = ifpActive
+            pcall(function() if sys.SetIFPPresent then sys:SetIFPPresent(ifpActive) end end)
+        end
+
+        mod.ifpHeightAdjustmentEnabled = IFPIntegration.IsHeightAdjustmentEnabled(false)
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveAllOverrides)
     end
 
-    -- Update Photo Mode platform lift once per frame
+    -- Update Photo Mode platform lift once per frame (very cheap 2 booleans when inactive)
     PMIntegration.OnUpdate(deltaTime)
 
     -- Detect if Immersive Third Person (ITP) camera is currently active
@@ -193,6 +250,9 @@ registerForEvent("onUpdate", function(deltaTime)
             mod.currentShoeState.heelCm or 0.0,
             mod.currentShoeState.platformCm or 0.0)
 
+        IFPIntegration.ResetBlendCache()
+        Stride.Reset(player)
+
         if not isITPActive then
             -- Returning to First Person (FPP): zero out 3rd-person puppet elevation variable
             if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
@@ -201,41 +261,32 @@ registerForEvent("onUpdate", function(deltaTime)
         end
     end
 
-    -- Poll IFP base height periodically (or every frame in overlay)
+    -- Poll IFP base height periodically (0.25s), or every frame when overlay is open
     mod.ifpPollTimer = mod.ifpPollTimer + deltaTime
-    if mod.ifpPollTimer >= 0.10 or mod.isOverlayOpen then
+    if mod.ifpPollTimer >= 0.25 or mod.isOverlayOpen then
         mod.ifpPollTimer = 0.0
         RefreshIFPBaseHeight()
     end
 
     -- Resolve target stance via StanceResolver (Strategy Pattern)
-    local ifpInstalled = IFPIntegration.IsInstalled()
-    local stanceContext = {
-        forcedBlend = mod.forcedBlend,
-        isTPPActive = isITPActive,
-        sys = sys,
-        shoeState = mod.currentShoeState,
-        isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen,
-        isPhotoModeOpen = mod.isPhotoModeOpen,
-        heightLimits = FootwearHeightLimits,
-        ifpIntegration = IFPIntegration,
-        ifpInstalled = ifpInstalled,
-        ifpHeightAdjustmentEnabled = ifpInstalled and (IFPIntegration.IsHeightAdjustmentEnabled and IFPIntegration.IsHeightAdjustmentEnabled() or false),
-        ifpBaseHeightCm = mod.ifpBaseHeightCm,
-        isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false,
-    }
+    -- Mutate static context to eliminate per-frame table allocation
+    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+    stanceContext.forcedBlend = mod.forcedBlend
+    stanceContext.isTPPActive = isITPActive
+    stanceContext.sys = sys
+    stanceContext.shoeState = mod.currentShoeState
+    stanceContext.isSuppressed = isSuppressed
+    stanceContext.isPhotoModeOpen = mod.isPhotoModeOpen
+    stanceContext.ifpInstalled = IFPIntegration.IsInstalled()
+    stanceContext.ifpHeightAdjustmentEnabled = mod.ifpHeightAdjustmentEnabled
+    stanceContext.ifpBaseHeightCm = mod.ifpBaseHeightCm
+    stanceContext.isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false
+
     local targetBlend, footElevationMeters, reason = StanceResolver.ResolveTarget(stanceContext)
 
-    -- Smooth transition handling
-    local isTFPForLog = mod.currentShoeState and mod.currentShoeState.isTFP
-    Transition.SetTarget(targetBlend, reason, function(msg)
-        Logger.LogFPP(isTFPForLog, "%s", msg)
-        Logger.LogFile("%s", msg)
-    end)
-    local activeBlend = Transition.Update(deltaTime, function(msg)
-        Logger.LogFPP(isTFPForLog, "%s", msg)
-        Logger.LogFile("%s", msg)
-    end)
+    -- Smooth transition handling with static logging callbacks (zero closure allocation)
+    Transition.SetTarget(targetBlend, reason, LogTransitionTarget)
+    local activeBlend = Transition.Update(deltaTime, LogTransitionSettled)
 
     mod.currentShoeState.totalStanceCm = Transition.GetStanceCm()
     IFPIntegration.ApplyBlend(player, activeBlend, footElevationMeters)
@@ -253,7 +304,7 @@ registerForEvent("onDraw", function()
     RefreshIFPBaseHeight()
 
     local player = Game.GetPlayer()
-    local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+    local sys = GetSystem()
 
     UIManager.DrawUI(mod, player, sys, FootwearHeightLimits, SaveAllOverrides, IFPIntegration)
 end)

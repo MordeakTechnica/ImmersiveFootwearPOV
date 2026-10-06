@@ -2,6 +2,7 @@
 -- Immersive Footwear POV - Catwalk Locomotion & Feminine Stride Module
 -- Computes real-time pelvic roll, yaw, spine counter-balance, and femoral counter-rotation
 -- Powered by native REDscript SwayEvaluator; active exclusively in Immersive Third Person (ITP)
+-- Optimized: avoids idle FFI publishing when stationary/zeroed, defers status string formatting
 -- =============================================================================
 
 local Stride = {
@@ -16,6 +17,7 @@ local Stride = {
     currentHeelScale = 0.0,
     currentPitchCm = 0.0,
     statusText = "Idle",
+    hasZeroPublished = false,
 
     -- Cached CNames for native animation variable publication
     rollVarName = nil,
@@ -55,30 +57,34 @@ function Stride.Update(deltaTime, player, sys, settings)
     -- Master enable check from user settings
     local enabled = settings and (settings.enableHipSway ~= false)
     if not enabled then
-        Stride.currentBlend = 0.0
-        Stride.currentRoll = 0.0
-        Stride.currentYaw = 0.0
-        Stride.currentSpineCounterYaw = 0.0
-        Stride.currentSpineCounterRoll = 0.0
-        Stride.currentLegCounterRoll = 0.0
-        Stride.currentHeelScale = 0.0
-        Stride.currentPitchCm = 0.0
-        Stride.statusText = "Disabled by User Setting"
-        Stride.Publish(player)
+        if not Stride.hasZeroPublished then
+            Stride.currentBlend = 0.0
+            Stride.currentRoll = 0.0
+            Stride.currentYaw = 0.0
+            Stride.currentSpineCounterYaw = 0.0
+            Stride.currentSpineCounterRoll = 0.0
+            Stride.currentLegCounterRoll = 0.0
+            Stride.currentHeelScale = 0.0
+            Stride.currentPitchCm = 0.0
+            Stride.statusText = "Disabled by User Setting"
+            Stride.Publish(player)
+        end
         return
     end
 
     if not sys or not sys.GetSwayContext then
-        Stride.currentBlend = 0.0
-        Stride.currentRoll = 0.0
-        Stride.currentYaw = 0.0
-        Stride.currentSpineCounterYaw = 0.0
-        Stride.currentSpineCounterRoll = 0.0
-        Stride.currentLegCounterRoll = 0.0
-        Stride.currentHeelScale = 0.0
-        Stride.currentPitchCm = 0.0
-        Stride.statusText = "System Unavailable"
-        Stride.Publish(player)
+        if not Stride.hasZeroPublished then
+            Stride.currentBlend = 0.0
+            Stride.currentRoll = 0.0
+            Stride.currentYaw = 0.0
+            Stride.currentSpineCounterYaw = 0.0
+            Stride.currentSpineCounterRoll = 0.0
+            Stride.currentLegCounterRoll = 0.0
+            Stride.currentHeelScale = 0.0
+            Stride.currentPitchCm = 0.0
+            Stride.statusText = "System Unavailable"
+            Stride.Publish(player)
+        end
         return
     end
 
@@ -154,16 +160,21 @@ function Stride.Update(deltaTime, player, sys, settings)
         Stride.currentSpineCounterRoll = Stride.currentRoll * Stride.COUNTER_ROLL_RATIO
         Stride.currentLegCounterRoll = Stride.currentRoll * Stride.COUNTER_LEG_ROLL_RATIO
 
-        local pitchInches = pitchCm / 2.54
-        Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Pitch: %.1f cm / %.1f\", Scale: %.0f%%, Speed: %.1f m/s)",
-            Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, pitchCm, pitchInches, heelScale * 100, speed)
+        -- Only format detailed status string when the overlay is actually open
+        if settings and settings.isOverlayOpen then
+            local pitchInches = pitchCm / 2.54
+            Stride.statusText = string.format("Active (Roll: %+.1f°, Yaw: %+.1f°, Leg: %+.1f°, Pitch: %.1f cm / %.1f\", Scale: %.0f%%, Speed: %.1f m/s)",
+                Stride.currentRoll, Stride.currentYaw, Stride.currentLegCounterRoll, pitchCm, pitchInches, heelScale * 100, speed)
+        end
     else
         Stride.currentRoll = 0.0
         Stride.currentYaw = 0.0
         Stride.currentSpineCounterYaw = 0.0
         Stride.currentSpineCounterRoll = 0.0
         Stride.currentLegCounterRoll = 0.0
-        Stride.statusText = string.format("Inactive (%s)", reason)
+        if settings and settings.isOverlayOpen then
+            Stride.statusText = string.format("Inactive (%s)", reason)
+        end
     end
 
     Stride.Publish(player)
@@ -171,18 +182,30 @@ end
 
 -- -----------------------------------------------------------------------------
 -- Publishes Current Sway Variables to Character Animation Controller
+-- Optimized: skips 6 FFI calls per frame when values are already settled at zero
 -- -----------------------------------------------------------------------------
 function Stride.Publish(player)
     if not player or not AnimationControllerComponent or not AnimationControllerComponent.SetInputFloat then
         return
     end
 
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.rollVarName, Stride.currentRoll)
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.yawVarName, Stride.currentYaw)
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.spineCounterYawVarName, Stride.currentSpineCounterYaw)
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.spineCounterRollVarName, Stride.currentSpineCounterRoll)
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.legCounterRollVarName, Stride.currentLegCounterRoll)
-    pcall(AnimationControllerComponent.SetInputFloat, player, Stride.blendVarName, Stride.currentBlend)
+    local isZero = (Stride.currentBlend <= 0.0001 and Stride.currentRoll == 0.0 and Stride.currentYaw == 0.0)
+
+    if isZero then
+        if Stride.hasZeroPublished then
+            return -- Already zeroed out in animgraph, skip redundant native FFI calls
+        end
+        Stride.hasZeroPublished = true
+    else
+        Stride.hasZeroPublished = false
+    end
+
+    AnimationControllerComponent.SetInputFloat(player, Stride.rollVarName, Stride.currentRoll)
+    AnimationControllerComponent.SetInputFloat(player, Stride.yawVarName, Stride.currentYaw)
+    AnimationControllerComponent.SetInputFloat(player, Stride.spineCounterYawVarName, Stride.currentSpineCounterYaw)
+    AnimationControllerComponent.SetInputFloat(player, Stride.spineCounterRollVarName, Stride.currentSpineCounterRoll)
+    AnimationControllerComponent.SetInputFloat(player, Stride.legCounterRollVarName, Stride.currentLegCounterRoll)
+    AnimationControllerComponent.SetInputFloat(player, Stride.blendVarName, Stride.currentBlend)
 end
 
 -- -----------------------------------------------------------------------------
@@ -200,6 +223,7 @@ function Stride.Reset(player)
     Stride.currentHeelScale = 0.0
     Stride.currentPitchCm = 0.0
     Stride.statusText = "Reset"
+    Stride.hasZeroPublished = false
     if player then
         Stride.Publish(player)
     end

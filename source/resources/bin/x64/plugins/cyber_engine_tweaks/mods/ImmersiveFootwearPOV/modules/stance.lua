@@ -114,7 +114,7 @@ function StanceResolver.ResolveTarget(context)
         return ResolveForcedStance(context.forcedBlend)
     end
 
-    if context.isITPActive then
+    if context.isITPActive or context.isTPPActive then
         return ResolveTPPStance(context)
     else
         return ResolveFPPStance(context)

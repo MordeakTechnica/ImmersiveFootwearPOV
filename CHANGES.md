@@ -3,6 +3,25 @@
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
 ## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-06
+### `perf(cet): optimize runtime loop, zero per-frame heap churn, and reduce polling overhead`
+* **Zero Per-Frame Heap Allocations:**
+  * Replaced ad-hoc `Transform.new()` / `WorldTransform.new()` and `CName.new()` allocations in `modules/perspective.lua` with a module-level reusable transform and cached CNames.
+  * Replaced per-frame `stanceContext` table allocation in `init.lua` with a pre-allocated reusable context table.
+  * Converted dynamic logging closures in `Transition.SetTarget` and `Transition.Update` to static function references.
+  * Deferred `string.format` assembly of `Stride.statusText` so it only executes when the CET overlay is open.
+* **Component & Engine Query Caching:**
+  * Cached camera component references (`camera`, `tppCamera`) on the player entity in `Perspective`, eliminating per-frame component array iterations.
+  * Cached `ImmersiveFootwearPOVSystem` scriptable system instance in `init.lua`, avoiding redundant string hash/RTTI lookups every tick.
+  * Early exit in `Perspective.IsTPPActive`: returns `false` immediately when ITP is not installed without calling camera math.
+* **Deduplicated Animation FFI Calls:**
+  * In `modules/stride.lua`, added state-tracking (`hasZeroPublished`) to suspend publishing 6 zeroed floats across the C++ engine bridge on every tick when the player is idle, in FPP, or wearing flat footwear.
+  * In `integrations/ifp.lua`, deduplicated `AnimationControllerComponent.SetInputFloat` calls when stance blend and platform elevation are settled.
+* **Optimized Polling & Query Throttling:**
+  * Cached static mod installation checks (`Perspective.IsITPInstalled`, `IFP.IsInstalled`) permanently on session start.
+  * Throttled `IFP.IsHeightAdjustmentEnabled` queries with internal caching (0.25s) to eliminate per-frame API probes and file checks.
+  * Relaxed background fallback footwear equip poll from `0.15s` to `0.40s` (a 64% query reduction), while relying on REDscript equip hooks for instantaneous on-equip updates.
+  * Only sent `SetITPPresent` and `SetIFPPresent` across FFI when the boolean flags actually change.
+
 ### `refactor(cet): apply SOLID principles and modular design patterns`
 * **Single Responsibility (SRP):** Split monolithic concerns out of `init.lua` and `integrations/ifp.lua` into dedicated domain modules:
   * `modules/perspective.lua`: Isolates REDengine `CameraSystem` world-space transforms, distance checking, and ITP installation queries.
