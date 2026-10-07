@@ -1,0 +1,106 @@
+"""
+Graph Traversal and Path Tracking for REDengine Animation Graphs.
+Implements the Walker / Visitor pattern to trace evaluation flows,
+discover parent-child connections, and analyze bone transform pipelines.
+"""
+
+from __future__ import annotations
+from typing import List, Dict, Set, Optional, Any
+from .models import AnimNode
+from .registry import NodeRegistry
+
+
+class GraphWalker:
+    """
+    Provides bidirectional traversal across REDengine pose and link graphs.
+    """
+
+    def __init__(self, registry: NodeRegistry):
+        self._registry = registry
+
+    def trace_backward(self, start_node: AnimNode, max_depth: int = 100) -> List[AnimNode]:
+        """
+        Traces backward along the primary input links (e.g. from Output toward Root).
+        Recognizes inputNode, inputLink, firstInputNode, and node properties.
+        """
+        path: List[AnimNode] = [start_node]
+        visited: Set[str] = set()
+        curr = start_node
+
+        input_keys = ["inputNode", "inputLink", "firstInputNode", "node", "poseInputNode"]
+
+        for _ in range(max_depth):
+            hid = curr.handle_id or curr.handle_ref_id
+            if hid:
+                if hid in visited:
+                    break  # Cycle detected
+                visited.add(hid)
+
+            found_next: Optional[AnimNode] = None
+            for key in input_keys:
+                link = curr.data.get(key)
+                if isinstance(link, dict) and "node" in link:
+                    nxt = link["node"]
+                    if isinstance(nxt, dict):
+                        target_id = nxt.get("HandleId") or nxt.get("HandleRefId")
+                        if target_id and self._registry.has_node(target_id):
+                            found_next = self._registry.get_node(target_id)
+                            break
+                        elif target_id:
+                            # Reference not directly indexed as top-level handle
+                            found_next = AnimNode(nxt)
+                            break
+
+            if found_next:
+                path.append(found_next)
+                curr = found_next
+            else:
+                break
+
+        return path
+
+    def find_referencing_nodes(self, target_handle_id: str) -> List[AnimNode]:
+        """
+        Finds all nodes in the graph that directly point to target_handle_id
+        via HandleRefId or embedded link.
+        """
+        results: List[AnimNode] = []
+        target_str = str(target_handle_id)
+
+        for hid, node in self._registry._nodes_by_id.items():
+            if hid == target_str:
+                continue
+
+            # Check if target_str is referenced anywhere in node's raw data
+            def _has_ref(o: Any) -> bool:
+                if isinstance(o, dict):
+                    if str(o.get("HandleRefId")) == target_str:
+                        return True
+                    return any(_has_ref(v) for v in o.values())
+                elif isinstance(o, list):
+                    return any(_has_ref(x) for x in o)
+                return False
+
+            if _has_ref(node.raw):
+                results.append(node)
+
+        return results
+
+    def collect_subtree_handles(self, root_node_dict: Dict[str, Any]) -> Set[str]:
+        """
+        Recursively collects all HandleIds defined within a subtree dictionary.
+        """
+        handles: Set[str] = set()
+
+        def _walk(o: Any) -> None:
+            if isinstance(o, dict):
+                if "HandleId" in o:
+                    handles.add(str(o["HandleId"]))
+                for v in o.values():
+                    _walk(v)
+            elif isinstance(o, list):
+                for x in o:
+                    _walk(x)
+
+        _walk(root_node_dict)
+        return handles

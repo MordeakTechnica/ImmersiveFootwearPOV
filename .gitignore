@@ -9,8 +9,8 @@ examples/
 examples
 
 # Tools and automation scripts
-tools/
-tools
+tools/*
+!tools/animgraph_toolkit/
 scratch/
 pro-requests/
 
@@ -22,4 +22,8 @@ install_log.xml
 
 # Antigravity Agent Configuration
 .agents/
+
+# Python cache & bytecode
+__pycache__/
+*.pyc
 
