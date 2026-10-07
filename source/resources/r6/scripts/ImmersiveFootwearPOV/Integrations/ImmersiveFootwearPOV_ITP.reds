@@ -16,11 +16,11 @@ public class ITPController {
     };
 
     let clampedOffset: Float = ShoeHeightParser.ClampPlatformHeight(offsetMeters);
-    let blend: Float = FootwearAnimgraphHelper.CalculateHeightBlend(clampedOffset);
 
     // Native REDengine API queues AnimInputSetterFloat directly into active animgraph
+    // Note: We deliberately do NOT set 'ifp_height_blend' here. 
+    // FPP heel height is managed by HeightController. Setting it here would clobber FPP stance upon ITP reset.
     AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
-    AnimationControllerComponent.SetInputFloat(player, n"ifp_height_blend", blend);
     return true;
   }
 

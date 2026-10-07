@@ -11,6 +11,8 @@ examples
 # Tools and automation scripts
 tools/
 tools
+scratch/
+pro-requests/
 
 # User logs & caches
 *.log
