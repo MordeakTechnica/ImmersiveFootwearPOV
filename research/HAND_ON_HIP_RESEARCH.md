@@ -165,110 +165,163 @@ During locomotion with Catwalk Stride active at 1.0x intensity:
 
 ## 7. AnimGraph Architecture (`player_base.animgraph.json`)
 
-To inject these controls without touching vanilla state machines or locomotion blend spaces, we insert the new arm rotation nodes right after our thigh counter-rotation node (`6026`), directly upstream of Output Node `1`.
+Empirical findings from the `animgraph_toolkit` in [`ANIMGRAPH_MOVEMENT_VARIABLES_RESEARCH.md`](ANIMGRAPH_MOVEMENT_VARIABLES_RESEARCH.md) reveal that the vanilla left arm is governed by a **3-tier system**:
+1. Base animation clip pose.
+2. Two-bone IK solver: `animAnimNode_Ik2` (Node `3841`, target `ik_leftArm01_cache_eff`, weight Node `4251`).
+3. Hand orientation constraint: `animAnimNode_OrientConstraint` (Node `3839`, target `LeftHand`, masking `LeftArm`, `LeftForeArm`, `LeftHand`).
 
-### 7.1 Existing Nodes Adjusted
-1. **Node `1` (`animAnimNode_Output` inside `nodesToInit[0]`):**
-   * Currently, its input pose link (`out_node["Data"]["node"]["node"]`) points to **Node `6026`** (`RightUpLeg`).
-   * When the arm feature is added, this link is redirected to point to the new terminal arm node (**Node `6034`**, or `6036` if wrist tilt is included).
-2. **Node `6026` (`animAnimNode_RotateBone` - RightUpLeg Counter-Roll):**
-   * Currently connects directly to Output Node `1`.
-   * It becomes the upstream pose input for the first arm node (**Node `6030`**).
-3. **`RootChunk.variables.floatVariables`:**
-   * Receives the new published anim variable definitions with their handles, min/max clamps, and default values.
+### 7.1 Injection Point Strategy: Terminal Post-IK Chain
+If arm rotations were injected upstream of Node `3841`, the vanilla IK solver and Maya engine procedural solver (`disable_maya_engine_left_hand`) would attempt to resolve arm reach toward weapon/climb points, distorting the posture.
 
-### 7.2 Complete Node & Handle Allocation Map
+Therefore, our procedural Left Hand on Hip rotation nodes are injected **immediately upstream of terminal Output Node `1`**, following the Catwalk Sway chain (`RightUpLeg` Node `6060`). This ensures:
+* Complete override of underlying clip swing and IK positions while active.
+* Zero conflict with vanilla weapon or climbing state machines when suppressed.
+* Seamless compatibility with the existing 6 sway rotation nodes and ITP puppet elevation (`Node 6042`).
 
-| Handle ID | Object Type | Target Bone | Axis | Variable / Purpose | Parent Input |
-| :---: | :--- | :--- | :---: | :--- | :--- |
-| **`6026`** *(Existing)* | `animAnimNode_RotateBone` | `RightUpLeg` | `Y_Axis` | `ifp_leg_counter_roll` | Node `6024` |
-| **`6029`** *(New)* | `animAnimNode_FloatVariable` | — | — | Reads `ifp_left_arm_pitch` | — |
-| **`6030`** *(New)* | `animAnimNode_RotateBone` | `LeftArm` | `Z_Axis` | Swing cancellation & fore-aft hip yaw tracking | Node `6026` |
-| **`6031`** *(New)* | `animAnimNode_FloatVariable` | — | — | Reads `ifp_left_arm_flare` | — |
-| **`6032`** *(New)* | `animAnimNode_RotateBone` | `LeftArm` | `Y_Axis` | Elbow flare / lateral abduction ($15^\circ - 35^\circ$) | Node `6030` |
-| **`6033`** *(New)* | `animAnimNode_FloatVariable` | — | — | Reads `ifp_left_elbow_flex` | — |
-| **`6034`** *(New)* | `animAnimNode_RotateBone` | `LeftForeArm` | `Z_Axis` | Elbow flexion to hip ($82.1^\circ \pm 10.5^\circ$) | Node `6032` |
-| **`6035`** *(New, Optional)* | `animAnimNode_FloatVariable` | — | — | Reads `ifp_left_wrist_tilt` | — |
-| **`6036`** *(New, Optional)* | `animAnimNode_RotateBone` | `LeftHand` | `Z_Axis` / `X_Axis` | Wrist curvature resting on hip crest | Node `6034` |
-| **`1`** *(Existing)* | `animAnimNode_Output` | Master Pose | — | Master skeleton pose output | Node `6034` (or `6036`) |
+### 7.2 Toolkit Node Chain & Conflict-Free Handle Allocation
+Using `NodeRegistry.allocate_handle()` from the `animgraph_toolkit`, handle IDs are allocated dynamically without hardcoded collision risks.
 
 ```
-                 [Node 6026: RightUpLeg Counter-Roll]
-                                  │
-                                  ▼
-                 [Node 6030: LeftArm Pitch / Swing Cancel]
+                 [Node 6060: RightUpLeg Counter-Roll (Terminal Sway Node)]
+                                   │
+                                   ▼
+                 [Node A: LeftArm Pitch / Swing Neutralizer]
                    • $type: animAnimNode_RotateBone
                    • bone: "LeftArm", axis: "Z_Axis"
-                   • variableNode: Handle 6029 ("ifp_left_arm_pitch")
+                   • variableNode: reads "itp_left_arm_pitch"
                    • minAngle: -60.0, maxAngle: 60.0
-                                  │
-                                  ▼
-                 [Node 6032: LeftArm Lateral Flare]
+                                   │
+                                   ▼
+                 [Node B: LeftArm Lateral Flare / Abduction]
                    • $type: animAnimNode_RotateBone
                    • bone: "LeftArm", axis: "Y_Axis"
-                   • variableNode: Handle 6031 ("ifp_left_arm_flare")
+                   • variableNode: reads "itp_left_arm_flare"
                    • minAngle: -45.0, maxAngle: 45.0
-                                  │
-                                  ▼
-                 [Node 6034: LeftForeArm Elbow Flexion]
+                                   │
+                                   ▼
+                 [Node C: LeftForeArm Elbow Flexion]
                    • $type: animAnimNode_RotateBone
                    • bone: "LeftForeArm", axis: "Z_Axis"
-                   • variableNode: Handle 6033 ("ifp_left_elbow_flex")
+                   • variableNode: reads "itp_left_elbow_flex"
                    • minAngle: 0.0, maxAngle: 120.0
-                                  │
-                                  ▼
+                                   │
+                                   ▼
+                 [Node D: LeftHand Wrist Crest Alignment (Optional)]
+                   • $type: animAnimNode_RotateBone
+                   • bone: "LeftHand", axis: "X_Axis"
+                   • variableNode: reads "itp_left_wrist_roll"
+                   • minAngle: -45.0, maxAngle: 45.0
+                                   │
+                                   ▼
                  [Node 1: Master Pose Output Node]
 ```
 
-### AnimGraph Variable Registry:
-* `ifp_left_arm_pitch` (Float): Upper arm fore/aft angle + swing cancel.
-* `ifp_left_arm_flare` (Float): Upper arm lateral abduction.
-* `ifp_left_elbow_flex` (Float): Forearm hinge flexion angle.
-* `ifp_left_arm_blend` (Float): Master blend multiplier ($0.0 \to 1.0$).
+### 7.3 AnimGraph Variable Registry
+Declared in `RootChunk.variables.floatVariables`:
+* **`itp_left_arm_pitch`** (`Float`, range `[-60.0, 60.0]`, default `0.0`): Upper arm fore/aft pitch and locomotion counter-swing.
+* **`itp_left_arm_flare`** (`Float`, range `[-45.0, 45.0]`, default `0.0`): Lateral arm abduction ($15^\circ - 35^\circ$).
+* **`itp_left_elbow_flex`** (`Float`, range `[0.0, 120.0]`, default `0.0`): Elbow hinge flexion bringing hand to waist ($82.1^\circ \pm 10.5^\circ$).
+* **`itp_left_wrist_roll`** (`Float`, range `[-45.0, 45.0]`, default `0.0`): Wrist contouring resting against iliac crest.
+* **`itp_left_arm_blend`** (`Float`, range `[0.0, 1.0]`, default `0.0`): Master activation and transition multiplier.
 
 ---
 
 ## 8. Weapon, Combat & State Suppression Matrix
 
-To prevent clipping or broken animations during tactical gameplay:
+To guarantee anatomical correctness and zero game-breaking conflicts, the Hand on Hip pose is automatically suppressed to `0.0` during any non-peaceful or non-standard locomotive actions.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PeacefulExploration
-    PeacefulExploration --> HandOnHipActive: TPP Active & Weapon Holstered & Walking/Idle
-    HandOnHipActive --> Suppressed: Weapon Drawn / Aiming / Combat
-    HandOnHipActive --> Suppressed: Sprint / Jump / Vault / Slide
-    HandOnHipActive --> Suppressed: Ladder / Swimming / Vehicle / Workspot
-    HandOnHipActive --> Suppressed: FPP Mode
-    Suppressed --> HandOnHipActive: Return to Peaceful TPP Walking (0.20s Smooth Blend)
+    [*] --> NeutralLocomotion
+    NeutralLocomotion --> HandOnHipActive: Hotkey Toggled ON & TPP Active & Safe Context
+    HandOnHipActive --> InactiveTransition: Hotkey Toggled OFF (0.38s Ease-Out)
+    HandOnHipActive --> ImmediateSuppression: Weapon Drawn / Holster Incomplete
+    HandOnHipActive --> ImmediateSuppression: Sprint / In Air / Vault / Slide / Crouch
+    HandOnHipActive --> ImmediateSuppression: Vehicle / Workspot / Dialogue Scene / Ladder
+    HandOnHipActive --> ImmediateSuppression: FPP Active (First-Person Mode)
+    ImmediateSuppression --> HandOnHipActive: Context Cleared & Toggled ON (0.45s Phased Ease-In)
+    InactiveTransition --> NeutralLocomotion
 ```
 
-### Redscript Authoritative Evaluation ([`ImmersiveFootwearPOV_Suppression.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Suppression.reds)):
-```reds
-// TransactionSystem weapon detection
-let ts: ref<TransactionSystem> = GameInstance.GetTransactionSystem(player.GetGame());
-let rightWeapon: ref<ItemObject> = ts.GetItemInSlot(player, t"AttachmentSlots.WeaponRight");
-let leftWeapon: ref<ItemObject> = ts.GetItemInSlot(player, t"AttachmentSlots.WeaponLeft");
-
-if IsDefined(rightWeapon) || IsDefined(leftWeapon) {
-    return false; // Suppress hand on hip when weapons are drawn
-};
-```
+### Suppression Signals Checked:
+1. **Weapon State:** Checked via `TransactionSystem.GetItemInSlot` (`AttachmentSlots.WeaponRight` / `WeaponLeft`) and anim variable `item_equipped`.
+2. **First-Person Mode:** Suppressed whenever camera is in FPP to prevent arms obstructing the camera view frustum.
+3. **High-Intensity Locomotion:** Suppressed during `sprint == 1.0`, `jump == 1.0`, `fall == 1.0`, `slide == 1.0`, or `crouch == 1.0`.
+4. **Traversal & Workspots:** Suppressed during `ladder == 1.0`, `climb == 1.0`, vehicles, and furniture scenes.
 
 ---
 
-## 9. Proposed CET Overlay Settings
+## 9. Phased Kinematic Transition: Arm-at-Side to Hand-on-Hip
 
-In the **"Catwalk Locomotion [Beta]"** tab:
-* **Left Hand on Hip:** `[ ] Enabled` (Checkbox, independent or tied to catwalk locomotion).
-* **Elbow Flare Profile:** Slider `[Subtle / Classic / Sassy]` (controls upper arm abduction angle $15^\circ - 35^\circ$).
-* **Vertical Hip Shelf Placement:** Slider `[-3.0 cm to +3.0 cm]` (fine-tunes hand height for high-waisted vs low-rise pants/skirts).
+A linear interpolation ($\text{LERP}$) of joint angles between neutral hanging arm ($0^\circ$) and hand-on-hip ($82.7^\circ$) produces severe anatomical penetration: the hand would drag directly across the outer thigh and hip tissue.
+
+To achieve fluid, motion-captured quality, the transition utilizes a **3-Phase Kinematic Clearance Arc** over $T = 0.45\text{ seconds}$ using quintic smoothstep easing:
+
+$$s(\tau) = 6\tau^5 - 15\tau^4 + 10\tau^3 \quad (\tau = t / T \in [0, 1])$$
+
+```mermaid
+graph LR
+    subgraph "Phase 1: Lateral Clearance (0.00s - 0.15s)"
+        A1[Arm at Side] --> A2["Abduct Upper Arm (+22° Flare)<br/>Elbow Begins Flexion (20°)"]
+        A2 --> A3[Hand Clears Thigh Contour]
+    end
+    subgraph "Phase 2: Arc to Waist (0.15s - 0.35s)"
+        A3 --> B1["Upper Arm Pitches Back (-12°)<br/>Elbow Rapidly Flexes (20° → 80°)"]
+        B1 --> B2[Hand Approaches Iliac Crest]
+    end
+    subgraph "Phase 3: Crest Placement & Lock (0.35s - 0.45s)"
+        B2 --> C1["Wrist Rests on Iliac Shelf<br/>Dynamic Stride Counter-Swing Engages"]
+        C1 --> C2[Full Hand on Hip Stride Locked]
+    end
+```
+
+### Transition Timing Profile (Activation, $T_{\text{in}} = 0.45\text{s}$):
+* **$\tau \in [0.0, 0.35]$ (Lateral Abduction Peak):** Flare opens wide first ($+24^\circ$) while flexion lags behind, swinging the hand safely outward away from the holster and thigh.
+* **$\tau \in [0.35, 0.80]$ (Primary Elbow Flexion):** Elbow bends swiftly from $25^\circ$ up to $82^\circ$, drawing the forearm inward toward the waist shelf.
+* **$\tau \in [0.80, 1.00]$ (Settling & Stride Synchronization):** Flare relaxes slightly to rest posture ($+18^\circ$), wrist settles into pelvic shelf, and dynamic cadence compensation seamlessly fades to $100\%$.
+
+### Deactivation Timing Profile (Release, $T_{\text{out}} = 0.38\text{s}$):
+On deactivation, the arm reverses the arc smoothly without abrupt snapping, allowing gravity and elbow relaxation to drop the hand back into the natural walking swing.
 
 ---
 
-## 10. Summary File Reference
+## 10. TPP Activation & Hotkey Architecture
 
-* Rig Reference: [`player_woman_skeleton.rig.json`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/scratch/base/characters/entities/player/player_woman_skeleton.rig.json)
-* AnimGraph Source: [`player_base.animgraph.json`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/raw/base/gameplay/anim_graphs/player_base.animgraph.json)
-* Locomotion Script: [`stride.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/modules/stride.lua)
-* Axis Reference Guide: [`AXIS_REFERENCE.md`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/AXIS_REFERENCE.md)
+### 10.1 CET Hotkey Registration (`init.lua`)
+The posture is exposed as a dedicated toggle hotkey in Cyber Engine Tweaks:
+
+```lua
+registerHotkey("toggle_tpp_hand_on_hip", "Toggle TPP Hand on Hip", function()
+    if not HandOnHipModule.CanActivate() then
+        Game.GetPlayer():PlaySoundEvent("ui_menu_item_disassemble_failed")
+        return
+    end
+    
+    HandOnHipModule.Toggle()
+    local isActive = HandOnHipModule.IsActive()
+    local sound = isActive and "ui_generic_prompt" or "ui_menu_item_sell"
+    Game.GetPlayer():PlaySoundEvent(sound)
+end)
+```
+
+### 10.2 CET Overlay Settings
+Under the **"Catwalk & Poses"** tab in the CET UI:
+* **Left Hand on Hip:** `[x] Active` (Toggle Button / Checkbox).
+* **Activation Hotkey:** Configurable via standard CET Bindings overlay.
+* **Posture Style:**
+  * `Casual` (Subtle flare $16^\circ$, gentle waist rest).
+  * `Classic Catwalk` (Standard flare $24^\circ$, crisp iliac placement).
+  * `Fierce / Sassy` (High flare $32^\circ$, forward elbow rotation).
+* **Vertical Waist Offset:** Slider `[-3.0 cm, +3.0 cm]` (compensates for high-rise vs low-rise clothing).
+* **Transition Speed:** Slider `[0.30s – 0.60s]` (default `0.45s`).
+
+---
+
+## 11. Summary File Reference
+
+* Movement Variables Research: [`ANIMGRAPH_MOVEMENT_VARIABLES_RESEARCH.md`](ANIMGRAPH_MOVEMENT_VARIABLES_RESEARCH.md)
+* AnimGraph Toolkit Engine: [`tools/animgraph_toolkit/`](../tools/animgraph_toolkit/)
+* Rig Measurements Reference: [`player_woman_skeleton.rig.json`](../scratch/base/characters/entities/player/player_woman_skeleton.rig.json)
+* Live AnimGraph File: [`player_base.animgraph.json`](../source/raw/base/gameplay/anim_graphs/player_base.animgraph.json)
+* Stride Locomotion Module: [`stride.lua`](../source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/modules/stride.lua)
+* Axis Orientation Reference: [`AXIS_REFERENCE.md`](../AXIS_REFERENCE.md)
