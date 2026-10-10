@@ -5,7 +5,7 @@ and provide semantic node search without hardcoding numeric IDs.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Set, Optional, Callable, Any
+from typing import Dict, List, Set, Optional, Callable, Any, Union
 from .models import AnimGraph, AnimNode
 
 
@@ -57,9 +57,19 @@ class NodeRegistry:
         return self._max_id
 
     @property
+    def graph(self) -> AnimGraph:
+        """Returns the AnimGraph being indexed."""
+        return self._graph
+
+    @property
     def total_nodes(self) -> int:
         """Returns the total number of uniquely indexed nodes."""
         return len(self._nodes_by_id)
+
+    @property
+    def all_handle_ids(self) -> List[str]:
+        """Returns all indexed HandleIds."""
+        return list(self._nodes_by_id.keys())
 
     def get_node(self, handle_id: Union[str, int]) -> Optional[AnimNode]:
         """Retrieves an AnimNode by its HandleId."""

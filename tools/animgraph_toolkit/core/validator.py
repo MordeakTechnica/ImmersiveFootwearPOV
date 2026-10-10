@@ -9,7 +9,7 @@ Performs semantic and structural integrity checks, detecting:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Set, Dict, Any
+from typing import List, Set, Dict, Any, Optional
 from .models import AnimGraph
 from .registry import NodeRegistry
 
@@ -22,6 +22,7 @@ class ValidationReport:
     dangling_references: List[str] = field(default_factory=list)
     missing_variables: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    is_reachability_valid: bool = True
 
     @property
     def is_valid(self) -> bool:
@@ -30,6 +31,7 @@ class ValidationReport:
             len(self.duplicate_handles) == 0
             and len(self.dangling_references) == 0
             and len(self.missing_variables) == 0
+            and self.is_reachability_valid
         )
 
     def summary(self) -> str:
@@ -45,6 +47,8 @@ class ValidationReport:
             lines.append(f"[-] Dangling References ({len(self.dangling_references)}): {self.dangling_references}")
         if self.missing_variables:
             lines.append(f"[-] Missing Declared Variables ({len(self.missing_variables)}): {self.missing_variables}")
+        if not self.is_reachability_valid:
+            lines.append("[-] Output Reachability Check: FAILED (Output node disconnected from target)")
         if self.warnings:
             lines.append(f"[!] Warnings ({len(self.warnings)}):")
             for w in self.warnings:
@@ -61,7 +65,7 @@ class GraphValidator:
         self._graph = graph
         self._registry = registry or NodeRegistry(graph)
 
-    def validate(self) -> ValidationReport:
+    def validate(self, reachability_target: Optional[str] = None) -> ValidationReport:
         """Runs all validation rules and returns a structured report."""
         report = ValidationReport(total_nodes=self._registry.total_nodes)
 
@@ -109,4 +113,21 @@ class GraphValidator:
                 missing_vars.add(var_name)
         report.missing_variables = list(missing_vars)
 
+        # 4. Optional Reachability Check
+        if reachability_target:
+            target_str = str(reachability_target)
+            out_node = self._graph.get_output_node()
+            if not out_node:
+                report.is_reachability_valid = False
+                report.warnings.append("Terminal animAnimNode_Output not found in graph.")
+            else:
+                from .traversal import GraphWalker
+                walker = GraphWalker(self._registry)
+                path = walker.trace_backward(out_node, max_depth=100)
+                path_ids = {n.handle_id for n in path if n.handle_id} | {n.handle_ref_id for n in path if n.handle_ref_id}
+                if target_str not in path_ids:
+                    report.is_reachability_valid = False
+                    report.warnings.append(f"Output evaluation path does not reach target Node {target_str}.")
+
         return report
+

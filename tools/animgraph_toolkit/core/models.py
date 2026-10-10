@@ -196,3 +196,42 @@ class AnimGraph:
         }
         self.float_variables.append(new_var)
         return new_var
+
+    def find_node_dict(self, handle_id: str) -> Optional[Dict[str, Any]]:
+        """Searches the entire graph dictionary for a node with the given HandleId."""
+        target_str = str(handle_id)
+
+        def _search(o: Any) -> Optional[Dict[str, Any]]:
+            if isinstance(o, dict):
+                if str(o.get("HandleId")) == target_str:
+                    return o
+                for v in o.values():
+                    found = _search(v)
+                    if found is not None:
+                        return found
+            elif isinstance(o, list):
+                for item in o:
+                    found = _search(item)
+                    if found is not None:
+                        return found
+            return None
+
+        return _search(self._raw)
+
+    def export_subtree(self, root_handle_id: str, output_path: Optional[str] = None, indent: int = 2) -> Dict[str, Any]:
+        """
+        Extracts a node and its entire embedded sub-hierarchy as a standalone dictionary.
+        Optionally saves it to a file on disk.
+        """
+        import copy
+        node_dict = self.find_node_dict(root_handle_id)
+        if node_dict is None:
+            raise ValueError(f"Node HandleId '{root_handle_id}' not found in graph.")
+
+        subtree = copy.deepcopy(node_dict)
+        if output_path:
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(subtree, f, indent=indent)
+
+        return subtree
+
