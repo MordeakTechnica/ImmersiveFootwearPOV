@@ -2,7 +2,13 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-06
+## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-10
+### `feat(ui): always display standalone configuration window and decouple from IFP`
+* **Decoupled CET Window Attachment:** Removed logic that attached Immersive Footwear POV controls directly inside the "Immersive First Person" CET window when IFP is installed.
+* **Dedicated Standalone Configuration Window:** The standalone "Immersive Footwear POV" window is now always rendered, eliminating user confusion when both IFP and ITP are running simultaneously.
+* **Dynamic POV Engine Badges:** Clear status badges in the window header distinguish active engine states (IFP + ITP Hybrid, ITP Active, IFP Active, TFP, or Standalone/Photo Mode).
+* **Unified Telemetry:** IFP base elevation and footwear lift remain clearly visible inside the standalone window whenever IFP is active.
+
 ### `perf(cet): optimize runtime loop, zero per-frame heap churn, and reduce polling overhead`
 * **Zero Per-Frame Heap Allocations:**
   * Replaced ad-hoc `Transform.new()` / `WorldTransform.new()` and `CName.new()` allocations in `modules/perspective.lua` with a module-level reusable transform and cached CNames.

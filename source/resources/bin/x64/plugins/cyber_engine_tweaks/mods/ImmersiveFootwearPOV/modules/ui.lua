@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Immersive Footwear POV - ImGui Presentation & UI Subsystem (Presenter Pattern)
 -- Renders shoe summary, custom calibration controls, locomotion tabs, and readouts
--- Handles both IFP-attached extension and standalone overlay windows
+-- Dedicated standalone configuration window for CET overlay
 -- =============================================================================
 
 local UIManager = {}
@@ -199,14 +199,14 @@ local function DrawPhotoModeOptions(modState, shoeState, saveSettingsCallback)
 end
 
 --- Render active stance status and elevation readout
-local function DrawStanceReadout(modState, shoeState, isAppended, sys, heightAdjustmentEnabled)
+local function DrawStanceReadout(modState, shoeState, ifpInstalled, sys, heightAdjustmentEnabled)
     ImGui.Separator()
     if shoeState.isSuppressed then
         ImGui.PushStyleColor(ImGuiCol.Text, 1.0, 0.75, 0.2, 1.0)
         ImGui.Text(string.format("Stance Elevation: Temporarily Suppressed (%s)", shoeState.suppressionReason))
         ImGui.PopStyleColor(1)
         ImGui.TextDisabled("Elevation will smoothly restore upon standing / exiting.")
-    elseif isAppended and heightAdjustmentEnabled == false then
+    elseif ifpInstalled and heightAdjustmentEnabled == false then
         ImGui.TextDisabled("First-Person Footwear Lift: 0.0 cm (Disabled in IFP settings)")
         if sys and sys.IsITPPresent and sys:IsITPPresent() then
             local platCm = shoeState.isSuppressed and 0.0 or (shoeState.platformCm or 0.0)
@@ -214,7 +214,7 @@ local function DrawStanceReadout(modState, shoeState, isAppended, sys, heightAdj
             ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Platform Lift) %s", platCm, statusStr))
         end
     else
-        if isAppended then
+        if ifpInstalled and modState.ifpBaseHeightCm ~= 0.0 then
             ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(modState.ifpBaseHeightCm + 0.5)))
             ImGui.Text(string.format("Footwear Lift:     +%.1f cm", shoeState.effectiveCm))
             ImGui.TextColored(0.2, 1.0, 0.4, 1.0, string.format("Total Stance Lift: %+d cm (Base + Shoes)", math.floor(shoeState.totalStanceCm + 0.5)))
@@ -231,13 +231,13 @@ local function DrawStanceReadout(modState, shoeState, isAppended, sys, heightAdj
 end
 
 --- Render Tab 1: Footwear Calibration & Stance Settings
-local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, saveSettingsCallback, isAppended, heightAdjustmentEnabled)
+local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, saveSettingsCallback, ifpInstalled, heightAdjustmentEnabled)
     local shoeState = modState.currentShoeState
 
     if not shoeState.hasShoe or #shoeState.key == 0 then
         ImGui.Spacing()
         ImGui.TextDisabled("Equipped Footwear: Barefoot / None (Flat 0.0 cm)")
-        if isAppended and not shoeState.isSuppressed and modState.ifpBaseHeightCm ~= 0.0 then
+        if ifpInstalled and not shoeState.isSuppressed and modState.ifpBaseHeightCm ~= 0.0 then
             ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(modState.ifpBaseHeightCm + 0.5)))
         end
         return
@@ -245,7 +245,7 @@ local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverride
 
     DrawShoeSummary(shoeState)
 
-    if isAppended and heightAdjustmentEnabled == false then
+    if ifpInstalled and heightAdjustmentEnabled == false then
         ImGui.Spacing()
         ImGui.TextColored(1.0, 0.75, 0.2, 1.0, "[!] First-Person Height Adjustment is DISABLED in IFP settings.")
         ImGui.TextDisabled("V's camera eye-line and skeletal stance height are neutral (0.0 cm).")
@@ -260,7 +260,7 @@ local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverride
 
     DrawHeightGuideAccordion()
     DrawPhotoModeOptions(modState, shoeState, saveSettingsCallback)
-    DrawStanceReadout(modState, shoeState, isAppended, sys, heightAdjustmentEnabled)
+    DrawStanceReadout(modState, shoeState, ifpInstalled, sys, heightAdjustmentEnabled)
 end
 
 --- Render Tab 2: Catwalk Locomotion & Feminine Stride Settings
@@ -345,10 +345,10 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveSettingsCallback)
 end
 
 --- Render Footwear Configuration Controls with Tabbed Organization
-local function DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, isAppended, heightAdjustmentEnabled, saveSettingsCallback)
+local function DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, ifpInstalled, heightAdjustmentEnabled, saveSettingsCallback)
     if ImGui.BeginTabBar("##IFP_MainTabBar") then
         if ImGui.BeginTabItem("Footwear & Stance##TabFootwear") then
-            DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, saveSettingsCallback, isAppended, heightAdjustmentEnabled)
+            DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, saveSettingsCallback, ifpInstalled, heightAdjustmentEnabled)
             ImGui.EndTabItem()
         end
         if ImGui.BeginTabItem("Hip Sway##TabHipSway") then
@@ -359,9 +359,9 @@ local function DrawFootwearControls(modState, player, sys, heightLimits, saveOve
     end
 end
 
---- Render Footwear UI (Standalone Window or Appended to IFP Window)
---- When IFP is installed and TFP is not active: strictly attaches to IFP window.
---- Never show the self-contained config window when IFP is installed and height adjustment is disabled.
+--- Render Footwear UI (Always Standalone Configuration Window)
+--- Displays dedicated "Immersive Footwear POV" window for CET overlay.
+--- Eliminates window attachment to avoid confusion when IFP and ITP run together.
 ---@param modState table
 ---@param player table
 ---@param sys table
@@ -374,37 +374,25 @@ function UIManager.DrawUI(modState, player, sys, heightLimits, saveOverridesCall
 
     local isTFP = (sys and sys.IsTFPPresent and sys:IsTFPPresent()) or false
     local ifpInstalled = ifpIntegration and ifpIntegration.IsInstalled and ifpIntegration.IsInstalled() or false
-    local ifpEnabled = ifpIntegration and ifpIntegration.IsEnabled and ifpIntegration.IsEnabled() or false
     local heightAdjustmentEnabled = ifpIntegration and ifpIntegration.IsHeightAdjustmentEnabled and ifpIntegration.IsHeightAdjustmentEnabled() or false
+    local itpInstalled = (sys and sys.IsITPPresent and sys:IsITPPresent()) or (modState and modState.isITPActive) or false
 
-    -- Strict Rule: When IFP is installed (and TFP is not active), NEVER show
-    -- the standalone "Immersive Footwear POV" window!
-    if ifpInstalled and not isTFP then
-        if ifpEnabled then
-            if ImGui.Begin("Immersive First Person") then
-                ImGui.Spacing()
-                ImGui.Separator()
-                ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV Extension]")
-                DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, true, heightAdjustmentEnabled, saveSettingsCallback)
-            end
-            ImGui.End()
-        end
-        -- Strictly return here so the self-contained window is NEVER spawned when IFP is installed
-        return
-    end
-
-    -- Standalone window (ONLY when IFP is NOT installed, or TFP is active)
+    -- Always render standalone "Immersive Footwear POV" window
     if ImGui.Begin("Immersive Footwear POV", ImGuiWindowFlags.AlwaysAutoResize) then
         ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV]")
         if isTFP then
             ImGui.TextDisabled("Active POV Engine: True First Person (TFP Native REDscript)")
-        elseif sys and sys.IsITPPresent and sys:IsITPPresent() then
+        elseif itpInstalled and ifpInstalled then
+            ImGui.TextDisabled("Active POV Engines: IFP (1st Person) + ITP (3rd Person)")
+        elseif itpInstalled then
             ImGui.TextDisabled("Active POV Engine: Immersive Third Person (ITP Active)")
+        elseif ifpInstalled then
+            ImGui.TextDisabled("Active POV Engine: Immersive First Person (IFP Active)")
         else
             ImGui.TextDisabled("Active POV Engine: Standalone / Photo Mode (PM)")
         end
         ImGui.Separator()
-        DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, false, true, saveSettingsCallback)
+        DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, ifpInstalled, heightAdjustmentEnabled, saveSettingsCallback)
     end
     ImGui.End()
 end
