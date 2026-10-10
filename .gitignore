@@ -11,6 +11,7 @@ examples
 # Tools and automation scripts
 tools/*
 !tools/animgraph_toolkit/
+!tools/preset_variant_expander/
 scratch/
 pro-requests/
 
@@ -26,4 +27,7 @@ install_log.xml
 # Python cache & bytecode
 __pycache__/
 *.pyc
+build/
+dist/
+*.spec
 

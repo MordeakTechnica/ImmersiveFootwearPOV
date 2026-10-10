@@ -21,8 +21,12 @@ A comprehensive guide for configuring custom footwear heights and getting accura
    * **Manual Input & Auto-Clamping:** Type exact numbers into the `Manual Heel (cm)` or `Manual Platform (cm)` fields (or use the `+` / `-` stepper buttons). Any entered value exceeding the maximum allowed height automatically clamps to the maximum (`40.0 cm` heel, `30.0 cm` platform). Negative values are strictly disallowed and automatically set to `0.0 cm`.
 4. **Console Shortcuts:** You can also set custom heights directly via the CET console using:
    * `SetFootwearHeight(heelCm, platformCm)` or `SetCustomHeight(heelCm, platformCm)` (with the same auto-clamping and non-negative enforcement).
-5. **Auto-Save:** Settings are automatically saved per shoe model in `user_shoe_overrides.json`.
-6. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
+5. **Auto-Save & Isolated Persistence:**
+   * Custom shoe calibrations are automatically saved per shoe in `user_shoe_overrides.json` (strictly footwear entries only, no general mod options).
+   * General mod settings (Photo Mode auto-elevation, debug logging, hip sway multipliers) are saved separately in `config.json`.
+6. **Optional Community Presets:** You can install or create optional preset packs by placing a `shoe_presets.json` (or `presets.json`) in the mod folder. Community presets provide instant calibrations for modded footwear; your personal adjustments in `user_shoe_overrides.json` seamlessly override them without touching the preset file.
+   * **Automated Variant Expander Tool:** You can automatically expand a single calibrated shoe across all of its colors, materials, and mod variants using the built-in [Preset Variant Expander](tools/preset_variant_expander/README.md).
+7. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
 
 ---
 
