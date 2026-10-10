@@ -29,6 +29,15 @@ local function ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeK
     end
     modState.overrides[shoeKey].heel = heelCm
     modState.overrides[shoeKey].platform = platCm
+
+    if modState.userOverrides then
+        if not modState.userOverrides[shoeKey] then
+            modState.userOverrides[shoeKey] = {}
+        end
+        modState.userOverrides[shoeKey].heel = heelCm
+        modState.userOverrides[shoeKey].platform = platCm
+    end
+
     if saveOverridesCallback then
         saveOverridesCallback()
     end
@@ -61,10 +70,19 @@ end
 
 --- Render calibration sliders and manual inputs for custom footwear
 local function DrawCustomFootwearControls(modState, player, sys, shoeState, heightLimits, saveOverridesCallback)
-    ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
-
     local shoeKey = shoeState.key
     local canEdit = player and sys and #shoeKey > 0
+
+    local hasUserOverride = modState.userOverrides and (modState.userOverrides[shoeKey] ~= nil)
+    local hasPreset = modState.presets and (modState.presets[shoeKey] ~= nil)
+
+    if hasUserOverride then
+        ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: Custom Calibration (User Override)")
+    elseif hasPreset then
+        ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "Tags: Optional Preset Pack (Default)")
+    else
+        ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: None Found (Custom Override)")
+    end
 
     local maxHeel = heightLimits.MAX_HEEL_CM or 40.0
     local maxPlat = heightLimits.MAX_PLATFORM_CM or 30.0
@@ -104,19 +122,43 @@ local function DrawCustomFootwearControls(modState, player, sys, shoeState, heig
     ImGui.Spacing()
 
     -- Reset custom overrides for current shoe
-    if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and canEdit then
-        shoeState.heelCm = 0.0
-        shoeState.platformCm = 0.0
-        if modState.overrides[shoeKey] then
-            modState.overrides[shoeKey] = nil
+    if hasPreset and hasUserOverride then
+        if ImGui.Button("Reset to Preset##ifp_reset_shoe") and canEdit then
+            if modState.userOverrides then
+                modState.userOverrides[shoeKey] = nil
+            end
+            local preset = modState.presets[shoeKey]
+            local pHeel = preset.heel or 0.0
+            local pPlat = preset.platform or 0.0
+            shoeState.heelCm = pHeel
+            shoeState.platformCm = pPlat
+            modState.overrides[shoeKey] = { heel = pHeel, platform = pPlat }
+            sys:SetCustomHeightOverride(player, pHeel / 100.0, pPlat / 100.0)
             if saveOverridesCallback then
                 saveOverridesCallback()
             end
         end
-        sys:ClearCustomHeightOverride(player)
+        ImGui.SameLine()
+        ImGui.TextDisabled(string.format("(Reverts to preset: Heel %.1f cm, Plat %.1f cm)",
+            modState.presets[shoeKey].heel or 0.0, modState.presets[shoeKey].platform or 0.0))
+    else
+        if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and canEdit then
+            shoeState.heelCm = 0.0
+            shoeState.platformCm = 0.0
+            if modState.userOverrides and modState.userOverrides[shoeKey] then
+                modState.userOverrides[shoeKey] = nil
+            end
+            if modState.overrides[shoeKey] then
+                modState.overrides[shoeKey] = nil
+            end
+            sys:ClearCustomHeightOverride(player)
+            if saveOverridesCallback then
+                saveOverridesCallback()
+            end
+        end
+        ImGui.SameLine()
+        ImGui.TextDisabled("(Auto-saved per shoe)")
     end
-    ImGui.SameLine()
-    ImGui.TextDisabled("(Auto-saved per shoe)")
 end
 
 --- Render expandable guide accordion explaining shoe anatomy and height measurement
@@ -137,12 +179,12 @@ local function DrawHeightGuideAccordion()
 end
 
 --- Render Photo Mode auto-elevation toggle and live status
-local function DrawPhotoModeOptions(modState, shoeState, saveOverridesCallback)
+local function DrawPhotoModeOptions(modState, shoeState, saveSettingsCallback)
     ImGui.Spacing()
     local pmChanged
     modState.autoElevatePMPlatform, pmChanged = ImGui.Checkbox("Auto-Elevate Platform Sole in Photo Mode##ifp_pm_elevate", modState.autoElevatePMPlatform)
-    if pmChanged and saveOverridesCallback then
-        saveOverridesCallback()
+    if pmChanged and saveSettingsCallback then
+        saveSettingsCallback()
     end
 
     if modState.isPhotoModeOpen then
@@ -189,7 +231,7 @@ local function DrawStanceReadout(modState, shoeState, isAppended, sys, heightAdj
 end
 
 --- Render Tab 1: Footwear Calibration & Stance Settings
-local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, isAppended, heightAdjustmentEnabled)
+local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, saveSettingsCallback, isAppended, heightAdjustmentEnabled)
     local shoeState = modState.currentShoeState
 
     if not shoeState.hasShoe or #shoeState.key == 0 then
@@ -217,12 +259,12 @@ local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverride
     end
 
     DrawHeightGuideAccordion()
-    DrawPhotoModeOptions(modState, shoeState, saveOverridesCallback)
+    DrawPhotoModeOptions(modState, shoeState, saveSettingsCallback)
     DrawStanceReadout(modState, shoeState, isAppended, sys, heightAdjustmentEnabled)
 end
 
 --- Render Tab 2: Catwalk Locomotion & Feminine Stride Settings
-local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
+local function DrawCatwalkLocomotionTab(modState, sys, saveSettingsCallback)
     ImGui.Spacing()
 
     -- Check if ITP is installed
@@ -297,20 +339,20 @@ local function DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
         ImGui.TextDisabled("Procedural catwalk hip sway is disabled. Standard neutral walk cycle active.")
     end
 
-    if changed and saveOverridesCallback then
-        saveOverridesCallback()
+    if changed and saveSettingsCallback then
+        saveSettingsCallback()
     end
 end
 
 --- Render Footwear Configuration Controls with Tabbed Organization
-local function DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, isAppended, heightAdjustmentEnabled)
+local function DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, isAppended, heightAdjustmentEnabled, saveSettingsCallback)
     if ImGui.BeginTabBar("##IFP_MainTabBar") then
         if ImGui.BeginTabItem("Footwear & Stance##TabFootwear") then
-            DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, isAppended, heightAdjustmentEnabled)
+            DrawFootwearTab(modState, player, sys, heightLimits, saveOverridesCallback, saveSettingsCallback, isAppended, heightAdjustmentEnabled)
             ImGui.EndTabItem()
         end
         if ImGui.BeginTabItem("Hip Sway##TabHipSway") then
-            DrawCatwalkLocomotionTab(modState, sys, saveOverridesCallback)
+            DrawCatwalkLocomotionTab(modState, sys, saveSettingsCallback)
             ImGui.EndTabItem()
         end
         ImGui.EndTabBar()
@@ -326,7 +368,10 @@ end
 ---@param heightLimits table
 ---@param saveOverridesCallback function
 ---@param ifpIntegration table
-function UIManager.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback, ifpIntegration)
+---@param saveSettingsCallback function|nil
+function UIManager.DrawUI(modState, player, sys, heightLimits, saveOverridesCallback, ifpIntegration, saveSettingsCallback)
+    saveSettingsCallback = saveSettingsCallback or saveOverridesCallback
+
     local isTFP = (sys and sys.IsTFPPresent and sys:IsTFPPresent()) or false
     local ifpInstalled = ifpIntegration and ifpIntegration.IsInstalled and ifpIntegration.IsInstalled() or false
     local ifpEnabled = ifpIntegration and ifpIntegration.IsEnabled and ifpIntegration.IsEnabled() or false
@@ -340,7 +385,7 @@ function UIManager.DrawUI(modState, player, sys, heightLimits, saveOverridesCall
                 ImGui.Spacing()
                 ImGui.Separator()
                 ImGui.TextColored(0.4, 0.8, 1.0, 1.0, "[Immersive Footwear POV Extension]")
-                DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, true, heightAdjustmentEnabled)
+                DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, true, heightAdjustmentEnabled, saveSettingsCallback)
             end
             ImGui.End()
         end
@@ -359,7 +404,7 @@ function UIManager.DrawUI(modState, player, sys, heightLimits, saveOverridesCall
             ImGui.TextDisabled("Active POV Engine: Standalone / Photo Mode (PM)")
         end
         ImGui.Separator()
-        DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, false, true)
+        DrawFootwearControls(modState, player, sys, heightLimits, saveOverridesCallback, false, true, saveSettingsCallback)
     end
     ImGui.End()
 end

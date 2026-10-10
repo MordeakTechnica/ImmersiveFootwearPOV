@@ -90,9 +90,17 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
 
     if hasShoe and #shoeKey > 0 then
         if isOfficial then
+            local hadOverride = false
             if overrides and overrides[shoeKey] then
                 overrides[shoeKey] = nil
-                if saveOverridesCallback then saveOverridesCallback() end
+                hadOverride = true
+            end
+            if modSettings and modSettings.userOverrides and modSettings.userOverrides[shoeKey] then
+                modSettings.userOverrides[shoeKey] = nil
+                hadOverride = true
+            end
+            if hadOverride and saveOverridesCallback then
+                saveOverridesCallback()
             end
             shoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
             shoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0

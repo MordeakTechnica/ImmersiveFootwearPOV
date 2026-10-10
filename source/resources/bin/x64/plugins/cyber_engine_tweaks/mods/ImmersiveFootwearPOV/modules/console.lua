@@ -117,6 +117,14 @@ function ConsoleManager.SetCustomHeight(mod, sys, player, heightLimits, heelCm, 
     mod.overrides[shoeState.key].heel = h
     mod.overrides[shoeState.key].platform = p
 
+    if mod.userOverrides then
+        if not mod.userOverrides[shoeState.key] then
+            mod.userOverrides[shoeState.key] = {}
+        end
+        mod.userOverrides[shoeState.key].heel = h
+        mod.userOverrides[shoeState.key].platform = p
+    end
+
     if saveCallback then saveCallback() end
     sys:SetCustomHeightOverride(player, h / 100.0, p / 100.0)
 

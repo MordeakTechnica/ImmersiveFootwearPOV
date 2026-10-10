@@ -178,11 +178,9 @@ python -m unittest discover -s tools/preset_variant_expander/tests -t .
 
 For preset creators and community modders who do not have Python installed, the tool can be distributed as a zero-dependency standalone `.exe`:
 
-* **Ready-to-share Zip:** `dist/PresetVariantExpander-Standalone.zip` (contains the `.exe`, batch launchers, and a quick-start `README.txt`).
+* **Ready-to-share Zip:** `dist/PresetVariantExpander-Standalone.zip` (contains the `.exe` and a quick-start `README.txt`).
 * **Standalone Directory:** `dist/PresetVariantExpander-Standalone/`
-  * `PresetVariantExpander.exe`: Single-file portable Windows executable.
-  * `Drag_Drop_Presets_Here.bat`: Allows users to simply drag and drop any `user_shoe_overrides.json` or `presets.json` onto the batch icon.
-  * `Run_Expander.bat`: Interactive double-click launcher that auto-detects the game installation.
+  * `PresetVariantExpander.exe`: Single-file portable Windows executable (supports interactive wizard and direct drag-and-drop).
   * `README.txt`: Plain-text quick start guide.
 
 ### Building the Standalone Executable

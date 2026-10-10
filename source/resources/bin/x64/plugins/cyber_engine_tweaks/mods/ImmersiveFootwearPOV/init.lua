@@ -93,8 +93,8 @@ local function GetSystem()
     return cachedSys
 end
 
-local function SaveAllOverrides()
-    Config.Save(Config.FILE_NAME, mod.overrides, {
+local function SaveSettings()
+    Config.SaveSettings({
         autoElevatePM = mod.autoElevatePMPlatform,
         debugLogs = mod.debugLogs,
         enableHipSway = mod.enableHipSway,
@@ -102,6 +102,16 @@ local function SaveAllOverrides()
         swayMid = mod.swayMid,
         swayHigh = mod.swayHigh,
     })
+end
+
+local function SaveOverrides()
+    Config.SaveOverrides(mod.userOverrides or mod.overrides)
+end
+
+-- Maintained for backward compatibility
+local function SaveAllOverrides()
+    SaveOverrides()
+    SaveSettings()
 end
 
 local function RefreshIFPBaseHeight()
@@ -115,11 +125,11 @@ end
 -- Console API & Diagnostics (Delegated to ConsoleManager)
 -- -----------------------------------------------------------------------------
 function mod.SetDebug(enabled)
-    return ConsoleManager.SetDebug(mod, enabled, SaveAllOverrides)
+    return ConsoleManager.SetDebug(mod, enabled, SaveSettings)
 end
 
 function mod.ToggleDebug()
-    return ConsoleManager.ToggleDebug(mod, SaveAllOverrides)
+    return ConsoleManager.ToggleDebug(mod, SaveSettings)
 end
 
 function mod.GetDebug()
@@ -138,7 +148,7 @@ end
 function mod.SetCustomHeight(heelCm, platformCm)
     local player = Game.GetPlayer()
     local sys = GetSystem()
-    return ConsoleManager.SetCustomHeight(mod, sys, player, FootwearHeightLimits, heelCm, platformCm, SaveAllOverrides)
+    return ConsoleManager.SetCustomHeight(mod, sys, player, FootwearHeightLimits, heelCm, platformCm, SaveOverrides)
 end
 
 -- Register global CET Console shortcuts
@@ -148,8 +158,19 @@ ConsoleManager.RegisterShortcuts(mod)
 -- Lifecycle Events
 -- -----------------------------------------------------------------------------
 registerForEvent("onInit", function()
-    local overrides, settings = Config.Load(Config.FILE_NAME)
+    -- Check if config.json exists; if not, run migration script before settings and config are read
+    local configPath = Config.SETTINGS_FILE or "config.json"
+    local configFile = io.open(configPath, "r")
+    if not configFile then
+        Config.MigrateLegacySettings()
+    else
+        configFile:close()
+    end
+
+    local overrides, settings, presets, userOverrides = Config.Load(Config.FILE_NAME)
     mod.overrides = overrides
+    mod.presets = presets or {}
+    mod.userOverrides = userOverrides or {}
     mod.autoElevatePMPlatform = settings.autoElevatePM
     mod.debugLogs = settings.debugLogs
     mod.enableHipSway = settings.enableHipSway
@@ -235,7 +256,7 @@ registerForEvent("onUpdate", function(deltaTime)
         end
 
         mod.ifpHeightAdjustmentEnabled = IFPIntegration.IsHeightAdjustmentEnabled(false)
-        State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveAllOverrides)
+        State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
     end
 
     -- Update Photo Mode platform lift once per frame (very cheap 2 booleans when inactive)
@@ -309,7 +330,7 @@ registerForEvent("onDraw", function()
     local player = Game.GetPlayer()
     local sys = GetSystem()
 
-    UIManager.DrawUI(mod, player, sys, FootwearHeightLimits, SaveAllOverrides, IFPIntegration)
+    UIManager.DrawUI(mod, player, sys, FootwearHeightLimits, SaveOverrides, IFPIntegration, SaveSettings)
 end)
 
 return mod
