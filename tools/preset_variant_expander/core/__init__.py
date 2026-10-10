@@ -2,6 +2,7 @@
 
 from .models import ShoeCalibration, VariantMatch, ExpansionResult
 from .interfaces import IVariantProvider, IPresetRepository, IPresetExpander
+from .footwear_filter import FootwearClassifier
 
 __all__ = [
     "ShoeCalibration",
@@ -10,4 +11,5 @@ __all__ = [
     "IVariantProvider",
     "IPresetRepository",
     "IPresetExpander",
+    "FootwearClassifier",
 ]

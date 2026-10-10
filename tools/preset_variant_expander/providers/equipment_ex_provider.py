@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from ..core.interfaces import IVariantProvider
 from ..core.models import VariantMatch
+from ..core.footwear_filter import FootwearClassifier
 
 
 class EquipmentExVariantProvider(IVariantProvider):
@@ -65,27 +66,29 @@ class EquipmentExVariantProvider(IVariantProvider):
         except Exception:
             return 0
 
-        # Collect any column value that looks like an ItemID ("Items.")
-        items_found: List[str] = []
+        # Collect and filter footwear ItemIDs ("Items.")
+        shoes_found: List[str] = []
         for row in rows:
             for col in row:
                 col_clean = col.strip()
-                if col_clean.startswith("Items.") and len(col_clean) > 8:
-                    items_found.append(col_clean)
+                if (
+                    col_clean.startswith("Items.")
+                    and len(col_clean) > 8
+                    and FootwearClassifier.is_footwear(col_clean)
+                ):
+                    shoes_found.append(col_clean)
 
-        if len(items_found) < 2:
+        if len(shoes_found) < 2:
             return 0
 
-        # Cluster items by common prefix stem
-        prefix_groups: Dict[str, List[str]] = {}
-        for item in items_found:
-            parts = item.split("_")
-            if len(parts) > 1:
-                stem = "_".join(parts[:-1])
-                prefix_groups.setdefault(stem.lower(), []).append(item)
+        # Cluster footwear items by garment model stem
+        stem_groups: Dict[str, List[str]] = {}
+        for item in shoes_found:
+            stem = FootwearClassifier.extract_garment_stem(item).lower()
+            stem_groups.setdefault(stem, []).append(item)
 
         indexed = 0
-        for stem, group in prefix_groups.items():
+        for stem, group in stem_groups.items():
             if len(group) > 1:
                 unique_group = list(dict.fromkeys(group))
                 self._link_siblings(unique_group, str(file_path))

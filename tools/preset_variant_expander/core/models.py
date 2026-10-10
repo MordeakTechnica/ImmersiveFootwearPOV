@@ -43,8 +43,10 @@ class ExpansionResult:
     unresolved_items: List[str] = field(default_factory=list)
     added_variants: Dict[str, List[str]] = field(default_factory=dict)  # parent_id -> list of new sibling IDs
     variant_details: Dict[str, VariantMatch] = field(default_factory=dict)  # sibling_id -> VariantMatch metadata
+    ignored_non_footwear: List[str] = field(default_factory=list)  # Siblings rejected as non-footwear
+    cleaned_non_footwear: List[str] = field(default_factory=list)  # Pre-existing items purged during cleaning
     errors: List[str] = field(default_factory=list)
 
     @property
     def has_changes(self) -> bool:
-        return self.new_variants_added > 0
+        return self.new_variants_added > 0 or len(self.cleaned_non_footwear) > 0

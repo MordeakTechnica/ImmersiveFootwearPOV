@@ -8,6 +8,7 @@ from typing import Dict, List, Set, Tuple
 
 from ..core.interfaces import IPresetExpander, IVariantProvider
 from ..core.models import ExpansionResult, ShoeCalibration, VariantMatch
+from ..core.footwear_filter import FootwearClassifier
 
 
 class PresetExpansionEngine(IPresetExpander):
@@ -36,6 +37,10 @@ class PresetExpansionEngine(IPresetExpander):
         }
 
         for item_id, calibration in list(input_presets.items()):
+            # Only expand footwear items
+            if not FootwearClassifier.is_footwear(item_id):
+                continue
+
             siblings: List[VariantMatch] = self._provider.find_siblings(item_id)
 
             if not siblings:
@@ -46,6 +51,11 @@ class PresetExpansionEngine(IPresetExpander):
 
             for sib in siblings:
                 sib_id = sib.item_id
+                # Enforce footwear validation
+                if not FootwearClassifier.is_footwear(sib_id):
+                    result.ignored_non_footwear.append(sib_id)
+                    continue
+
                 sib_norm = sib_id.strip().lower()
 
                 # If sibling already exists in output

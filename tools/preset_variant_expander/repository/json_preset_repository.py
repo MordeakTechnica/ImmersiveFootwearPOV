@@ -6,19 +6,25 @@ Ensures strict separation between shoe calibration data and mod settings.
 
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Tuple
 
 from ..core.interfaces import IPresetRepository
 from ..core.models import ShoeCalibration
+from ..core.footwear_filter import FootwearClassifier
 
 
 class JsonPresetRepository(IPresetRepository):
     """Repository handling file I/O and JSON serialization for shoe presets."""
 
-    def load(self, file_path: Path) -> Dict[str, ShoeCalibration]:
+    def load(
+        self,
+        file_path: Path,
+        filter_non_footwear: bool = False
+    ) -> Dict[str, ShoeCalibration]:
         """
         Load footwear presets from a JSON file.
         Filters out any non-shoe configuration keys (such as __settings).
+        If filter_non_footwear is True, discards non-footwear clothing entries.
         """
         if not file_path or not file_path.exists():
             return {}
@@ -37,6 +43,9 @@ class JsonPresetRepository(IPresetRepository):
             if key == "__settings" or not isinstance(val, dict):
                 continue
 
+            if filter_non_footwear and not FootwearClassifier.is_footwear(key):
+                continue
+
             try:
                 calibration = ShoeCalibration.from_dict(val)
                 presets[key] = calibration
@@ -44,6 +53,23 @@ class JsonPresetRepository(IPresetRepository):
                 continue
 
         return presets
+
+    def sanitize(
+        self,
+        presets: Dict[str, ShoeCalibration]
+    ) -> Tuple[Dict[str, ShoeCalibration], List[str]]:
+        """
+        Filters presets dictionary to only keep verified footwear items.
+        Returns (sanitized_presets, list_of_purged_items).
+        """
+        sanitized: Dict[str, ShoeCalibration] = {}
+        purged: List[str] = []
+        for key, val in presets.items():
+            if FootwearClassifier.is_footwear(key):
+                sanitized[key] = val
+            else:
+                purged.append(key)
+        return sanitized, purged
 
     def save(self, file_path: Path, presets: Dict[str, ShoeCalibration]) -> None:
         """

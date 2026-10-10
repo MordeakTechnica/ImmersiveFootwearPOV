@@ -24,6 +24,7 @@ Manually calibrating each colorway in Photo Mode or CET is tedious. The **Preset
 * **Zero-Touch Variant Discovery:** Automatically links all colorways and material instances that belong to the same shoe model.
 * **Dual TweakXL Syntax Support:** Fully parses both `$(var)` and `${var}` template expansion formats.
 * **Safe Template Isolation:** Prevents cross-contamination by scoping instances to their respective item templates (e.g., shoe variants won't pull in horns, chokers, or gloves from the same mod pack).
+* **Game Folder Auto-Detection & Safe Confirmation:** Detects when run inside the Cyberpunk 2077 installation folder, displays the detected path, and prompts (`[Y/n]`) before proceeding, auto-defaulting scan paths.
 * **Isolated Persistence & Clean Output:** Automatically filters out non-shoe configuration keys (such as `__settings`), strips trailing whitespace, and sorts all entries alphabetically for clean Git diffs and quick reading.
 * **Conflict Protection:** Preserves existing custom calibrations by default; existing entries are never overwritten unless `--overwrite` is explicitly specified.
 * **Dry-Run & Verbose Diagnostics:** Test and preview exact match mechanisms (`[TweakXL:instances]`, `[TweakXL:shared_entity]`, etc.) and source files before modifying files on disk.
@@ -55,10 +56,14 @@ python -m tools.preset_variant_expander [OPTIONS]
 | :--- | :--- | :--- |
 | `--input <path>` | `-i` | **(Required)** Path to the source JSON file (e.g., `user_shoe_overrides.json` or `presets.json`). |
 | `--output <path>` | `-o` | Target path for the expanded JSON file. Defaults to updating the input file in-place. |
-| `--game-dir <path>` | `-g` | Cyberpunk 2077 root directory. Defaults to `D:\SteamLibrary\steamapps\common\Cyberpunk 2077` if present. |
+| `--game-dir <path>` | `-g` | Cyberpunk 2077 root directory. Automatically detected if running inside the game directory. |
 | `--tweaks-dir <path>` | `-t` | Custom tweaks directory to scan (defaults to `<game-dir>/r6/tweaks`). |
 | `--archive-dir <path>` | `-a` | Custom archive directory to scan (defaults to `<game-dir>/archive/pc/mod`). |
 | `--scan-archives` | | Enables deep WolvenKit CLI scanning of `.archive` packages (off by default; TweakXL YAMLs contain 99% of modded item definitions). |
+| `--clean`, `--filter-shoes` | | Sanitizes presets pack by removing non-footwear clothing items (enabled by default). |
+| `--no-clean` | | Disables automatic non-footwear clothing sanitization. |
+| `--clean-only` | | Only sanitizes input presets without scanning game files or discovering variants. |
+| `-y`, `--yes` | `-y` | Automatically answers yes to interactive prompts (such as game folder confirmation). |
 | `--dry-run` | | Analyzes and previews discovered variants without writing any changes to disk. |
 | `-v`, `--verbose` | `-v` | Displays detailed per-item match rules (`[TweakXL:instances]`, `[TweakXL:shared_entity]`) and source YAML filenames. |
 | `--overwrite` | | Overwrites existing calibrations if new sibling data with different values is encountered. |
@@ -100,6 +105,14 @@ python -m tools.preset_variant_expander `
   -i "C:\Games\Cyberpunk 2077\bin\x64\plugins\cyber_engine_tweaks\mods\ImmersiveFootwearPOV\user_shoe_overrides.json" `
   -g "C:\Games\Cyberpunk 2077" `
   -v
+```
+
+### 5. Sanitize Presets File (Purge Non-Footwear Clothing)
+Purge contaminated non-shoe clothing items (dresses, bras, suits, chokers, masks, handcuffs) from a preset collection:
+```powershell
+python -m tools.preset_variant_expander `
+  -i "examples/gama_presets.json" `
+  --clean
 ```
 
 ---

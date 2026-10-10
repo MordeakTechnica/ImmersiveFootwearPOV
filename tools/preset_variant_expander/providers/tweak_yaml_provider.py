@@ -14,6 +14,7 @@ import yaml
 
 from ..core.interfaces import IVariantProvider
 from ..core.models import VariantMatch
+from ..core.footwear_filter import FootwearClassifier
 
 
 class TweakYAMLLoader(yaml.SafeLoader):
@@ -120,6 +121,11 @@ class TweakYamlVariantProvider(IVariantProvider):
             if not isinstance(key, str) or not key.startswith("Items."):
                 continue
 
+            val_dict = val if isinstance(val, dict) else None
+            # Filter out items that are not footwear
+            if not FootwearClassifier.is_footwear(key, val_dict):
+                continue
+
             entity_name = ""
             if isinstance(val, dict):
                 entity_name = str(val.get("entityName", ""))
@@ -127,9 +133,10 @@ class TweakYamlVariantProvider(IVariantProvider):
             # 1. Check for TweakXL $instances pattern
             if isinstance(val, dict) and "$instances" in val and isinstance(val["$instances"], list):
                 expanded_items = self._expand_instances(key, val["$instances"])
-                if len(expanded_items) > 1:
-                    self._link_siblings(expanded_items, "TweakXL:instances", str(file_path))
-                    for exp in expanded_items:
+                expanded_shoes = [exp for exp in expanded_items if FootwearClassifier.is_footwear(exp)]
+                if len(expanded_shoes) > 1:
+                    self._link_siblings(expanded_shoes, "TweakXL:instances", str(file_path))
+                    for exp in expanded_shoes:
                         file_items.append((exp, entity_name, "TweakXL:instances"))
                         indexed += 1
                     continue
@@ -138,7 +145,7 @@ class TweakYamlVariantProvider(IVariantProvider):
             file_items.append((key, entity_name, "TweakXL:yaml_record"))
             indexed += 1
 
-        # Group and index items in this file
+        # Group and index footwear items in this file
         self._cluster_file_items(file_items, str(file_path))
         return indexed
 
@@ -158,26 +165,30 @@ class TweakYamlVariantProvider(IVariantProvider):
         return results
 
     def _cluster_file_items(self, file_items: List[Tuple[str, str, str]], source_file: str) -> None:
-        """Cluster items in a file into sibling groups based on entityName or common prefix stem."""
+        """Cluster footwear items into sibling groups based on shared entityName or garment model stem."""
         if not file_items:
             return
 
-        # 1. EntityName clusters: items sharing non-empty entityName
+        # 1. EntityName clusters: footwear items sharing non-empty entityName
         entity_groups: Dict[str, List[str]] = {}
         for item_id, entity, via in file_items:
-            if entity:
+            if entity and FootwearClassifier.is_footwear(item_id):
                 entity_groups.setdefault(entity.lower(), []).append(item_id)
 
         for entity, group in entity_groups.items():
             if len(group) > 1:
                 self._link_siblings(group, f"TweakXL:shared_entity({entity})", source_file)
 
-        # 3. If file contains multiple items sharing a common prefix (e.g. Items.ModShoe_Color)
-        all_ids = [it[0] for it in file_items]
-        if len(all_ids) > 1 and len(all_ids) <= 50:
-            prefix = self._find_common_item_prefix(all_ids)
-            if len(prefix) > len("Items.") + 3:
-                self._link_siblings(all_ids, f"TweakXL:sibling_prefix({prefix})", source_file)
+        # 2. Garment model stem clusters: groups items belonging to the exact same footwear model
+        stem_groups: Dict[str, List[str]] = {}
+        for item_id, _, _ in file_items:
+            if FootwearClassifier.is_footwear(item_id):
+                stem = FootwearClassifier.extract_garment_stem(item_id).lower()
+                stem_groups.setdefault(stem, []).append(item_id)
+
+        for stem, group in stem_groups.items():
+            if len(group) > 1:
+                self._link_siblings(group, f"TweakXL:garment_stem({stem})", source_file)
 
     def _link_siblings(self, item_ids: List[str], matched_via: str, source_file: str) -> None:
         """Register bidirectional sibling relationships between all items in a group."""
@@ -199,22 +210,20 @@ class TweakYamlVariantProvider(IVariantProvider):
                             VariantMatch(item_id=other, matched_via=matched_via, source_file=source_file)
                         )
 
-    def _find_common_item_prefix(self, items: List[str]) -> str:
-        """Find common prefix string across a list of items."""
-        if not items:
-            return ""
-        prefix = os.path.commonprefix(items)
-        if "_" in prefix:
-            return prefix[: prefix.rfind("_") + 1]
-        return prefix
-
     def _regex_fallback_index(self, content: str, file_path: Path) -> int:
         """Lightweight regex scanner when full YAML parsing fails on malformed files."""
         pattern = re.compile(r"^(Items\.[A-Za-z0-9_]+)\s*:", re.MULTILINE)
         matches = pattern.findall(content)
-        if len(matches) > 1:
-            prefix = self._find_common_item_prefix(matches)
-            if len(prefix) > len("Items.") + 3:
-                self._link_siblings(matches, "TweakXL:regex_prefix", str(file_path))
-                return len(matches)
-        return len(matches)
+        shoe_matches = [m for m in matches if FootwearClassifier.is_footwear(m)]
+        indexed = 0
+        stem_groups: Dict[str, List[str]] = {}
+        for shoe in shoe_matches:
+            stem = FootwearClassifier.extract_garment_stem(shoe).lower()
+            stem_groups.setdefault(stem, []).append(shoe)
+
+        for stem, group in stem_groups.items():
+            if len(group) > 1:
+                self._link_siblings(group, f"TweakXL:regex_stem({stem})", str(file_path))
+                indexed += len(group)
+
+        return indexed
