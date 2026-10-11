@@ -24,8 +24,8 @@ public func ApplyFootwearElevation() -> Void {
 }
 
 @wrapMethod(gameuiPhotoModeMenuController)
-protected cb func OnShow() -> Bool {
-  let result: Bool = wrappedMethod();
+protected cb func OnShow(reversedUI: Bool) -> Bool {
+  let result: Bool = wrappedMethod(reversedUI);
   let obj: ref<GameObject> = this.GetPlayerControlledObject();
   if IsDefined(obj) {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
@@ -58,19 +58,3 @@ protected cb func OnHide() -> Bool {
   return result;
 }
 
-@wrapMethod(gameuiPhotoModeMenuController)
-protected cb func OnEquipWardrobeSet(setIndex: Int32) -> Bool {
-  let result: Bool = wrappedMethod(setIndex);
-  let obj: ref<GameObject> = this.GetPlayerControlledObject();
-  if IsDefined(obj) {
-    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        sys.UpdateEquippedFootwear(player);
-        this.ApplyFootwearElevation();
-      };
-    };
-  };
-  return result;
-}
