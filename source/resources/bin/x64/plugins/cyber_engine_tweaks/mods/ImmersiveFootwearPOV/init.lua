@@ -136,8 +136,9 @@ local function SaveAllOverrides()
 end
 
 local function RefreshIFPBaseHeight()
-    local height, _ = IFPIntegration.GetState()
+    local height, suppressed = IFPIntegration.GetState()
     mod.ifpBaseHeightCm = height
+    mod.ifpSuppressedReason = suppressed
     mod.ifpHeightAdjustmentEnabled = IFPIntegration.IsHeightAdjustmentEnabled(false)
     return height
 end
@@ -277,6 +278,8 @@ registerForEvent("onSessionStart", function()
     mod.lastEquippedKey = ""
     mod.lastSysHeel = nil
     mod.lastSysPlat = nil
+    mod.lastSysSuppressed = nil
+    mod.ifpSuppressedReason = nil
     mod.footwearPollTimer = 0.0
     cachedIsTFP = nil
 end)
@@ -287,6 +290,8 @@ registerForEvent("onSessionEnd", function()
     mod.lastEquippedKey = ""
     mod.lastSysHeel = nil
     mod.lastSysPlat = nil
+    mod.lastSysSuppressed = nil
+    mod.ifpSuppressedReason = nil
     mod.footwearPollTimer = 0.0
     cachedSys = nil
     cachedIsTFP = nil
@@ -347,6 +352,7 @@ registerForEvent("onUpdate", function(deltaTime)
         mod.lastEquippedKey = (sys.GetResolvedShoeTDBIDString and sys:GetResolvedShoeTDBIDString()) or ""
         mod.lastSysHeel = (sys.GetCurrentHeelHeight and sys:GetCurrentHeelHeight()) or 0.0
         mod.lastSysPlat = (sys.GetCurrentPlatformHeight and sys:GetCurrentPlatformHeight()) or 0.0
+        mod.lastSysSuppressed = (sys.IsSuppressed and sys:IsSuppressed()) or false
     end
 
     -- Lightweight footwear polling timer (0.25s)
@@ -359,17 +365,20 @@ registerForEvent("onUpdate", function(deltaTime)
         end
     end
 
-    -- Event-driven footwear state sync: syncs when footwear or heights change in REDscript
+    -- Event-driven footwear state sync: syncs when footwear, heights, or suppression change in REDscript
     local shoeKey = (sys.GetResolvedShoeTDBIDString and sys:GetResolvedShoeTDBIDString()) or ""
     local currentSysHeel = (sys.GetCurrentHeelHeight and sys:GetCurrentHeelHeight()) or 0.0
     local currentSysPlat = (sys.GetCurrentPlatformHeight and sys:GetCurrentPlatformHeight()) or 0.0
+    local currentSysSuppressed = (sys.IsSuppressed and sys:IsSuppressed()) or false
 
     if shoeKey ~= mod.lastEquippedKey
        or math.abs(currentSysHeel - (mod.lastSysHeel or 0.0)) > 0.0005
-       or math.abs(currentSysPlat - (mod.lastSysPlat or 0.0)) > 0.0005 then
+       or math.abs(currentSysPlat - (mod.lastSysPlat or 0.0)) > 0.0005
+       or currentSysSuppressed ~= mod.lastSysSuppressed then
         mod.lastEquippedKey = shoeKey
         mod.lastSysHeel = currentSysHeel
         mod.lastSysPlat = currentSysPlat
+        mod.lastSysSuppressed = currentSysSuppressed
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
     end
 
@@ -408,7 +417,20 @@ registerForEvent("onUpdate", function(deltaTime)
 
     -- Resolve target stance via StanceResolver (Strategy Pattern)
     -- Mutate static context to eliminate per-frame table allocation
-    local isSuppressed = (sys and sys.IsSuppressed and sys:IsSuppressed()) or mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+    local isSuppressed = currentSysSuppressed or (mod.ifpSuppressedReason ~= nil) or mod.isPhotoModeOpen
+    mod.currentShoeState.isSuppressed = isSuppressed
+    if isSuppressed then
+        if currentSysSuppressed then
+            mod.currentShoeState.suppressionReason = (sys.GetSuppressionReason and sys:GetSuppressionReason()) or "Suppressed"
+        elseif mod.ifpSuppressedReason ~= nil then
+            mod.currentShoeState.suppressionReason = mod.ifpSuppressedReason
+        elseif mod.isPhotoModeOpen then
+            mod.currentShoeState.suppressionReason = "Photo Mode"
+        end
+    else
+        mod.currentShoeState.suppressionReason = ""
+    end
+
     stanceContext.forcedBlend = mod.forcedBlend
     stanceContext.isTPPActive = isITPActive
     stanceContext.sys = sys

@@ -44,7 +44,7 @@ local function ResolveTPPStance(context)
     local reason
     if context.isPhotoModeOpen then
         reason = "Photo Mode Active (Locomotion Neutralized)"
-    elseif shoeState.isSuppressed then
+    elseif isSuppressed then
         reason = "Suppression (" .. tostring(shoeState.suppressionReason) .. ")"
     else
         reason = string.format("ITP 3rd-Person Active (Platform: +%.1f cm)", (shoeState.platformCm or 0.0))
@@ -97,7 +97,7 @@ local function ResolveFPPStance(context)
 
         if context.isPhotoModeOpen then
             reason = "Photo Mode Active (Locomotion Neutralized)"
-        elseif shoeState.isSuppressed then
+        elseif isSuppressed then
             reason = "Suppression (" .. tostring(shoeState.suppressionReason) .. ")"
         elseif shoeState.hasShoe then
             reason = string.format("Footwear Active (%s: +%.1f cm)", tostring(shoeState.displayName), (shoeState.heelCm or 0.0))

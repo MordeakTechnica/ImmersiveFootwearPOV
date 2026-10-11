@@ -58,6 +58,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(request.owner.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
       this.m_isInitialized = false;
+      this.m_isInWorkspot = false;
+      this.m_isInVehicle = false;
+      this.m_isSuppressed = false;
+      this.m_suppressionReason = "";
       this.UpdateEquippedFootwear(player);
     };
   }
@@ -66,6 +70,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
       this.m_isInitialized = false;
+      this.m_isInWorkspot = false;
+      this.m_isInVehicle = false;
+      this.m_isSuppressed = false;
+      this.m_suppressionReason = "";
       this.UpdateEquippedFootwear(player);
     };
   }
@@ -319,6 +327,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func SetVehicleState(player: ref<PlayerPuppet>, inVehicle: Bool) -> Void {
     if Equals(this.m_isInVehicle, inVehicle) { return; };
     this.m_isInVehicle = inVehicle;
+    if !inVehicle && Equals(this.m_suppressionReason, "Vehicle Occupancy") {
+      this.m_isSuppressed = false;
+      this.m_suppressionReason = "";
+    };
     this.RecalculateEffectiveOffset(player);
     if IsDefined(player) {
       let eventName: String = inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)";
@@ -327,13 +339,43 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
   }
 
+  public func ClearVehicleState(player: ref<PlayerPuppet>) -> Void {
+    if !this.m_isInVehicle { return; };
+    this.m_isInVehicle = false;
+    if Equals(this.m_suppressionReason, "Vehicle Occupancy") {
+      this.m_isSuppressed = false;
+      this.m_suppressionReason = "";
+    };
+    if IsDefined(player) {
+      this.LogTFPEvent("VehicleAutoRecovered (Exited)", 0.0, 0.0);
+      this.LogTFPState(player);
+    };
+  }
+
   public func SetWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
     if Equals(this.m_isInWorkspot, inWorkspot) { return; };
     this.m_isInWorkspot = inWorkspot;
+    if !inWorkspot && Equals(this.m_suppressionReason, "Authored Workspot") {
+      this.m_isSuppressed = false;
+      this.m_suppressionReason = "";
+    };
     this.RecalculateEffectiveOffset(player);
     if IsDefined(player) {
       let eventName: String = inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)";
       this.LogTFPEvent(eventName, 0.0, 0.0);
+      this.LogTFPState(player);
+    };
+  }
+
+  public func ClearWorkspotState(player: ref<PlayerPuppet>) -> Void {
+    if !this.m_isInWorkspot { return; };
+    this.m_isInWorkspot = false;
+    if Equals(this.m_suppressionReason, "Authored Workspot") {
+      this.m_isSuppressed = false;
+      this.m_suppressionReason = "";
+    };
+    if IsDefined(player) {
+      this.LogTFPEvent("WorkspotAutoRecovered (Standing/Exited)", 0.0, 0.0);
       this.LogTFPState(player);
     };
   }

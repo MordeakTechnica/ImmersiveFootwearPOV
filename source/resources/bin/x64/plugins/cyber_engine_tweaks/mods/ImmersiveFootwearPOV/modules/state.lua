@@ -89,9 +89,12 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
     local isRedscriptSuppressed = sys:IsSuppressed()
     local redscriptReason = sys:GetSuppressionReason()
     local ifpHeight, ifpSuppressedReason = ifpIntegration.GetState()
+    if modSettings then
+        modSettings.ifpSuppressedReason = ifpSuppressedReason
+    end
 
-    local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil) or modSettings.isPhotoModeOpen
-    local suppressionReason = isRedscriptSuppressed and redscriptReason or (ifpSuppressedReason or (modSettings.isPhotoModeOpen and "Photo Mode" or ""))
+    local isSuppressed = isRedscriptSuppressed or (ifpSuppressedReason ~= nil) or (modSettings and modSettings.isPhotoModeOpen)
+    local suppressionReason = isRedscriptSuppressed and redscriptReason or (ifpSuppressedReason or (modSettings and modSettings.isPhotoModeOpen and "Photo Mode" or ""))
 
     local shoeState = State.currentShoeState
     shoeState.hasShoe = hasShoe

@@ -340,6 +340,10 @@ Items.Custom_Chunky_Platforms_01:
   - Reduced per-frame locomotion updates from 6–7 separate Lua-to-C++ FFI calls to a single native tick call (`sys:UpdateStride`).
 - [x] **Authoritative Perspective Delegation:**
   - CET's `Perspective.IsTPPActive` and `Perspective.IsITPInstalled` directly query REDscript singletons with zero unnecessary component scans.
+- [x] **Workspot Elevation Restoration & Suppression Self-Healing:**
+  - Exiting workspots (chairs, beds, furniture) automatically restores 3rd-person platform elevation without requiring CET overlay toggles.
+  - Eliminated stale Lua `mod.currentShoeState.isSuppressed` latch by dynamically checking suppression per frame and synchronizing REDscript state changes.
+  - Added self-healing reconciliation in REDscript (`ClearWorkspotState` / `ClearVehicleState`) against `WorkspotSystem` and `VehicleComponent`.
 
 ---
 

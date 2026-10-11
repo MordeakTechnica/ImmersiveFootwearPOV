@@ -14,12 +14,20 @@ public class SuppressionEvaluator {
     };
 
     // 1. Vehicles
-    if sys.IsInVehicle() || VehicleComponent.IsMountedToVehicle(player.GetGame(), player) {
+    let isMounted: Bool = VehicleComponent.IsMountedToVehicle(player.GetGame(), player);
+    if !isMounted && sys.IsInVehicle() {
+      sys.ClearVehicleState(player);
+    };
+    if sys.IsInVehicle() {
       return sys.SetSuppressionState(true, "Vehicle Occupancy");
     };
 
     // 2. Workspots / Furniture (sitting on chairs, barstools, sofas, beds)
-    if sys.IsInWorkspot() || GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player) {
+    let inWorkspotSys: Bool = GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player);
+    if !inWorkspotSys && sys.IsInWorkspot() {
+      sys.ClearWorkspotState(player);
+    };
+    if sys.IsInWorkspot() {
       return sys.SetSuppressionState(true, "Authored Workspot");
     };
 

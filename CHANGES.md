@@ -2,7 +2,7 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [**`Unreleased`**] — `feature/lua-to-redscipt-refactor`
+## [**`v2.3.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.0) — 2026-10-11
 ### `refactor(core): migrate runtime gameplay logic and state synchronization to REDscript`
 * **Event-Driven Custom Overrides in REDscript:**
   * Added native custom override registration and lookup map (`m_customOverrideKeys`, `m_customOverrideHeels`, `m_customOverridePlatforms`) to [ImmersiveFootwearPOVSystem](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds).
@@ -27,7 +27,10 @@ All notable changes to this project are tracked in this file chronologically by 
   * Added `AttachmentSlots.Feet` and `OutfitSlots.Feet` slot hooks to `OnItemAddedToSlot` and `OnItemRemovedFromSlot` in [ImmersiveFootwearPOV_Hooks.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_Hooks.reds) for instantaneous event-driven notification upon footwear mesh attachment.
   * Added a lightweight 4 Hz (`0.25s`) fallback polling timer in CET [init.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/init.lua) to guarantee equipped shoes are caught within 250ms even if external mods bypass standard equipment events.
   * Fixed early-out in REDscript `UpdateEquippedFootwear` that skipped height resolution when `result.itemID` equaled `this.m_equippedFootwearID`, ensuring custom overrides registered or updated after load are immediately applied.
-  * Added change detection for `currentSysHeel` and `currentSysPlat` in CET `onUpdate` to synchronize state whenever REDscript updates height values.
+* **Workspot Elevation Restoration & Suppression Latch Fix:**
+  * Fixed an issue where third-person platform sole elevation (`foot_elevation_offset`) was not restored after exiting a workspot (sitting on chairs/couches, sleeping in beds, barstools, workbenches) until the CET overlay was opened and closed.
+  * **Root Cause 1 (CET Lua Stale Latch):** CET [init.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/init.lua) previously evaluated suppression via `... or mod.currentShoeState.isSuppressed`. Because `State.Sync` was only triggered when shoe key or height values changed, `mod.currentShoeState.isSuppressed` remained latched to `true` across workspot exit, keeping puppet elevation locked to `0.0`. Added live suppression change detection in `onUpdate` (`currentSysSuppressed ~= mod.lastSysSuppressed`) and dynamically refreshed `mod.currentShoeState.isSuppressed` per frame without heap allocations.
+  * **Root Cause 2 (REDscript Lingering Workspot State):** When standing up, `OnWorkspotFinishedEvent` dispatched while `WorkspotSystem.IsActorInWorkspot(player)` was still transitioning, re-triggering suppression. Furthermore, sleeping in beds or cutscenes could drop finish events. Updated [ImmersiveFootwearPOV_Suppression.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Suppression.reds) with automatic reconciliation against `WorkspotSystem` and `VehicleComponent` (`ClearWorkspotState` and `ClearVehicleState`), and explicitly reset suppression in [ImmersiveFootwearPOV_System.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds) upon exit or session attach.
 
 ## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-10
 ### `feat(presets): support multiple *_presets.json packs with auto-consolidation and clean-up`
