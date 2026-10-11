@@ -1,6 +1,8 @@
 # Build outputs and packed archives
 packed/
 packed
+releases/
+releases
 *.zip
 *.bat
 
