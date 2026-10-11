@@ -184,6 +184,20 @@ function mod.ReloadPresets()
     return msg
 end
 
+function mod.GetPresetCount()
+    local count = 0
+    if mod.presets then
+        for _ in pairs(mod.presets) do count = count + 1 end
+    end
+    local userCount = 0
+    if mod.userOverrides then
+        for _ in pairs(mod.userOverrides) do userCount = userCount + 1 end
+    end
+    local msg = string.format("Presets Loaded: %d | User Overrides: %d", count, userCount)
+    print(string.format("[ImmersiveFootwearPOV] %s", msg))
+    return msg
+end
+
 -- Register global CET Console shortcuts
 ConsoleManager.RegisterShortcuts(mod)
 

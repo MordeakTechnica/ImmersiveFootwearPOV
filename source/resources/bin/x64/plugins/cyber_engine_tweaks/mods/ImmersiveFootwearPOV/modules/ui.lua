@@ -254,6 +254,17 @@ local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverride
         if ifpInstalled and not shoeState.isSuppressed and modState.ifpBaseHeightCm ~= 0.0 then
             ImGui.Text(string.format("Base Height (IFP): %+d cm", math.floor(modState.ifpBaseHeightCm + 0.5)))
         end
+        local pCount = 0
+        if modState and modState.presets then
+            for _ in pairs(modState.presets) do pCount = pCount + 1 end
+        end
+        local oCount = 0
+        if modState and modState.userOverrides then
+            for _ in pairs(modState.userOverrides) do oCount = oCount + 1 end
+        end
+        ImGui.Spacing()
+        ImGui.Separator()
+        ImGui.TextDisabled(string.format("Presets Loaded: %d | User Overrides: %d", pCount, oCount))
         return
     end
 
@@ -275,6 +286,19 @@ local function DrawFootwearTab(modState, player, sys, heightLimits, saveOverride
     DrawHeightGuideAccordion()
     DrawPhotoModeOptions(modState, shoeState, saveSettingsCallback)
     DrawStanceReadout(modState, shoeState, ifpInstalled, sys, heightAdjustmentEnabled)
+
+    local presetCount = 0
+    if modState and modState.presets then
+        for _ in pairs(modState.presets) do presetCount = presetCount + 1 end
+    end
+    local overrideCount = 0
+    if modState and modState.userOverrides then
+        for _ in pairs(modState.userOverrides) do overrideCount = overrideCount + 1 end
+    end
+
+    ImGui.Spacing()
+    ImGui.Separator()
+    ImGui.TextDisabled(string.format("Presets Loaded: %d | User Overrides: %d", presetCount, overrideCount))
 end
 
 --- Render Tab 2: Catwalk Locomotion & Feminine Stride Settings

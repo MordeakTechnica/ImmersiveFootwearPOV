@@ -40,6 +40,17 @@ function Diagnostics.Dump(sys, modSettings, ifpIntegration, transitionMgr, shoeS
     print(string.format(" Photo Mode Active: %s (Auto-Elevate: %s)",
         tostring(modSettings and modSettings.isPhotoModeOpen),
         tostring(modSettings and modSettings.autoElevatePMPlatform)))
+    local presetCount = 0
+    if modSettings and modSettings.presets then
+        for _ in pairs(modSettings.presets) do presetCount = presetCount + 1 end
+    end
+    local overrideCount = 0
+    if modSettings and modSettings.userOverrides then
+        for _ in pairs(modSettings.userOverrides) do overrideCount = overrideCount + 1 end
+    end
+
+    print(string.format(" Presets Loaded:    %d (from presets.json / preset packs)", presetCount))
+    print(string.format(" User Overrides:    %d (from user_shoe_overrides.json)", overrideCount))
     print(string.format(" Equipped Footwear: %s", tostring(shoe.displayName or "None")))
     print(string.format(" Item TDBID String: %s", tostring(shoe.key or "")))
     print(string.format(" Resolution Source: %s (Official Tags: %s)", tostring(shoe.source or "None"), tostring(shoe.isOfficial)))
