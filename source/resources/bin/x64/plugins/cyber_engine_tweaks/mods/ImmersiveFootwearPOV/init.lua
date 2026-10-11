@@ -52,9 +52,10 @@ mod.currentShoeState = State.GetShoeState()
 
 -- Cached engine singletons & FFI state tracking
 local cachedSys = nil
-local lastPlayer = nil
+local lastPlayerHash = nil
 local lastSentITP = nil
 local lastSentIFP = nil
+local cachedIsTFP = nil
 
 -- Pre-allocated reusable stance context table (Zero per-frame table allocations)
 local stanceContext = {
@@ -270,6 +271,27 @@ registerForEvent("onInit", function()
         mod.debugLogs and "ENABLED" or "DISABLED"))
 end)
 
+registerForEvent("onSessionStart", function()
+    mod.isSyncedToREDscript = false
+    lastPlayerHash = nil
+    mod.lastEquippedKey = ""
+    mod.lastSysHeel = nil
+    mod.lastSysPlat = nil
+    mod.footwearPollTimer = 0.0
+    cachedIsTFP = nil
+end)
+
+registerForEvent("onSessionEnd", function()
+    mod.isSyncedToREDscript = false
+    lastPlayerHash = nil
+    mod.lastEquippedKey = ""
+    mod.lastSysHeel = nil
+    mod.lastSysPlat = nil
+    mod.footwearPollTimer = 0.0
+    cachedSys = nil
+    cachedIsTFP = nil
+end)
+
 registerForEvent("onOverlayOpen", function()
     mod.isOverlayOpen = true
     RefreshIFPBaseHeight()
@@ -289,27 +311,65 @@ end)
 registerForEvent("onUpdate", function(deltaTime)
     local player = Game.GetPlayer()
     if not player then
-        lastPlayer = nil
-        mod.isSyncedToREDscript = false
+        lastPlayerHash = nil
         return
     end
 
     local sys = GetSystem()
     if not sys then return end
 
+    -- Extract stable 64-bit entity hash for player identity comparison
+    -- (Comparing Sol userdata wrappers with ~= always evaluates to true, breaking per-frame caching)
+    local playerHash = nil
+    pcall(function()
+        local entityId = player:GetEntityID()
+        if entityId then
+            playerHash = entityId.hash
+        end
+    end)
+
     -- Initial synchronization when player and system become available in gameplay
-    if player ~= lastPlayer or not mod.isSyncedToREDscript then
-        lastPlayer = player
+    -- Runs ONCE per session load, or when the player entity changes (e.g. cutscene puppet change)
+    if not mod.isSyncedToREDscript or (playerHash and playerHash ~= lastPlayerHash) then
+        local isInitialSessionSync = not mod.isSyncedToREDscript
+        lastPlayerHash = playerHash
         mod.isSyncedToREDscript = true
-        SyncOverridesToREDscript()
+
+        if isInitialSessionSync then
+            SyncOverridesToREDscript()
+        else
+            if sys.UpdateEquippedFootwear then
+                sys:UpdateEquippedFootwear(player)
+            end
+        end
+
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
+        mod.lastEquippedKey = (sys.GetResolvedShoeTDBIDString and sys:GetResolvedShoeTDBIDString()) or ""
+        mod.lastSysHeel = (sys.GetCurrentHeelHeight and sys:GetCurrentHeelHeight()) or 0.0
+        mod.lastSysPlat = (sys.GetCurrentPlatformHeight and sys:GetCurrentPlatformHeight()) or 0.0
     end
 
-    -- Event-driven footwear state sync: only syncs when footwear actually changes in REDscript
-    -- Eliminates the legacy 0.40s polling timer and per-frame FFI overhead
+    -- Lightweight footwear polling timer (0.25s)
+    -- Guarantees equipped shoes and heights are resolved as soon as items stream in after loading
+    mod.footwearPollTimer = (mod.footwearPollTimer or 0.0) + deltaTime
+    if mod.footwearPollTimer >= 0.25 then
+        mod.footwearPollTimer = 0.0
+        if sys.UpdateEquippedFootwear then
+            sys:UpdateEquippedFootwear(player)
+        end
+    end
+
+    -- Event-driven footwear state sync: syncs when footwear or heights change in REDscript
     local shoeKey = (sys.GetResolvedShoeTDBIDString and sys:GetResolvedShoeTDBIDString()) or ""
-    if shoeKey ~= mod.lastEquippedKey then
+    local currentSysHeel = (sys.GetCurrentHeelHeight and sys:GetCurrentHeelHeight()) or 0.0
+    local currentSysPlat = (sys.GetCurrentPlatformHeight and sys:GetCurrentPlatformHeight()) or 0.0
+
+    if shoeKey ~= mod.lastEquippedKey
+       or math.abs(currentSysHeel - (mod.lastSysHeel or 0.0)) > 0.0005
+       or math.abs(currentSysPlat - (mod.lastSysPlat or 0.0)) > 0.0005 then
         mod.lastEquippedKey = shoeKey
+        mod.lastSysHeel = currentSysHeel
+        mod.lastSysPlat = currentSysPlat
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
     end
 
@@ -348,7 +408,7 @@ registerForEvent("onUpdate", function(deltaTime)
 
     -- Resolve target stance via StanceResolver (Strategy Pattern)
     -- Mutate static context to eliminate per-frame table allocation
-    local isSuppressed = mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
+    local isSuppressed = (sys and sys.IsSuppressed and sys:IsSuppressed()) or mod.currentShoeState.isSuppressed or mod.isPhotoModeOpen
     stanceContext.forcedBlend = mod.forcedBlend
     stanceContext.isTPPActive = isITPActive
     stanceContext.sys = sys
@@ -358,7 +418,10 @@ registerForEvent("onUpdate", function(deltaTime)
     stanceContext.ifpInstalled = IFPIntegration.IsInstalled()
     stanceContext.ifpHeightAdjustmentEnabled = mod.ifpHeightAdjustmentEnabled
     stanceContext.ifpBaseHeightCm = mod.ifpBaseHeightCm
-    stanceContext.isTFP = (sys.IsTFPPresent and sys:IsTFPPresent()) or false
+    if cachedIsTFP == nil and sys and sys.IsTFPPresent then
+        cachedIsTFP = sys:IsTFPPresent()
+    end
+    stanceContext.isTFP = cachedIsTFP or false
 
     local targetBlend, footElevationMeters, reason = StanceResolver.ResolveTarget(stanceContext)
 

@@ -28,6 +28,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   // Custom Overrides Map (Registered from presets.json and user config)
   private let m_customOverrideKeys: array<String>;
+  private let m_customOverrideLowerKeys: array<String>;
   private let m_customOverrideHeels: array<Float>;
   private let m_customOverridePlatforms: array<Float>;
 
@@ -78,25 +79,29 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
 
     let result: ref<FootwearResolutionResult> = FootwearResolver.ResolveFootwear(player);
+    let itemChanged: Bool = !this.m_isInitialized || NotEquals(result.itemID, this.m_equippedFootwearID);
 
-    if !this.m_isInitialized || NotEquals(result.itemID, this.m_equippedFootwearID) {
+    if itemChanged {
       this.m_isInitialized = true;
       this.m_equippedFootwearID = result.itemID;
       this.m_activeSource = result.sourceName;
       this.m_hasCustomOverride = false;
       this.m_customHeelHeight = 0.0;
       this.m_customPlatformHeight = 0.0;
+    };
 
-      if ItemID.IsValid(result.itemID) {
-        let heightData: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(result.itemID);
+    if ItemID.IsValid(this.m_equippedFootwearID) {
+      if itemChanged || (!this.m_hasOfficialTags && !this.m_hasCustomOverride) {
+        let heightData: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(this.m_equippedFootwearID);
         
         if heightData.heelHeight > 0.0 || heightData.platformHeight > 0.0 {
           this.m_hasOfficialTags = true;
+          this.m_hasCustomOverride = false;
           this.m_currentHeelHeight = heightData.heelHeight;
           this.m_currentPlatformHeight = heightData.platformHeight;
         } else {
           this.m_hasOfficialTags = false;
-          let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(result.itemID));
+          let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
           let overrideIdx: Int32 = this.FindCustomOverrideIndex(shoeKey);
           if overrideIdx >= 0 {
             this.m_hasCustomOverride = true;
@@ -105,20 +110,22 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
             this.m_currentHeelHeight = this.m_customHeelHeight;
             this.m_currentPlatformHeight = this.m_customPlatformHeight;
           } else {
+            this.m_hasCustomOverride = false;
+            this.m_customHeelHeight = 0.0;
+            this.m_customPlatformHeight = 0.0;
             this.m_currentHeelHeight = 0.0;
             this.m_currentPlatformHeight = 0.0;
           };
         };
-      } else {
-        this.m_hasOfficialTags = false;
-        this.m_currentHeelHeight = 0.0;
-        this.m_currentPlatformHeight = 0.0;
       };
-
-      this.RecalculateEffectiveOffset(player);
     } else {
-      this.RecalculateEffectiveOffset(player);
+      this.m_hasOfficialTags = false;
+      this.m_hasCustomOverride = false;
+      this.m_currentHeelHeight = 0.0;
+      this.m_currentPlatformHeight = 0.0;
     };
+
+    this.RecalculateEffectiveOffset(player);
     this.LogTFPState(player);
   }
 
@@ -134,11 +141,12 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let effectivePlatform: Float = suppressed ? 0.0 : this.m_currentPlatformHeight;
 
     if IsDefined(player) {
-      HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
-      TFPHelper.ApplyFootwearHeight(player.GetGame());
       if ITPController.IsTPPActive(player) {
+        HeightController.ResetHeightOffset(player);
         ITPController.ApplyHeightOffset(player, effectivePlatform);
       } else {
+        HeightController.ApplyHeightOffset(player, this.m_effectiveOffset);
+        TFPHelper.ApplyFootwearHeight(player.GetGame());
         ITPController.ResetHeightOffset(player);
       };
     };
@@ -149,8 +157,16 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   // -----------------------------------------------------------------------------
   public func ClearCustomOverrides() -> Void {
     ArrayClear(this.m_customOverrideKeys);
+    ArrayClear(this.m_customOverrideLowerKeys);
     ArrayClear(this.m_customOverrideHeels);
     ArrayClear(this.m_customOverridePlatforms);
+    if !this.m_hasOfficialTags {
+      this.m_hasCustomOverride = false;
+      this.m_customHeelHeight = 0.0;
+      this.m_customPlatformHeight = 0.0;
+      this.m_currentHeelHeight = 0.0;
+      this.m_currentPlatformHeight = 0.0;
+    };
   }
 
   public func FindCustomOverrideIndex(key: String) -> Int32 {
@@ -165,7 +181,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let lowerKey: String = StrLower(key);
     i = 0;
     while i < count {
-      if Equals(StrLower(this.m_customOverrideKeys[i]), lowerKey) {
+      if Equals(this.m_customOverrideLowerKeys[i], lowerKey) {
         return i;
       };
       i += 1;
@@ -185,8 +201,22 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.m_customOverridePlatforms[idx] = clampedPlat;
     } else {
       ArrayPush(this.m_customOverrideKeys, key);
+      ArrayPush(this.m_customOverrideLowerKeys, StrLower(key));
       ArrayPush(this.m_customOverrideHeels, clampedHeel);
       ArrayPush(this.m_customOverridePlatforms, clampedPlat);
+    };
+
+    if ItemID.IsValid(this.m_equippedFootwearID) {
+      let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
+      if Equals(currentKey, key) || Equals(StrLower(currentKey), StrLower(key)) {
+        if !this.m_hasOfficialTags {
+          this.m_hasCustomOverride = true;
+          this.m_customHeelHeight = clampedHeel;
+          this.m_customPlatformHeight = clampedPlat;
+          this.m_currentHeelHeight = clampedHeel;
+          this.m_currentPlatformHeight = clampedPlat;
+        };
+      };
     };
   }
 
@@ -194,6 +224,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let idx: Int32 = this.FindCustomOverrideIndex(key);
     if idx >= 0 {
       ArrayErase(this.m_customOverrideKeys, idx);
+      ArrayErase(this.m_customOverrideLowerKeys, idx);
       ArrayErase(this.m_customOverrideHeels, idx);
       ArrayErase(this.m_customOverridePlatforms, idx);
     };

@@ -36,7 +36,10 @@ local function ResolveTPPStance(context)
     platOffset = math.min(math.max(0.0, platOffset), maxPlatMeters)
 
     local footElevationMeters = isSuppressed and 0.0 or platOffset
-    local targetBlend, _ = ifpIntegration.CalculateTargetBlend(platOffset, 0.0, isSuppressed, maxPlatMeters)
+    -- In Third Person (ITP/TPP), skeletal height blend (ifp_height_blend) MUST remain neutral (0.50).
+    -- Physical character elevation is driven strictly and solely by foot_elevation_offset on Hips.
+    -- Applying both elevates the character model twice, causing it to float above the ground.
+    local targetBlend = 0.50
 
     local reason
     if context.isPhotoModeOpen then
@@ -86,6 +89,9 @@ local function ResolveFPPStance(context)
         -- In IFP, height offset must strictly not exceed 25cm (0.25m)
         local maxIFPMeters = (heightLimits.MAX_IFP_CM or 25.0) / 100.0
         local currentOffset = sys and sys:GetEffectiveOffset() or 0.0
+        if currentOffset <= 0.0 and shoeState and shoeState.heelCm then
+            currentOffset = (shoeState.heelCm or 0.0) / 100.0
+        end
         local ifpFootwearOffset = math.min(math.max(0.0, currentOffset), maxIFPMeters)
         targetBlend, _ = ifpIntegration.CalculateTargetBlend(ifpFootwearOffset, context.ifpBaseHeightCm, isSuppressed, maxIFPMeters)
 

@@ -162,6 +162,8 @@ protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
   let slotID: TweakDBID = evt.GetSlotID();
   if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
     FootwearHooksHelper.NotifyWeaponAction(this, "WeaponEquippedToSlot");
+  } else if Equals(slotID, t"AttachmentSlots.Feet") || Equals(slotID, t"OutfitSlots.Feet") {
+    FootwearHooksHelper.NotifyFootwearChanged(this);
   };
   return result;
 }
@@ -172,6 +174,8 @@ protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
   let slotID: TweakDBID = evt.GetSlotID();
   if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
     FootwearHooksHelper.NotifyWeaponAction(this, "WeaponRemovedFromSlot");
+  } else if Equals(slotID, t"AttachmentSlots.Feet") || Equals(slotID, t"OutfitSlots.Feet") {
+    FootwearHooksHelper.NotifyFootwearChanged(this);
   };
   return result;
 }

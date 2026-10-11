@@ -18,7 +18,16 @@ All notable changes to this project are tracked in this file chronologically by 
   * Migrated catwalk pelvic roll, yaw swivel, spine counter-balance, and leg counter-rotation calculations entirely to native REDscript `StrideController`.
   * Reduced per-frame Stride update from 6–7 separate Lua-to-C++ FFI calls down to a single native tick call (`sys:UpdateStride`).
 * **Authoritative Perspective Delegation:**
-  * CET's `Perspective.IsTPPActive` and `Perspective.IsITPInstalled` in [perspective.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/modules/perspective.lua) directly delegate to native REDscript queries (`sys:IsTPPActive`, `sys:IsITPPresent`).
+* **Third-Person (ITP) Floating Fix (Neutral Animgraph Blend in TPP):**
+  * Fixed player model floating in Third Person perspective caused by double-elevation: `ResolveTPPStance` in [stance.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/modules/stance.lua) previously calculated an animgraph blend value (`ifp_height_blend`) from platform height, which stacked on top of `foot_elevation_offset` (Hips bone translation).
+  * `ResolveTPPStance` now keeps `targetBlend` strictly at neutral baseline (`0.50`), ensuring character model elevation is driven solely and accurately by `foot_elevation_offset = platOffset`.
+  * Updated [ImmersiveFootwearPOV_System.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds) `RecalculateEffectiveOffset` so that when `ITPController.IsTPPActive(player)` is true, `HeightController.ResetHeightOffset(player)` is called instead of applying FPP heel blend in 3rd person.
+* **Footwear Resolution & Equipment Streaming Synchronization:**
+  * Fixed footwear and height data not resolving on game load/save restoration due to clothing meshes streaming into the transaction system after frame 1.
+  * Added `AttachmentSlots.Feet` and `OutfitSlots.Feet` slot hooks to `OnItemAddedToSlot` and `OnItemRemovedFromSlot` in [ImmersiveFootwearPOV_Hooks.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_Hooks.reds) for instantaneous event-driven notification upon footwear mesh attachment.
+  * Added a lightweight 4 Hz (`0.25s`) fallback polling timer in CET [init.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/init.lua) to guarantee equipped shoes are caught within 250ms even if external mods bypass standard equipment events.
+  * Fixed early-out in REDscript `UpdateEquippedFootwear` that skipped height resolution when `result.itemID` equaled `this.m_equippedFootwearID`, ensuring custom overrides registered or updated after load are immediately applied.
+  * Added change detection for `currentSysHeel` and `currentSysPlat` in CET `onUpdate` to synchronize state whenever REDscript updates height values.
 
 ## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-10
 ### `feat(presets): support multiple *_presets.json packs with auto-consolidation and clean-up`
