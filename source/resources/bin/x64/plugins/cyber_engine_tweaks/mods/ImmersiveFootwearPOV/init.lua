@@ -31,7 +31,7 @@ local FootwearHeightLimits = {
 }
 
 local mod = {
-    pollTimer = 0.0,
+    lastEquippedKey = "",
     ifpPollTimer = 0.0,
     ifpBaseHeightCm = 0.0,
     ifpHeightAdjustmentEnabled = true,
@@ -104,8 +104,27 @@ local function SaveSettings()
     })
 end
 
+local function SyncOverridesToREDscript()
+    local sys = GetSystem()
+    if not sys or not sys.ClearCustomOverrides then return end
+    sys:ClearCustomOverrides()
+    if mod.overrides then
+        for key, data in pairs(mod.overrides) do
+            local heel = (tonumber(data.heel) or 0.0) / 100.0
+            local plat = (tonumber(data.platform) or 0.0) / 100.0
+            sys:RegisterCustomOverride(key, heel, plat)
+        end
+    end
+    local player = Game.GetPlayer()
+    if player and sys.UpdateEquippedFootwear then
+        sys:UpdateEquippedFootwear(player)
+    end
+end
+mod.SyncOverridesToREDscript = SyncOverridesToREDscript
+
 local function SaveOverrides()
     Config.SaveOverrides(mod.userOverrides or mod.overrides)
+    SyncOverridesToREDscript()
 end
 
 -- Maintained for backward compatibility
@@ -204,6 +223,13 @@ registerForEvent("onInit", function()
         end)
     end
 
+    SyncOverridesToREDscript()
+
+    local player = Game.GetPlayer()
+    if player and sys then
+        State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
+    end
+
     ConsoleManager.RegisterShortcuts(mod)
 
     print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Height Adj: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
@@ -219,11 +245,17 @@ end)
 registerForEvent("onOverlayOpen", function()
     mod.isOverlayOpen = true
     RefreshIFPBaseHeight()
+    local player = Game.GetPlayer()
+    local sys = GetSystem()
+    if player and sys then
+        State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
+    end
 end)
 
 registerForEvent("onOverlayClose", function()
     mod.isOverlayOpen = false
     RefreshIFPBaseHeight()
+    SyncOverridesToREDscript()
 end)
 
 registerForEvent("onUpdate", function(deltaTime)
@@ -233,29 +265,11 @@ registerForEvent("onUpdate", function(deltaTime)
     local sys = GetSystem()
     if not sys then return end
 
-    -- Fallback periodic sync: check for footwear / state changes (0.40s)
-    -- Native equip hooks in REDscript intercept immediately on equip; this poll is a safety fallback
-    mod.pollTimer = mod.pollTimer + deltaTime
-    if mod.pollTimer >= 0.40 then
-        mod.pollTimer = 0.0
-        sys:UpdateEquippedFootwear(player)
-
-        -- Only send presence flags across FFI if value has changed
-        local itpInstalled = (Perspective and Perspective.IsITPInstalled and Perspective.IsITPInstalled()) or false
-        if lastSentITP ~= itpInstalled then
-            lastSentITP = itpInstalled
-            pcall(function() if sys.SetITPPresent then sys:SetITPPresent(itpInstalled) end end)
-        end
-
-        local ifpActive = IFPIntegration.IsInstalled()
-            and (IFPIntegration.IsEnabled and IFPIntegration.IsEnabled() or false)
-            and (IFPIntegration.IsHeightAdjustmentEnabled(false) or false)
-        if lastSentIFP ~= ifpActive then
-            lastSentIFP = ifpActive
-            pcall(function() if sys.SetIFPPresent then sys:SetIFPPresent(ifpActive) end end)
-        end
-
-        mod.ifpHeightAdjustmentEnabled = IFPIntegration.IsHeightAdjustmentEnabled(false)
+    -- Event-driven footwear state sync: only syncs when footwear actually changes in REDscript
+    -- Eliminates the legacy 0.40s polling timer and per-frame FFI overhead
+    local shoeKey = (sys.GetResolvedShoeTDBIDString and sys:GetResolvedShoeTDBIDString()) or ""
+    if shoeKey ~= mod.lastEquippedKey then
+        mod.lastEquippedKey = shoeKey
         State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
     end
 
@@ -275,7 +289,7 @@ registerForEvent("onUpdate", function(deltaTime)
             mod.currentShoeState.platformCm or 0.0)
 
         IFPIntegration.ResetBlendCache()
-        Stride.Reset(player)
+        Stride.Reset(player, sys)
 
         if not isITPActive then
             -- Returning to First Person (FPP): zero out 3rd-person puppet elevation variable

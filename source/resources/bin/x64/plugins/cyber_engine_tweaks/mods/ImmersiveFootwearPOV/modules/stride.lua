@@ -52,10 +52,23 @@ end
 -- Context, suppression, velocity, and heel-scaling are queried from native REDscript
 -- -----------------------------------------------------------------------------
 function Stride.Update(deltaTime, player, sys, settings)
+    if not player or not sys then return end
+
+    local enabled = settings and (settings.enableHipSway ~= false)
+    local isOverlayOpen = settings and settings.isOverlayOpen or false
+
+    if sys.UpdateStride then
+        local low = tonumber(settings and settings.swayLow) or 1.0
+        local mid = tonumber(settings and settings.swayMid) or 1.0
+        local high = tonumber(settings and settings.swayHigh) or 1.0
+
+        sys:UpdateStride(player, deltaTime, enabled, low, mid, high, isOverlayOpen)
+        return
+    end
+
     Stride.Init()
 
     -- Master enable check from user settings
-    local enabled = settings and (settings.enableHipSway ~= false)
     if not enabled then
         if not Stride.hasZeroPublished then
             Stride.currentBlend = 0.0
@@ -211,7 +224,10 @@ end
 -- -----------------------------------------------------------------------------
 -- Reset State (On Perspective Switch, Teleport, Death)
 -- -----------------------------------------------------------------------------
-function Stride.Reset(player)
+function Stride.Reset(player, sys)
+    if sys and sys.ResetStride and player then
+        sys:ResetStride(player)
+    end
     Stride.Init()
     Stride.phase = 0.0
     Stride.currentBlend = 0.0
@@ -224,12 +240,21 @@ function Stride.Reset(player)
     Stride.currentPitchCm = 0.0
     Stride.statusText = "Reset"
     Stride.hasZeroPublished = false
-    if player then
+    if player and Stride.Publish then
         Stride.Publish(player)
     end
 end
 
-function Stride.GetStatus()
+function Stride.GetStatus(sys)
+    if sys and sys.GetStrideStatus then
+        return sys:GetStrideStatus(),
+               sys:GetStrideRoll(),
+               sys:GetStrideYaw(),
+               sys:GetStrideBlend(),
+               sys:GetStrideLegCounterRoll(),
+               sys:GetStrideHeelScale(),
+               sys:GetStridePitchCm()
+    end
     return Stride.statusText, Stride.currentRoll, Stride.currentYaw, Stride.currentBlend, Stride.currentLegCounterRoll, Stride.currentHeelScale, Stride.currentPitchCm
 end
 

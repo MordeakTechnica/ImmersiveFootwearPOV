@@ -44,8 +44,11 @@ local function ApplyCustomFootwearHeight(modState, player, sys, shoeState, shoeK
 
     local heelMeters = heelCm / 100.0
     local platMeters = platCm / 100.0
+    if sys and sys.RegisterCustomOverride then
+        sys:RegisterCustomOverride(shoeKey, heelMeters, platMeters)
+    end
     if player and sys and sys.SetCustomHeightOverride then
-        sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+        sys:SetCustomHeightOverride(player, heelMeters, platMeters, true)
     end
 end
 

@@ -35,16 +35,22 @@ function State.ApplyCustomOverride(player, sys, shoeKey, overrides)
         local heelMeters = heelCm / 100.0
         local platMeters = platCm / 100.0
 
+        if sys and sys.RegisterCustomOverride then
+            sys:RegisterCustomOverride(shoeKey, heelMeters, platMeters)
+        end
         if not sys:HasCustomOverride() or shoeKey ~= State.lastEquippedKey
            or math.abs(sys:GetCurrentHeelHeight() - heelMeters) > 0.0005
            or math.abs(sys:GetCurrentPlatformHeight() - platMeters) > 0.0005 then
-            sys:SetCustomHeightOverride(player, heelMeters, platMeters)
+            sys:SetCustomHeightOverride(player, heelMeters, platMeters, true)
         end
         shoeState.heelCm = heelCm
         shoeState.platformCm = platCm
     else
         if sys:HasCustomOverride() or shoeKey ~= State.lastEquippedKey then
-            sys:ClearCustomHeightOverride(player)
+            if sys and sys.RemoveCustomOverride then
+                sys:RemoveCustomOverride(shoeKey)
+            end
+            sys:ClearCustomHeightOverride(player, true)
         end
         shoeState.heelCm = 0.0
         shoeState.platformCm = 0.0
@@ -105,12 +111,16 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
             shoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
             shoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0
         else
-            State.ApplyCustomOverride(player, sys, shoeKey, overrides)
+            shoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
+            shoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0
+            if shoeState.heelCm == 0.0 and shoeState.platformCm == 0.0 and overrides and overrides[shoeKey] then
+                State.ApplyCustomOverride(player, sys, shoeKey, overrides)
+            end
         end
         State.lastEquippedKey = shoeKey
     else
         if sys:HasCustomOverride() then
-            sys:ClearCustomHeightOverride(player)
+            sys:ClearCustomHeightOverride(player, true)
         end
         shoeState.heelCm = 0.0
         shoeState.platformCm = 0.0

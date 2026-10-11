@@ -126,7 +126,10 @@ function ConsoleManager.SetCustomHeight(mod, sys, player, heightLimits, heelCm, 
     end
 
     if saveCallback then saveCallback() end
-    sys:SetCustomHeightOverride(player, h / 100.0, p / 100.0)
+    if sys and sys.RegisterCustomOverride then
+        sys:RegisterCustomOverride(shoeState.key, h / 100.0, p / 100.0)
+    end
+    sys:SetCustomHeightOverride(player, h / 100.0, p / 100.0, true)
 
     local msg = string.format("Set custom height for '%s': Heel = %.1f cm (max %.1f cm), Platform = %.1f cm (max %.1f cm)",
         shoeState.displayName or shoeState.key, h, maxHeel, p, maxPlat)

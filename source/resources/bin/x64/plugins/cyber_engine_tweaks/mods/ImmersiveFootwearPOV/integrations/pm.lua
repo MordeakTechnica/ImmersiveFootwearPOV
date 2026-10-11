@@ -168,7 +168,20 @@ local function ResolveShoeHeights(itemID, tdbid, cleanKey)
         return heelCm, platCm, "TweakDB Tags"
     end
 
-    -- 2. Custom user overrides in JSON
+    -- 2. Query REDscript custom overrides map
+    pcall(function()
+        local sys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+        if sys and sys.GetCustomOverridePlatform and cleanKey and #cleanKey > 0 then
+            platCm = sys:GetCustomOverridePlatform(cleanKey) * 100.0
+            heelCm = sys:GetCustomOverrideHeel(cleanKey) * 100.0
+        end
+    end)
+
+    if heelCm > 0.0 or platCm > 0.0 then
+        return heelCm, platCm, "Custom Override (REDscript)"
+    end
+
+    -- 3. Custom user overrides in JSON fallback
     local saved = PM.modState and PM.modState.overrides and PM.modState.overrides[cleanKey]
     if saved then
         return tonumber(saved.heel) or 0.0, tonumber(saved.platform) or 0.0, "Custom Override"

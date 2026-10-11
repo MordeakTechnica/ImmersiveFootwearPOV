@@ -245,6 +245,23 @@ Items.Custom_Chunky_Platforms_01:
     - Negative values are strictly disallowed and automatically set to `0.0 cm` minimum.
   - Added CET console shortcuts `SetFootwearHeight(heelCm, platformCm)` and `SetCustomHeight(heelCm, platformCm)` in `init.lua` with identical auto-clamping and non-negative enforcement.
 
+### Phase 7: Lua-to-REDscript Core Refactor (Architecture & Performance)
+- [x] **Event-Driven Custom Overrides in REDscript:**
+  - Added `m_customOverrideKeys`, `m_customOverrideHeels`, and `m_customOverridePlatforms` native mapping to `ImmersiveFootwearPOVSystem`.
+  - `UpdateEquippedFootwear` directly resolves untagged shoes against registered custom overrides immediately upon equip, eliminating equip-to-elevation latency.
+  - Presets and user overrides are synced to REDscript on mod startup and UI calibration changes.
+- [x] **Elimination of Legacy 0.40s Polling Loop:**
+  - Completely removed the 0.40s polling timer from `init.lua`, saving 10–14 FFI calls every poll.
+  - State synchronization in CET is now event-driven, checking only if the equipped shoe key changed.
+- [x] **Native Photo Mode ink UI Integration ([`ImmersiveFootwearPOV_PM.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_PM.reds)):**
+  - Hooked `gameuiPhotoModeMenuController.OnShow`, `OnHide`, and `OnEquipWardrobeSet` directly in REDscript.
+  - Native execution handles Photo Mode Attribute 37 (V Up/Down) platform elevation directly without CET frame delay queues.
+- [x] **Native Stride Kinematics Execution ([`ImmersiveFootwearPOV_Stride.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Stride.reds)):**
+  - Moved catwalk roll, yaw, spine counter-yaw, spine counter-roll, and leg counter-roll math to native REDscript `StrideController`.
+  - Reduced per-frame locomotion updates from 6–7 separate Lua-to-C++ FFI calls to a single native tick call (`sys:UpdateStride`).
+- [x] **Authoritative Perspective Delegation:**
+  - CET's `Perspective.IsTPPActive` and `Perspective.IsITPInstalled` directly query REDscript singletons with zero unnecessary component scans.
+
 ---
 
 ## 6. Dependencies & Publishing Requirements

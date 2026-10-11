@@ -2,6 +2,24 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`Unreleased`**] — `feature/lua-to-redscipt-refactor`
+### `refactor(core): migrate runtime gameplay logic and state synchronization to REDscript`
+* **Event-Driven Custom Overrides in REDscript:**
+  * Added native custom override registration and lookup map (`m_customOverrideKeys`, `m_customOverrideHeels`, `m_customOverridePlatforms`) to [ImmersiveFootwearPOVSystem](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds).
+  * `UpdateEquippedFootwear` now resolves both official TweakDB tags and custom overrides immediately in REDscript upon equip.
+  * Presets and user overrides are pushed from CET to REDscript on initialization and slider update, eliminating latency.
+* **Eliminated Legacy 0.40s Polling Loop:**
+  * Removed the periodic `0.40s` fallback polling timer from CET [init.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/init.lua).
+  * State synchronization in CET is now purely event-driven, triggering only when equipped footwear actually changes.
+* **Native Photo Mode ink UI Hooking ([ImmersiveFootwearPOV_PM.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_PM.reds)):**
+  * Hooked `gameuiPhotoModeMenuController.OnShow`, `OnHide`, and `OnEquipWardrobeSet` directly in REDscript.
+  * Native execution automatically drives Photo Mode character elevation (Attribute 37) and updates suppression state without delay counters.
+* **Native Stride Kinematics Execution ([ImmersiveFootwearPOV_Stride.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Stride.reds)):**
+  * Migrated catwalk pelvic roll, yaw swivel, spine counter-balance, and leg counter-rotation calculations entirely to native REDscript `StrideController`.
+  * Reduced per-frame Stride update from 6–7 separate Lua-to-C++ FFI calls down to a single native tick call (`sys:UpdateStride`).
+* **Authoritative Perspective Delegation:**
+  * CET's `Perspective.IsTPPActive` and `Perspective.IsITPInstalled` in [perspective.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/modules/perspective.lua) directly delegate to native REDscript queries (`sys:IsTPPActive`, `sys:IsITPPresent`).
+
 ## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-10
 ### `feat(presets): support multiple *_presets.json packs with auto-consolidation and clean-up`
 * **Dynamic Preset Discovery:** Scans for any files matching `*_presets.json` (such as `community_presets.json`, `shoe_presets.json`) alongside master `presets.json`.

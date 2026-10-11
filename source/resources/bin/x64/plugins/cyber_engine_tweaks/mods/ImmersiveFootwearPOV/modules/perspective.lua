@@ -24,9 +24,17 @@ end
 
 --- Query whether Immersive Third Person (ITP) mod is installed
 ---@return boolean
-function Perspective.IsITPInstalled()
+function Perspective.IsITPInstalled(sys)
     if isITPInstalledCache == true then
         return true
+    end
+
+    if sys and sys.IsITPPresent then
+        local ok, present = pcall(function() return sys:IsITPPresent() end)
+        if ok and present then
+            isITPInstalledCache = true
+            return true
+        end
     end
 
     if GetMod then
