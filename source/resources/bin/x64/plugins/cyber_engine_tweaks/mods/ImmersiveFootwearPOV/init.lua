@@ -171,6 +171,19 @@ function mod.SetCustomHeight(heelCm, platformCm)
     return ConsoleManager.SetCustomHeight(mod, sys, player, FootwearHeightLimits, heelCm, platformCm, SaveOverrides)
 end
 
+function mod.ReloadPresets()
+    local overrides, settings, presets, userOverrides = Config.Load(Config.FILE_NAME)
+    mod.overrides = overrides
+    mod.presets = presets or {}
+    mod.userOverrides = userOverrides or {}
+    SyncOverridesToREDscript()
+    local count = 0
+    for _ in pairs(mod.presets) do count = count + 1 end
+    local msg = string.format("Reloaded presets: %d total preset(s) active in master presets.", count)
+    print(string.format("[ImmersiveFootwearPOV] %s", msg))
+    return msg
+end
+
 -- Register global CET Console shortcuts
 ConsoleManager.RegisterShortcuts(mod)
 

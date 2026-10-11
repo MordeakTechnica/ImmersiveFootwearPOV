@@ -148,6 +148,8 @@ function ConsoleManager.RegisterShortcuts(mod)
         IFPForceStance = function(cm, extra) return mod.ForceStance(cm, extra) end,
         SetCustomHeight = function(h, p) return mod.SetCustomHeight(h, p) end,
         SetFootwearHeight = function(h, p) return mod.SetCustomHeight(h, p) end,
+        ReloadPresets = function() return mod.ReloadPresets and mod.ReloadPresets() end,
+        ConsolidatePresets = function() return mod.ReloadPresets and mod.ReloadPresets() end,
     }
     for name, fn in pairs(shortcuts) do
         if _G then

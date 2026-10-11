@@ -29,6 +29,13 @@ local DEFAULT_SETTINGS = {
 ---@return table|nil
 local function ReadJSONFile(filePath)
     local file = io.open(filePath, "r")
+    if not file then
+        if not string.match(filePath, "^%.[/\\]") then
+            file = io.open("./" .. filePath, "r")
+        else
+            file = io.open(string.gsub(filePath, "^%.[/\\]", ""), "r")
+        end
+    end
     if not file then return nil end
     local content = file:read("*a")
     file:close()
@@ -68,6 +75,13 @@ end
 ---@return boolean
 function Config.FileExists(filePath)
     local file = io.open(filePath, "r")
+    if not file then
+        if not string.match(filePath, "^%.[/\\]") then
+            file = io.open("./" .. filePath, "r")
+        else
+            file = io.open(string.gsub(filePath, "^%.[/\\]", ""), "r")
+        end
+    end
     if file then
         file:close()
         return true
@@ -180,49 +194,80 @@ end
 
 --- Scan the mod directory for any *_presets.json files (excluding master presets.json)
 --- Uses CET's dir() function if available; falls back to checking known candidates.
----@param modDir string|nil Optional directory path (defaults to "")
+---@param modDir string|nil Optional directory path (defaults to ".")
 ---@return table discoveredFiles List of relative file paths matching *_presets.json
 function Config.DiscoverPresetFiles(modDir)
-    local targetDir = modDir or ""
+    local targetDir = (modDir and #modDir > 0) and modDir or "."
     local discovered = {}
     local seen = {}
 
-    -- Attempt dynamic directory listing via CET's global dir()
-    if type(dir) == "function" then
-        local success, entries = pcall(function() return dir(targetDir) end)
-        if success and type(entries) == "table" then
-            for _, entry in ipairs(entries) do
-                local filename = nil
-                if type(entry) == "table" and entry.name then
-                    if entry.type == nil or entry.type == "file" then
-                        filename = entry.name
-                    end
-                elseif type(entry) == "string" then
-                    filename = entry
+    local function processEntries(entries)
+        if type(entries) ~= "table" then return false end
+        local foundAny = false
+        for _, entry in ipairs(entries) do
+            local filename = nil
+            if type(entry) == "table" and entry.name then
+                -- In CET directory entries, type == "directory" denotes subfolders
+                if entry.type ~= "directory" then
+                    filename = entry.name
                 end
+            elseif type(entry) == "string" then
+                filename = entry
+            end
 
-                if filename then
-                    local lowerName = string.lower(filename)
-                    -- Match any *_presets.json, strictly excluding the master presets.json
-                    if string.match(lowerName, "^.+_presets%.json$") and lowerName ~= "presets.json" then
-                        if not seen[filename] then
-                            table.insert(discovered, filename)
-                            seen[filename] = true
-                        end
+            if filename then
+                -- Strip any leading path or dot-slash
+                local cleanName = string.gsub(filename, "^%.[/\\]", "")
+                cleanName = string.match(cleanName, "([^/\\]+)$") or cleanName
+                local lowerName = string.lower(cleanName)
+
+                -- Match any *_presets.json, strictly excluding the master presets.json
+                if string.match(lowerName, "^.+_presets%.json$") and lowerName ~= "presets.json" then
+                    if not seen[cleanName] then
+                        table.insert(discovered, cleanName)
+                        seen[cleanName] = true
+                        foundAny = true
                     end
                 end
             end
         end
+        return foundAny
     end
 
-    -- Fallback: check standard candidate filenames if dir() returned nothing or is unavailable
-    if #discovered == 0 then
-        local fallbackCandidates = { "shoe_presets.json" }
-        for _, candidate in ipairs(fallbackCandidates) do
-            if candidate ~= Config.MASTER_PRESETS_FILE and Config.FileExists(candidate) and not seen[candidate] then
-                table.insert(discovered, candidate)
-                seen[candidate] = true
+    -- Attempt dynamic directory listing via CET's global dir()
+    if type(dir) == "function" then
+        -- CET sandbox path conventions: try ".", "./", targetDir, and no-arg dir()
+        local dirAttempts = { targetDir, ".", "./" }
+        for _, dirPath in ipairs(dirAttempts) do
+            local success, entries = pcall(function() return dir(dirPath) end)
+            if success and processEntries(entries) then
+                break
             end
+        end
+
+        if #discovered == 0 then
+            local success, entries = pcall(function() return dir() end)
+            if success then
+                processEntries(entries)
+            end
+        end
+    end
+
+    -- Fallback: check standard and known candidate filenames if dir() returned nothing or is unavailable
+    local fallbackCandidates = {
+        "gama_presets.json",
+        "shoe_presets.json",
+        "community_presets.json",
+        "custom_presets.json",
+        "user_presets.json",
+        "mod_presets.json",
+        "presets_pack.json",
+        "shoes_presets.json",
+    }
+    for _, candidate in ipairs(fallbackCandidates) do
+        if candidate ~= Config.MASTER_PRESETS_FILE and not seen[candidate] and Config.FileExists(candidate) then
+            table.insert(discovered, candidate)
+            seen[candidate] = true
         end
     end
 
@@ -231,8 +276,8 @@ end
 
 --- Consolidate any *_presets.json files into master presets.json
 --- Enforces strict priority: existing items in presets.json are NEVER overwritten or merged.
---- Once merged, the source *_presets.json file is removed to avoid reprocessing on subsequent loads.
---- presets.json is only written to disk if new items were actually added.
+--- presets.json is only written to disk if new items were actually added, avoiding redundant disk writes.
+--- Source *_presets.json files are preserved intact.
 ---@param masterPath string|nil Path to master presets.json (defaults to Config.MASTER_PRESETS_FILE)
 ---@param modDir string|nil Directory to scan for preset files
 ---@return table presets All consolidated presets
@@ -274,14 +319,12 @@ function Config.ConsolidatePresets(masterPath, modDir)
                 end
             end
 
-            -- Remove merged preset file to prevent re-processing on subsequent loads
-            local removedOk, err = pcall(os.remove, filePath)
-            if removedOk then
-                print(string.format("[ImmersiveFootwearPOV] Merged %d new preset(s) from %s into %s and removed source file.",
+            if fileNewItems > 0 then
+                print(string.format("[ImmersiveFootwearPOV] Consolidated %d new preset(s) from %s into %s.",
                     fileNewItems, filePath, targetMaster))
             else
-                print(string.format("[ImmersiveFootwearPOV] Merged %d new preset(s) from %s into %s (could not remove file: %s).",
-                    fileNewItems, filePath, targetMaster, tostring(err)))
+                print(string.format("[ImmersiveFootwearPOV] Checked preset pack %s (all items already exist in %s).",
+                    filePath, targetMaster))
             end
             filesMerged = filesMerged + 1
         end
@@ -290,6 +333,10 @@ function Config.ConsolidatePresets(masterPath, modDir)
     -- Write to master presets file ONLY if new items were added or if master didn't exist yet with discovered items
     if totalNewItems > 0 or (not masterExisted and filesMerged > 0) then
         WriteJSONFile(targetMaster, masterPresets)
+        local totalCount = 0
+        for _ in pairs(masterPresets) do totalCount = totalCount + 1 end
+        print(string.format("[ImmersiveFootwearPOV] Successfully saved %s (now contains %d total presets).",
+            targetMaster, totalCount))
     end
 
     return masterPresets, totalNewItems
