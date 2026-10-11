@@ -3,6 +3,12 @@
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
 ## [**`v2.2.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.2.0) — 2026-10-10
+### `feat(presets): support multiple *_presets.json packs with auto-consolidation and clean-up`
+* **Dynamic Preset Discovery:** Scans for any files matching `*_presets.json` (such as `community_presets.json`, `shoe_presets.json`) alongside master `presets.json`.
+* **Strict Priority:** Existing items in `presets.json` maintain full priority and are never overwritten or merged.
+* **Auto-Consolidation & Clean-Up:** New items from external preset packs are consolidated into `presets.json`, and the processed `*_presets.json` source files are safely removed to prevent reprocessing on subsequent loads and minimize disk I/O.
+* **Conditional Disk Writes:** `presets.json` is only written to disk if new items were actually added.
+
 ### `feat(ui): always display standalone configuration window and decouple from IFP`
 * **Decoupled CET Window Attachment:** Removed logic that attached Immersive Footwear POV controls directly inside the "Immersive First Person" CET window when IFP is installed.
 * **Dedicated Standalone Configuration Window:** The standalone "Immersive Footwear POV" window is now always rendered, eliminating user confusion when both IFP and ITP are running simultaneously.

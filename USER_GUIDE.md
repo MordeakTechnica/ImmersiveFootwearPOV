@@ -24,7 +24,12 @@ A comprehensive guide for configuring custom footwear heights and getting accura
 5. **Auto-Save & Isolated Persistence:**
    * Custom shoe calibrations are automatically saved per shoe in `user_shoe_overrides.json` (strictly footwear entries only, no general mod options).
    * General mod settings (Photo Mode auto-elevation, debug logging, hip sway multipliers) are saved separately in `config.json`.
-6. **Optional Community Presets:** You can install or create optional preset packs by placing a `shoe_presets.json` (or `presets.json`) in the mod folder. Community presets provide instant calibrations for modded footwear; your personal adjustments in `user_shoe_overrides.json` seamlessly override them without touching the preset file.
+6. **Multiple Community Preset Packs & Auto-Consolidation:**
+   * You can install community preset packs by placing any file named `*_presets.json` (e.g. `community_presets.json`, `shoe_presets.json`, `gama_presets.json`) or `presets.json` directly into the mod folder.
+   * On game launch, the mod automatically discovers all `*_presets.json` packs and consolidates any new footwear calibrations into the master `presets.json`.
+   * **Strict Priority:** Existing items in `presets.json` always take priority and are never overwritten.
+   * **Automatic Clean-up & Zero Overhead:** Once merged, source `*_presets.json` files are automatically cleaned up so `presets.json` is not overwritten on subsequent loads, minimizing runtime disk access.
+   * Personal adjustments in `user_shoe_overrides.json` seamlessly override all presets, and the overlay UI includes a convenient **Reset to Preset** button to revert any shoe to its default preset calibration.
    * **Automated Variant Expander Tool:** You can automatically expand a single calibrated shoe across all of its colors, materials, and mod variants using the built-in [Preset Variant Expander](tools/preset_variant_expander/README.md).
 7. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
 

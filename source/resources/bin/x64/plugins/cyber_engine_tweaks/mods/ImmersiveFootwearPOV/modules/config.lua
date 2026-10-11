@@ -9,7 +9,8 @@
 local Config = {
     SETTINGS_FILE = "config.json",
     OVERRIDES_FILE = "user_shoe_overrides.json",
-    PRESET_FILES = { "shoe_presets.json", "presets.json" },
+    MASTER_PRESETS_FILE = "presets.json",
+    PRESET_FILES = { "presets.json", "shoe_presets.json" },
     -- Maintained for backward compatibility
     FILE_NAME = "user_shoe_overrides.json",
 }
@@ -177,27 +178,151 @@ function Config.SaveSettings(settings, settingsPath)
     return WriteJSONFile(targetPath, payload)
 end
 
---- Load optional shoe presets from a preset pack (shoe_presets.json or presets.json)
---- Presets are read-only distributions and never modified by the game.
----@param presetPath string|nil
----@return table presets, string|nil sourceFileName
-function Config.LoadPresets(presetPath)
-    local candidates = presetPath and { presetPath } or Config.PRESET_FILES
-    for _, path in ipairs(candidates) do
-        local data = ReadJSONFile(path)
-        if data then
-            local presets = {}
-            for k, v in pairs(data) do
-                if k ~= "__settings" and type(v) == "table" then
-                    presets[k] = {
+--- Scan the mod directory for any *_presets.json files (excluding master presets.json)
+--- Uses CET's dir() function if available; falls back to checking known candidates.
+---@param modDir string|nil Optional directory path (defaults to "")
+---@return table discoveredFiles List of relative file paths matching *_presets.json
+function Config.DiscoverPresetFiles(modDir)
+    local targetDir = modDir or ""
+    local discovered = {}
+    local seen = {}
+
+    -- Attempt dynamic directory listing via CET's global dir()
+    if type(dir) == "function" then
+        local success, entries = pcall(function() return dir(targetDir) end)
+        if success and type(entries) == "table" then
+            for _, entry in ipairs(entries) do
+                local filename = nil
+                if type(entry) == "table" and entry.name then
+                    if entry.type == nil or entry.type == "file" then
+                        filename = entry.name
+                    end
+                elseif type(entry) == "string" then
+                    filename = entry
+                end
+
+                if filename then
+                    local lowerName = string.lower(filename)
+                    -- Match any *_presets.json, strictly excluding the master presets.json
+                    if string.match(lowerName, "^.+_presets%.json$") and lowerName ~= "presets.json" then
+                        if not seen[filename] then
+                            table.insert(discovered, filename)
+                            seen[filename] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fallback: check standard candidate filenames if dir() returned nothing or is unavailable
+    if #discovered == 0 then
+        local fallbackCandidates = { "shoe_presets.json" }
+        for _, candidate in ipairs(fallbackCandidates) do
+            if candidate ~= Config.MASTER_PRESETS_FILE and Config.FileExists(candidate) and not seen[candidate] then
+                table.insert(discovered, candidate)
+                seen[candidate] = true
+            end
+        end
+    end
+
+    return discovered
+end
+
+--- Consolidate any *_presets.json files into master presets.json
+--- Enforces strict priority: existing items in presets.json are NEVER overwritten or merged.
+--- Once merged, the source *_presets.json file is removed to avoid reprocessing on subsequent loads.
+--- presets.json is only written to disk if new items were actually added.
+---@param masterPath string|nil Path to master presets.json (defaults to Config.MASTER_PRESETS_FILE)
+---@param modDir string|nil Directory to scan for preset files
+---@return table presets All consolidated presets
+---@return number newItemsCount Total newly added items in this run
+function Config.ConsolidatePresets(masterPath, modDir)
+    local targetMaster = masterPath or Config.MASTER_PRESETS_FILE
+    local masterData = ReadJSONFile(targetMaster)
+    local masterPresets = {}
+    local masterExisted = (masterData ~= nil)
+
+    if masterData and type(masterData) == "table" then
+        for k, v in pairs(masterData) do
+            if k ~= "__settings" and type(v) == "table" then
+                masterPresets[k] = {
+                    heel = tonumber(v.heel) or 0.0,
+                    platform = tonumber(v.platform) or 0.0,
+                }
+            end
+        end
+    end
+
+    local discovered = Config.DiscoverPresetFiles(modDir)
+    local totalNewItems = 0
+    local filesMerged = 0
+
+    for _, filePath in ipairs(discovered) do
+        local fileData = ReadJSONFile(filePath)
+        if fileData and type(fileData) == "table" then
+            local fileNewItems = 0
+            for k, v in pairs(fileData) do
+                -- Strict priority: only add if item does not exist in master presets
+                if k ~= "__settings" and type(v) == "table" and masterPresets[k] == nil then
+                    masterPresets[k] = {
                         heel = tonumber(v.heel) or 0.0,
                         platform = tonumber(v.platform) or 0.0,
                     }
+                    fileNewItems = fileNewItems + 1
+                    totalNewItems = totalNewItems + 1
                 end
             end
-            return presets, path
+
+            -- Remove merged preset file to prevent re-processing on subsequent loads
+            local removedOk, err = pcall(os.remove, filePath)
+            if removedOk then
+                print(string.format("[ImmersiveFootwearPOV] Merged %d new preset(s) from %s into %s and removed source file.",
+                    fileNewItems, filePath, targetMaster))
+            else
+                print(string.format("[ImmersiveFootwearPOV] Merged %d new preset(s) from %s into %s (could not remove file: %s).",
+                    fileNewItems, filePath, targetMaster, tostring(err)))
+            end
+            filesMerged = filesMerged + 1
         end
     end
+
+    -- Write to master presets file ONLY if new items were added or if master didn't exist yet with discovered items
+    if totalNewItems > 0 or (not masterExisted and filesMerged > 0) then
+        WriteJSONFile(targetMaster, masterPresets)
+    end
+
+    return masterPresets, totalNewItems
+end
+
+--- Load shoe presets from master presets.json after consolidating any *_presets.json packs
+--- Presets are read directly from presets.json to minimize runtime overhead.
+---@param presetPath string|nil Optional specific preset file path
+---@return table presets, string|nil sourceFileName
+function Config.LoadPresets(presetPath)
+    local targetPath = presetPath or Config.MASTER_PRESETS_FILE
+
+    -- If loading default master presets, run consolidation first
+    if not presetPath or presetPath == Config.MASTER_PRESETS_FILE then
+        local consolidatedPresets = Config.ConsolidatePresets(targetPath)
+        return consolidatedPresets, targetPath
+    end
+
+    -- Specific custom path provided
+    local data = ReadJSONFile(targetPath)
+    if data then
+        local presets = {}
+        for k, v in pairs(data) do
+            if k ~= "__settings" and type(v) == "table" then
+                presets[k] = {
+                    heel = tonumber(v.heel) or 0.0,
+                    platform = tonumber(v.platform) or 0.0,
+                }
+            end
+        end
+        return presets, targetPath
+    end
+
     return {}, nil
 end
 
