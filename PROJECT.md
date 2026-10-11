@@ -21,7 +21,86 @@ To maintain immersion and prevent visual clipping or misalignment:
 
 ---
 
-## 2. Technical Architecture & Data Flow
+## 2. Directory Structure & Workspace Layout
+
+The repository is organized into distinct functional layers, with **[`source/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source)** designated as the **main mod folder** containing all active game assets, scripts, CET modules, and archive inputs.
+
+```
+Immersive Footwear POV/
+├── source/                        # [MAIN FOLDER] Core game assets, scripts, and runtime resources
+│   ├── archive/                   # Staged CR2W assets ready for packaging
+│   │   └── base/gameplay/anim_graphs/player_base.animgraph
+│   ├── raw/                       # Raw WolvenKit source files (JSON format)
+│   │   └── base/gameplay/anim_graphs/player_base.animgraph.json
+│   └── resources/                 # Ready-to-deploy game resources (mirrors game installation layout)
+│       ├── archive/pc/mod/        # Packed archive package (##_ITP_Immersive_Footwear_POV.archive)
+│       ├── bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/  # CET mod files
+│       │   ├── init.lua           # CET core lifecycle & overlay orchestrator
+│       │   ├── shoe_presets.example.json  # Reference shoe calibration configuration
+│       │   ├── integrations/      # 3rd-party bridge modules (ifp.lua, pm.lua)
+│       │   └── modules/           # Modular CET subsystems (config, ui, state, stride, etc.)
+│       └── r6/                    # Engine scripts and metadata definitions
+│           ├── scripts/ImmersiveFootwearPOV/  # Authoritative REDscript codebase
+│           │   ├── ImmersiveFootwearPOV_FootwearResolver.reds
+│           │   ├── ImmersiveFootwearPOV_Hooks.reds
+│           │   ├── ImmersiveFootwearPOV_TweakReader.reds
+│           │   ├── Integrations/  # Mod integrations (ITP, IFP, TFP, Equipment-EX, PM)
+│           │   └── Systems/       # Authoritative ScriptableSystems (System, Stride, Suppression)
+│           └── tweaks/ImmersiveFootwearPOV/   # TweakXL YAML metadata examples
+│
+├── tools/                         # Automated build, deployment, animgraph, and packaging tooling
+│   ├── pack_and_deploy.ps1        # Master packaging, deployment, and validation pipeline
+│   ├── create_release_zips.ps1    # Automated release archive packager
+│   ├── animgraph_toolkit/         # Python framework for animgraph inspection and transformation
+│   ├── preset_variant_expander/   # Python utility for generating shoe variant presets
+│   ├── diagnostics_archive/       # Reverse-engineering inspection & validation test suite
+│   ├── inject_itp_elevation.py    # Injects 3rd-person vertical puppet elevation into animgraph
+│   ├── inject_sway_nodes.py       # Injects catwalk pelvic oscillation nodes into animgraph
+│   ├── inject_arm_hip_nodes.py    # Injects thoracic counter-rotation & shoulder stabilization
+│   ├── inject_leg_counter_rotation.py  # Injects femoral & thigh counter-rotation nodes
+│   └── apply_hand_on_hip_recipe.py     # Applies feline hand-on-hip pose offsets
+│
+├── packed/                        # Distribution archives generated during build
+├── docs/                          # Architecture diagrams, specifications, and reference notes
+├── CHANGES.md                     # Comprehensive chronological changelog
+├── PROJECT.md                     # Technical architecture & project roadmap
+└── USER_GUIDE.md                  # Player installation, configuration, and troubleshooting guide
+```
+
+### 2.1 The `source/` Directory (Main Folder)
+The [`source/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source) directory is the primary workspace root containing all source code and assets required to build and run the mod:
+* **[`source/raw/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/raw):** Contains uncompressed, human-readable WolvenKit JSON files, primarily `player_base.animgraph.json`. All procedural node injections and animgraph modifications operate on this file before compilation.
+* **[`source/archive/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/archive):** Contains the staged binary CR2W file `player_base.animgraph` generated via WolvenKit CLI `wkit convert d`.
+* **[`source/resources/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources):** Mirrors the game's root directory structure for seamless one-to-one staging and deployment:
+  * **`archive/pc/mod/`:** Houses [`##_ITP_Immersive_Footwear_POV.archive`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/archive/pc/mod/##_ITP_Immersive_Footwear_POV.archive). The `##_` prefix guarantees early ASCII load order over third-person camera mods.
+  * **`r6/scripts/ImmersiveFootwearPOV/`:** The authoritative REDscript codebase, organized into core resolvers, lifecycle hooks, systems, and integrations.
+  * **`r6/tweaks/ImmersiveFootwearPOV/`:** YAML definitions for TweakXL tag schemas and modder reference examples.
+  * **`bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/`:** The presentation, configuration, and ImGui overlay layer implemented in Cyber Engine Tweaks (Lua).
+
+### 2.2 The `tools/` Directory (Tooling & Available Tools)
+The [`tools/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools) directory provides a dedicated automation and engineering suite for building, testing, injecting animation graphs, and packaging releases:
+
+#### 1. Deployment & Release Automation
+* **[`pack_and_deploy.ps1`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/pack_and_deploy.ps1):** The master build and deployment pipeline script. Converts raw animgraph JSON to CR2W via WolvenKit CLI, packs the `.archive`, copies files into `source/resources/`, synchronizes all game files (archive, REDscripts, CET modules, Tweaks) to the local game directory (`D:\SteamLibrary\steamapps\common\Cyberpunk 2077`), and validates compilation via `scc.exe`.
+* **[`create_release_zips.ps1`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/create_release_zips.ps1):** Automates the packaging of clean, distributable ZIP archives for GitHub releases and Nexus Mods, ensuring unnecessary build artifacts are excluded.
+
+#### 2. Animation Graph Engineering Tooling
+* **[`animgraph_toolkit/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/animgraph_toolkit):** High-level modular Python framework for programmatically parsing, modifying, and transforming Cyberpunk 2077 animation graphs. Includes graph models, node factories, connection builders, CLI inspection tools, and automated regression tests.
+* **[`inject_itp_elevation.py`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/inject_itp_elevation.py):** Injects the dynamic `foot_elevation_offset` float input variable and skeletal elevation blend logic into `player_base.animgraph` for 3rd-person character elevation.
+* **[`inject_sway_nodes.py`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/inject_sway_nodes.py):** Injects pelvic roll and yaw oscillation blend nodes into the player locomotion animgraph.
+* **[`inject_arm_hip_nodes.py`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/inject_arm_hip_nodes.py):** Injects thoracic spine counter-rotation and shoulder stabilization nodes (`Spine2`).
+* **[`inject_leg_counter_rotation.py`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/inject_leg_counter_rotation.py):** Injects femoral and thigh counter-rotation nodes (`LeftUpLeg` / `RightUpLeg`) to keep legs tracking straight during catwalk hip sway.
+* **[`apply_hand_on_hip_recipe.py`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/apply_hand_on_hip_recipe.py):** Applies hand-on-hip pose offsets during feline stance idle cycles.
+
+#### 3. Preset & Data Expansion Tools
+* **[`preset_variant_expander/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/preset_variant_expander):** Python CLI utility that parses footwear records and automatically expands variant keys across colorways, suffixes, and naming schemes for multi-preset authoring.
+
+#### 4. Reverse-Engineering & Diagnostics
+* **[`diagnostics_archive/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/tools/diagnostics_archive):** Comprehensive collection of 39 specialized Python inspection scripts used during reverse engineering to trace inverse kinematics (IK) chains, bone hierarchies, float links, and locomotion blend trees in vanilla `player_base.animgraph`.
+
+---
+
+## 3. Technical Architecture & Data Flow
 
 ```
 +-------------------------------------------------------------------+
@@ -50,7 +129,7 @@ To maintain immersion and prevent visual clipping or misalignment:
 
 ---
 
-## 3. TweakDB Specification (TweakXL)
+## 4. TweakDB Specification (TweakXL)
 
 Modders configure shoe heights by adding standardized tags in their item's TweakXL YAML record:
 
@@ -97,7 +176,7 @@ Items.Custom_Chunky_Platforms_01:
 
 ---
 
-## 4. REDscript & CET Implementation Design
+## 5. REDscript & CET Implementation Design
 
 ### Core Components
 
@@ -125,7 +204,7 @@ Items.Custom_Chunky_Platforms_01:
 
 ---
 
-## 5. Development Roadmap
+## 6. Development Roadmap
 
 ### Phase 1: TweakDB Tag Parser & Footwear Resolution
 - [x] Set up project structure (`r6/scripts/ImmersiveFootwearPOV/` & `plugins/cyber_engine_tweaks/`).
@@ -245,7 +324,7 @@ Items.Custom_Chunky_Platforms_01:
     - Negative values are strictly disallowed and automatically set to `0.0 cm` minimum.
   - Added CET console shortcuts `SetFootwearHeight(heelCm, platformCm)` and `SetCustomHeight(heelCm, platformCm)` in `init.lua` with identical auto-clamping and non-negative enforcement.
 
-### Phase 7: Lua-to-REDscript Core Refactor (Architecture & Performance)
+### Phase 8: Lua-to-REDscript Core Refactor (Architecture & Performance)
 - [x] **Event-Driven Custom Overrides in REDscript:**
   - Added `m_customOverrideKeys`, `m_customOverrideHeels`, and `m_customOverridePlatforms` native mapping to `ImmersiveFootwearPOVSystem`.
   - `UpdateEquippedFootwear` directly resolves untagged shoes against registered custom overrides immediately upon equip, eliminating equip-to-elevation latency.
@@ -264,7 +343,7 @@ Items.Custom_Chunky_Platforms_01:
 
 ---
 
-## 6. Dependencies & Publishing Requirements
+## 7. Dependencies & Publishing Requirements
 
 ### 6.1 Required Core Dependencies (Nexus Requirements)
 These framework mods must be installed for **Immersive Footwear POV** to function in-game:
