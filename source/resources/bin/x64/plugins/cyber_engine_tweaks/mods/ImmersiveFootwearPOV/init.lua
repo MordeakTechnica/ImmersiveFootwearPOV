@@ -52,6 +52,7 @@ mod.currentShoeState = State.GetShoeState()
 
 -- Cached engine singletons & FFI state tracking
 local cachedSys = nil
+local lastPlayer = nil
 local lastSentITP = nil
 local lastSentIFP = nil
 
@@ -260,10 +261,22 @@ end)
 
 registerForEvent("onUpdate", function(deltaTime)
     local player = Game.GetPlayer()
-    if not player then return end
+    if not player then
+        lastPlayer = nil
+        mod.isSyncedToREDscript = false
+        return
+    end
 
     local sys = GetSystem()
     if not sys then return end
+
+    -- Initial synchronization when player and system become available in gameplay
+    if player ~= lastPlayer or not mod.isSyncedToREDscript then
+        lastPlayer = player
+        mod.isSyncedToREDscript = true
+        SyncOverridesToREDscript()
+        State.Sync(player, sys, mod.overrides, mod, IFPIntegration, SaveOverrides)
+    end
 
     -- Event-driven footwear state sync: only syncs when footwear actually changes in REDscript
     -- Eliminates the legacy 0.40s polling timer and per-frame FFI overhead

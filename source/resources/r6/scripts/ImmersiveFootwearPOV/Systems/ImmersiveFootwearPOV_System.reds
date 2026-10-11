@@ -162,6 +162,14 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       };
       i += 1;
     };
+    let lowerKey: String = StrLower(key);
+    i = 0;
+    while i < count {
+      if Equals(StrLower(this.m_customOverrideKeys[i]), lowerKey) {
+        return i;
+      };
+      i += 1;
+    };
     return -1;
   }
 

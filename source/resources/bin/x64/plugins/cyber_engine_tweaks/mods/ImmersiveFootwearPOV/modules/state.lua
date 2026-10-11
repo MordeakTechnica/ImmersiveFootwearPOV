@@ -27,6 +27,15 @@ end
 
 function State.ApplyCustomOverride(player, sys, shoeKey, overrides)
     local saved = overrides and overrides[shoeKey]
+    if not saved and overrides and shoeKey and #shoeKey > 0 then
+        local lowerKey = string.lower(shoeKey)
+        for k, v in pairs(overrides) do
+            if string.lower(k) == lowerKey then
+                saved = v
+                break
+            end
+        end
+    end
     local shoeState = State.currentShoeState
 
     if saved then
@@ -111,11 +120,7 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
             shoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
             shoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0
         else
-            shoeState.heelCm = sys:GetCurrentHeelHeight() * 100.0
-            shoeState.platformCm = sys:GetCurrentPlatformHeight() * 100.0
-            if shoeState.heelCm == 0.0 and shoeState.platformCm == 0.0 and overrides and overrides[shoeKey] then
-                State.ApplyCustomOverride(player, sys, shoeKey, overrides)
-            end
+            State.ApplyCustomOverride(player, sys, shoeKey, overrides)
         end
         State.lastEquippedKey = shoeKey
     else

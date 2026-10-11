@@ -71,13 +71,25 @@ local function DrawOfficialFootwearView(shoeState)
     end
 end
 
+local function FindInTable(tbl, key)
+    if not tbl or not key or #key == 0 then return nil end
+    if tbl[key] ~= nil then return tbl[key] end
+    local lower = string.lower(key)
+    for k, v in pairs(tbl) do
+        if string.lower(k) == lower then return v end
+    end
+    return nil
+end
+
 --- Render calibration sliders and manual inputs for custom footwear
 local function DrawCustomFootwearControls(modState, player, sys, shoeState, heightLimits, saveOverridesCallback)
     local shoeKey = shoeState.key
     local canEdit = player and sys and #shoeKey > 0
 
-    local hasUserOverride = modState.userOverrides and (modState.userOverrides[shoeKey] ~= nil)
-    local hasPreset = modState.presets and (modState.presets[shoeKey] ~= nil)
+    local userOverride = FindInTable(modState.userOverrides, shoeKey)
+    local preset = FindInTable(modState.presets, shoeKey)
+    local hasUserOverride = (userOverride ~= nil)
+    local hasPreset = (preset ~= nil)
 
     if hasUserOverride then
         ImGui.TextColored(1.0, 0.85, 0.2, 1.0, "Tags: Custom Calibration (User Override)")
@@ -130,9 +142,8 @@ local function DrawCustomFootwearControls(modState, player, sys, shoeState, heig
             if modState.userOverrides then
                 modState.userOverrides[shoeKey] = nil
             end
-            local preset = modState.presets[shoeKey]
-            local pHeel = preset.heel or 0.0
-            local pPlat = preset.platform or 0.0
+            local pHeel = preset and preset.heel or 0.0
+            local pPlat = preset and preset.platform or 0.0
             shoeState.heelCm = pHeel
             shoeState.platformCm = pPlat
             modState.overrides[shoeKey] = { heel = pHeel, platform = pPlat }
@@ -143,7 +154,7 @@ local function DrawCustomFootwearControls(modState, player, sys, shoeState, heig
         end
         ImGui.SameLine()
         ImGui.TextDisabled(string.format("(Reverts to preset: Heel %.1f cm, Plat %.1f cm)",
-            modState.presets[shoeKey].heel or 0.0, modState.presets[shoeKey].platform or 0.0))
+            preset and preset.heel or 0.0, preset and preset.platform or 0.0))
     else
         if ImGui.Button("Reset Height to 0.0 cm##ifp_reset_shoe") and canEdit then
             shoeState.heelCm = 0.0
