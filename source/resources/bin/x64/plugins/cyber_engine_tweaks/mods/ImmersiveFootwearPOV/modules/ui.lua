@@ -5,6 +5,7 @@
 -- =============================================================================
 
 local UIManager = {}
+local ITPIntegration = require("integrations/itp")
 
 --- Clamp a numerical input to [0.0, maxVal]
 ---@param val number|string
@@ -238,7 +239,14 @@ local function DrawStanceReadout(modState, shoeState, ifpInstalled, sys, heightA
 
         if sys and sys.IsITPPresent and sys:IsITPPresent() then
             local platCm = shoeState.isSuppressed and 0.0 or (shoeState.platformCm or 0.0)
-            local statusStr = modState.isITPActive and "[ACTIVE VIEW]" or "[FPP Active]"
+            local statusStr = "[FPP Active]"
+            if modState.isITPActive then
+                if ITPIntegration and ITPIntegration.HasGroundLevelApi() then
+                    statusStr = "[ACTIVE: ITP Ground Level API]"
+                else
+                    statusStr = "[ACTIVE: AnimGraph Fallback]"
+                end
+            end
             ImGui.TextColored(0.4, 0.8, 1.0, 1.0, string.format("3rd-Person (ITP):  +%.1f cm (Platform Lift) %s", platCm, statusStr))
         end
     end
@@ -423,7 +431,11 @@ function UIManager.DrawUI(modState, player, sys, heightLimits, saveOverridesCall
         elseif itpInstalled and ifpInstalled then
             ImGui.TextDisabled("Active POV Engines: IFP (1st Person) + ITP (3rd Person)")
         elseif itpInstalled then
-            ImGui.TextDisabled("Active POV Engine: Immersive Third Person (ITP Active)")
+            if ITPIntegration and ITPIntegration.HasGroundLevelApi() then
+                ImGui.TextDisabled("Active POV Engine: Immersive Third Person (ITP Ground Level API)")
+            else
+                ImGui.TextDisabled("Active POV Engine: Immersive Third Person (ITP Active)")
+            end
         elseif ifpInstalled then
             ImGui.TextDisabled("Active POV Engine: Immersive First Person (IFP Active)")
         else

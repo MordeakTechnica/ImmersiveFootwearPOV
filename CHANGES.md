@@ -2,7 +2,22 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [**`v2.3.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.0) — 2026-10-11
+## [**`v2.3.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.0) — 2026-10-12
+### `feat(itp): add compatibility with new Immersive Third Person (ITP) release & official Developer API`
+* **AnimGraph Rebuild for New ITP Release:**
+  * Extracted and re-analyzed `player_base.animgraph` from the new `immersive_third_person.archive`.
+  * Preserved all 65 new ITP body adjustment nodes (`itp_body:*`) and 45 new body slider float variables (`itp_body_ankle_forward`, `itp_body_hip_width`, `itp_body_pelvis_tilt`, `itp_body_thigh`, etc.).
+  * Updated graft points for the 30-node IFP height tree (`ifp_height_blend`) targeting shifted constraint pair (Node `3984` `animAnimNode_ParentConstraint` on `Hips` and Node `3985` `animAnimNode_PointConstraint` on `Torso_Spine2_Up_GRP`).
+  * Preserved full procedural Catwalk Hip Sway: spliced the 6 `RotateBone` sway nodes (`ifp_hip_sway_roll`, `ifp_hip_sway_yaw`, `ifp_spine_counter_yaw`, `ifp_spine_counter_roll`, `ifp_leg_counter_roll`) onto Node 2 (downstream of all 65 body slider nodes) leading directly into Output Node 1.
+* **Official ITP Developer API Integration (`groundLevel`):**
+  * Created dedicated [integrations/itp.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/integrations/itp.lua) adapter interfacing with ITP's official `groundLevel.offset(owner, priority, mm, ttl)`.
+  * Dynamically manages 3rd-person platform elevation leases (in millimeters) with 2-second heartbeat renewals and automatic graceful release on perspective switch, vehicle entry, or unmount.
+  * Eliminates double-elevation: when ITP's native `groundLevel` is active (elevating the physical `root`, `shadow`, and `deformations` components), skeletal `foot_elevation_offset` remains neutral (`0.0`), while automatically falling back to animgraph elevation on legacy ITP versions.
+* **REDscript ITP System Detection Enhancement:**
+  * Updated `ITPController.IsITPPresent` in [ImmersiveFootwearPOV_ITP.reds](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Integrations/ImmersiveFootwearPOV_ITP.reds) with direct checks for `ImmersiveThirdPerson.ITPApi` and `TPPCameraGroundLevel`.
+* **Telemetry & UI Status:**
+  * Updated [modules/ui.lua](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/modules/ui.lua) with live readout displaying active ITP Ground Level API usage.
+
 ### `refactor(core): migrate runtime gameplay logic and state synchronization to REDscript`
 * **Event-Driven Custom Overrides in REDscript:**
   * Added native custom override registration and lookup map (`m_customOverrideKeys`, `m_customOverrideHeels`, `m_customOverridePlatforms`) to [ImmersiveFootwearPOVSystem](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds).

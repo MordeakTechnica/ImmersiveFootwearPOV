@@ -20,6 +20,7 @@ local ConsoleManager = require("modules/console")
 local UIManager = require("modules/ui")
 local IFPIntegration = require("integrations/ifp")
 local PMIntegration = require("integrations/pm")
+local ITPIntegration = require("integrations/itp")
 
 -- -----------------------------------------------------------------------------
 -- Global Height Configuration Limits
@@ -230,6 +231,7 @@ registerForEvent("onInit", function()
     Stride.Init()
 
     PMIntegration.Init(mod)
+    ITPIntegration.modState = mod
     RefreshIFPBaseHeight()
 
     local ifpInstalled = IFPIntegration.IsInstalled()
@@ -262,8 +264,9 @@ registerForEvent("onInit", function()
 
     ConsoleManager.RegisterShortcuts(mod)
 
-    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s | IFP: %s (Enabled: %s, Height Adj: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
+    print(string.format("[ImmersiveFootwearPOV] Initialized | ITP: %s (API: %s) | IFP: %s (Enabled: %s, Height Adj: %s, Base: %.1f cm) | Hip Sway: %s | Debug: %s",
         itpInstalled and "ACTIVE" or "ABSENT",
+        ITPIntegration.HasGroundLevelApi() and "AVAILABLE" or "LEGACY",
         ifpInstalled and "ACTIVE" or "ABSENT",
         ifpEnabled and "YES" or "NO",
         ifpHeightEnabled and "YES" or "NO",
@@ -285,6 +288,7 @@ registerForEvent("onSessionStart", function()
 end)
 
 registerForEvent("onSessionEnd", function()
+    ITPIntegration.ReleaseGroundOffset()
     mod.isSyncedToREDscript = false
     lastPlayerHash = nil
     mod.lastEquippedKey = ""
@@ -401,7 +405,8 @@ registerForEvent("onUpdate", function(deltaTime)
         Stride.Reset(player, sys)
 
         if not isITPActive then
-            -- Returning to First Person (FPP): zero out 3rd-person puppet elevation variable
+            -- Returning to First Person (FPP): release ITP ground offset and zero out 3rd-person puppet elevation variable
+            ITPIntegration.ReleaseGroundOffset()
             if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
                 pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), 0.0)
             end
@@ -452,7 +457,22 @@ registerForEvent("onUpdate", function(deltaTime)
     local activeBlend = Transition.Update(deltaTime, LogTransitionSettled)
 
     mod.currentShoeState.totalStanceCm = Transition.GetStanceCm()
-    IFPIntegration.ApplyBlend(player, activeBlend, footElevationMeters)
+
+    -- Third-Person Ground Level via ITP API (or animgraph fallback)
+    if isITPActive and not isSuppressed then
+        local apiActive = ITPIntegration.SetGroundOffset(footElevationMeters, false)
+        if apiActive then
+            -- Ground level is actively handled by ITP native placed components.
+            -- Keep animgraph foot_elevation_offset neutral (0.0) to prevent double elevation.
+            IFPIntegration.ApplyBlend(player, activeBlend, 0.0)
+        else
+            -- Animgraph fallback
+            IFPIntegration.ApplyBlend(player, activeBlend, footElevationMeters)
+        end
+    else
+        ITPIntegration.ReleaseGroundOffset()
+        IFPIntegration.ApplyBlend(player, activeBlend, 0.0)
+    end
 
     -- Procedural Feminine Stride & Hip Sway
     Stride.Update(deltaTime, player, sys, mod)

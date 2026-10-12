@@ -37,6 +37,14 @@ public class ITPController {
       if IsDefined(itpBridge) {
         return true;
       };
+      let itpApi: ref<ScriptableSystem> = container.Get(n"ImmersiveThirdPerson.ITPApi");
+      if IsDefined(itpApi) {
+        return true;
+      };
+      let itpGround: ref<ScriptableSystem> = container.Get(n"TPPCameraGroundLevel");
+      if IsDefined(itpGround) {
+        return true;
+      };
     };
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gameInstance).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) && IsDefined(player.FindComponentByName(n"tppCamera")) {
