@@ -16,20 +16,28 @@ public class FootwearHooksHelper {
   }
 
   public static func NotifyWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        sys.SetWorkspotState(player, inWorkspot);
-      };
+    if !IsDefined(player) {
+      FootwearRedLogger.LogError("WORKSPOT", "NotifyWorkspotState failed: player entity is undefined");
+      return;
+    };
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if IsDefined(sys) {
+      sys.SetWorkspotState(player, inWorkspot);
+    } else {
+      FootwearRedLogger.LogWarn("WORKSPOT", "NotifyWorkspotState: ImmersiveFootwearPOVSystem instance not found");
     };
   }
 
   public static func NotifyVehicleState(player: ref<PlayerPuppet>, inVehicle: Bool) -> Void {
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        sys.SetVehicleState(player, inVehicle);
-      };
+    if !IsDefined(player) {
+      FootwearRedLogger.LogError("VEHICLE", "NotifyVehicleState failed: player entity is undefined");
+      return;
+    };
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if IsDefined(sys) {
+      sys.SetVehicleState(player, inVehicle);
+    } else {
+      FootwearRedLogger.LogWarn("VEHICLE", "NotifyVehicleState: ImmersiveFootwearPOVSystem instance not found");
     };
   }
 
@@ -62,19 +70,25 @@ public class FootwearHooksHelper {
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: Bool) -> Void {
   wrappedMethod(area, force);
-  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  if Equals(area, gamedataEquipmentArea.Feet) {
+    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  };
 }
 
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
-  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  if Equals(area, gamedataEquipmentArea.Feet) {
+    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  };
 }
 
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ResetItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
-  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  if Equals(area, gamedataEquipmentArea.Feet) {
+    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  };
 }
 
 @wrapMethod(EquipmentSystemPlayerData)
@@ -115,14 +129,24 @@ protected cb func OnUninitialize() -> Bool {
 @wrapMethod(PlayerPuppet)
 protected cb func OnWorkspotStartedEvent(evt: ref<WorkspotStartedEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
-  FootwearHooksHelper.NotifyWorkspotState(this, true);
+  if !IsDefined(this) {
+    FootwearRedLogger.LogError("WORKSPOT", "OnWorkspotStartedEvent called with undefined player entity");
+  } else {
+    FootwearRedLogger.LogInfo("WORKSPOT", "OnWorkspotStartedEvent: Workspot activated (chair/vending machine/furniture) | Action: Setting workspot state to TRUE and evaluating elevation suppression");
+    FootwearHooksHelper.NotifyWorkspotState(this, true);
+  };
   return result;
 }
 
 @wrapMethod(PlayerPuppet)
 protected cb func OnWorkspotFinishedEvent(evt: ref<WorkspotFinishedEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
-  FootwearHooksHelper.NotifyWorkspotState(this, false);
+  if !IsDefined(this) {
+    FootwearRedLogger.LogError("WORKSPOT", "OnWorkspotFinishedEvent called with undefined player entity");
+  } else {
+    FootwearRedLogger.LogInfo("WORKSPOT", "OnWorkspotFinishedEvent: Workspot finished (standing/exited) | Action: Setting workspot state to FALSE and restoring footwear elevation");
+    FootwearHooksHelper.NotifyWorkspotState(this, false);
+  };
   return result;
 }
 
@@ -132,14 +156,24 @@ protected cb func OnWorkspotFinishedEvent(evt: ref<WorkspotFinishedEvent>) -> Bo
 @wrapMethod(PlayerPuppet)
 protected cb func OnMountingEvent(evt: ref<MountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
-  FootwearHooksHelper.NotifyVehicleState(this, true);
+  if !IsDefined(this) {
+    FootwearRedLogger.LogError("VEHICLE", "OnMountingEvent called with undefined player entity");
+  } else {
+    FootwearRedLogger.LogInfo("VEHICLE", "OnMountingEvent: Vehicle mounted | Action: Setting vehicle state to TRUE and evaluating elevation suppression");
+    FootwearHooksHelper.NotifyVehicleState(this, true);
+  };
   return result;
 }
 
 @wrapMethod(PlayerPuppet)
 protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
-  FootwearHooksHelper.NotifyVehicleState(this, false);
+  if !IsDefined(this) {
+    FootwearRedLogger.LogError("VEHICLE", "OnUnmountingEvent called with undefined player entity");
+  } else {
+    FootwearRedLogger.LogInfo("VEHICLE", "OnUnmountingEvent: Vehicle unmounted | Action: Setting vehicle state to FALSE and restoring footwear elevation");
+    FootwearHooksHelper.NotifyVehicleState(this, false);
+  };
   return result;
 }
 
@@ -178,4 +212,23 @@ protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
     FootwearHooksHelper.NotifyFootwearChanged(this);
   };
   return result;
+}
+
+// -----------------------------------------------------------------------------
+// Native Locomotion Frame Tick (Catwalk Stride & Hip Sway)
+// Eliminates per-frame Lua-to-C++ FFI overhead entirely
+// -----------------------------------------------------------------------------
+@wrapMethod(LocomotionEventsTransition)
+protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scriptInterface: ref<StateGameScriptInterface>) -> Void {
+  wrappedMethod(timeDelta, stateContext, scriptInterface);
+  let player: ref<PlayerPuppet> = scriptInterface.executionOwner as PlayerPuppet;
+  if IsDefined(player) {
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if IsDefined(sys) {
+      let cfg: ref<FootwearConfig> = sys.GetConfig();
+      if IsDefined(cfg) && cfg.enableHipSway {
+        sys.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
+      };
+    };
+  };
 }

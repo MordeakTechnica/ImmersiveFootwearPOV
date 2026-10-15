@@ -1,0 +1,232 @@
+module ImmersiveFootwearPOV
+
+import RedFunctions.*
+import RedFunctions.Json.*
+import RedFunctions.Storage.*
+
+// =============================================================================
+// Immersive Footwear POV - Native Storage Manager (Repository Pattern)
+// Single Responsibility: Low-level file persistence of config, presets, and overrides via RedFunctions
+// =============================================================================
+public class FootwearStorageManager {
+  private let m_storage: ref<ModStorage>;
+
+  private const let CONFIG_FILE: String = "config.json";
+  private const let OVERRIDES_FILE: String = "user_shoe_overrides.json";
+  private const let PRESETS_FILE: String = "presets.json";
+
+  public static func GetInstance() -> ref<FootwearStorageManager> {
+    let instance: ref<FootwearStorageManager> = new FootwearStorageManager();
+    instance.Init();
+    return instance;
+  }
+
+  private func Init() -> Void {
+    this.m_storage = ModStorage.Open("ImmersiveFootwearPOV");
+    if !IsDefined(this.m_storage) {
+      FootwearRedLogger.LogError("STORAGE", "Failed to open ModStorage for ImmersiveFootwearPOV");
+    };
+  }
+
+  public func IsReady() -> Bool {
+    return IsDefined(this.m_storage);
+  }
+
+  public func GetStorage() -> ref<ModStorage> {
+    return this.m_storage;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Mod Configuration Loading & Saving
+  // -----------------------------------------------------------------------------
+  public func LoadConfig(config: ref<FootwearConfig>) -> Bool {
+    if !this.IsReady() || !IsDefined(config) {
+      return false;
+    };
+    if !this.m_storage.Has(this.CONFIG_FILE) {
+      // First run: save defaults
+      this.SaveConfig(config);
+      return true;
+    };
+
+    let val: ref<JsonValue> = this.m_storage.ReadJson(this.CONFIG_FILE);
+    if IsDefined(val) && val.IsMap() {
+      config.ReadFromJson(val.AsMap());
+      FootwearRedLogger.LogInfo("STORAGE", "Loaded mod configuration from config.json");
+      return true;
+    };
+
+    FootwearRedLogger.LogWarn("STORAGE", "config.json was invalid or unreadable, using defaults");
+    return false;
+  }
+
+  public func SaveConfig(config: ref<FootwearConfig>) -> Bool {
+    if !this.IsReady() || !IsDefined(config) {
+      return false;
+    };
+
+    let map: ref<JsonMap> = JsonMap.Make();
+    config.WriteToJson(map);
+    let success: Bool = this.m_storage.WriteJson(this.CONFIG_FILE, map, false, true);
+    if success {
+      FootwearRedLogger.LogInfo("STORAGE", "Saved mod configuration to config.json");
+    } else {
+      FootwearRedLogger.LogError("STORAGE", "Failed to write config.json");
+    };
+    return success;
+  }
+
+  // -----------------------------------------------------------------------------
+  // User Shoe Overrides Loading & Saving (Decoupled from System via Repository)
+  // -----------------------------------------------------------------------------
+  public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
+    if !this.IsReady() || !IsDefined(repo) {
+      return 0;
+    };
+    if !this.m_storage.Has(this.OVERRIDES_FILE) {
+      return 0;
+    };
+
+    let val: ref<JsonValue> = this.m_storage.ReadJson(this.OVERRIDES_FILE);
+    if !IsDefined(val) || !val.IsMap() {
+      return 0;
+    };
+
+    let rootMap: ref<JsonMap> = val.AsMap();
+    let keys: array<String> = rootMap.KeyList();
+    let count: Int32 = ArraySize(keys);
+    let registered: Int32 = 0;
+
+    let i: Int32 = 0;
+    while i < count {
+      let key: String = keys[i];
+      if !Equals(key, "__settings") {
+        let entryVal: ref<JsonValue> = rootMap.Value(key);
+        if IsDefined(entryVal) && entryVal.IsMap() {
+          let itemMap: ref<JsonMap> = entryVal.AsMap();
+          let heelCm: Float = itemMap.Float("heel", 0.0);
+          let platCm: Float = itemMap.Float("platform", 0.0);
+          // Convert centimeters from JSON to meters for repository registration
+          repo.Register(key, heelCm / 100.0, platCm / 100.0);
+          registered += 1;
+        };
+      };
+      i += 1;
+    };
+
+    FootwearRedLogger.LogInfo("STORAGE", s"Loaded \(registered) user shoe overrides from user_shoe_overrides.json");
+    return registered;
+  }
+
+  public func SaveUserOverride(key: String, heelMeters: Float, platMeters: Float) -> Bool {
+    if !this.IsReady() || StrLen(key) == 0 {
+      return false;
+    };
+
+    let rootMap: ref<JsonMap>;
+    if this.m_storage.Has(this.OVERRIDES_FILE) {
+      let existing: ref<JsonValue> = this.m_storage.ReadJson(this.OVERRIDES_FILE);
+      if IsDefined(existing) && existing.IsMap() {
+        rootMap = existing.AsMap();
+      } else {
+        rootMap = JsonMap.Make();
+      };
+    } else {
+      rootMap = JsonMap.Make();
+    };
+
+    let itemMap: ref<JsonMap> = JsonMap.Make();
+    itemMap.PutFloat("heel", heelMeters * 100.0);
+    itemMap.PutFloat("platform", platMeters * 100.0);
+    rootMap.Put(key, itemMap);
+
+    let success: Bool = this.m_storage.WriteJson(this.OVERRIDES_FILE, rootMap, false, false);
+    if success {
+      FootwearRedLogger.LogInfo("STORAGE", s"Saved user shoe override for '\(key)' (Heel: \(heelMeters * 100.0)cm, Plat: \(platMeters * 100.0)cm)");
+    } else {
+      FootwearRedLogger.LogError("STORAGE", s"Failed to write user override for '\(key)'");
+    };
+    return success;
+  }
+
+  public func RemoveUserOverride(key: String) -> Bool {
+    if !this.IsReady() || StrLen(key) == 0 {
+      return false;
+    };
+    if !this.m_storage.Has(this.OVERRIDES_FILE) {
+      return false;
+    };
+
+    let existing: ref<JsonValue> = this.m_storage.ReadJson(this.OVERRIDES_FILE);
+    if !IsDefined(existing) || !existing.IsMap() {
+      return false;
+    };
+
+    let rootMap: ref<JsonMap> = existing.AsMap();
+    if rootMap.Contains(key) {
+      rootMap.Drop(key);
+      return this.m_storage.WriteJson(this.OVERRIDES_FILE, rootMap, false, false);
+    };
+    return false;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Master Presets Loading (Decoupled from System via Repository)
+  // -----------------------------------------------------------------------------
+  public func LoadMasterPresetsIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
+    if !this.IsReady() || !IsDefined(repo) {
+      return 0;
+    };
+    if !this.m_storage.Has(this.PRESETS_FILE) {
+      return 0;
+    };
+
+    let val: ref<JsonValue> = this.m_storage.ReadJson(this.PRESETS_FILE);
+    if !IsDefined(val) || !val.IsMap() {
+      return 0;
+    };
+
+    let rootMap: ref<JsonMap> = val.AsMap();
+    let keys: array<String> = rootMap.KeyList();
+    let count: Int32 = ArraySize(keys);
+    let registered: Int32 = 0;
+
+    let i: Int32 = 0;
+    while i < count {
+      let key: String = keys[i];
+      if !Equals(key, "__settings") {
+        let entryVal: ref<JsonValue> = rootMap.Value(key);
+        if IsDefined(entryVal) && entryVal.IsMap() {
+          let itemMap: ref<JsonMap> = entryVal.AsMap();
+          let heelCm: Float = itemMap.Float("heel", 0.0);
+          let platCm: Float = itemMap.Float("platform", 0.0);
+          repo.Register(key, heelCm / 100.0, platCm / 100.0);
+          registered += 1;
+        };
+      };
+      i += 1;
+    };
+
+    FootwearRedLogger.LogInfo("STORAGE", s"Loaded \(registered) master shoe presets from presets.json");
+    return registered;
+  }
+
+  // Backward compatibility forwarders
+  public func LoadUserOverrides(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
+    if IsDefined(system) {
+      return this.LoadUserOverridesIntoRepo(system.GetOverrideRepository());
+    };
+    return 0;
+  }
+
+  public func LoadMasterPresets(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
+    if IsDefined(system) {
+      return this.LoadMasterPresetsIntoRepo(system.GetOverrideRepository());
+    };
+    return 0;
+  }
+
+  public func MigrateLegacyCet(system: ref<ImmersiveFootwearPOVSystem>, config: ref<FootwearConfig>) -> Void {
+    LegacyCetMigrationService.MigrateIfNeeded(this, config);
+  }
+}

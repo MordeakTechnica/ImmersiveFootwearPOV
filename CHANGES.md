@@ -2,6 +2,59 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.4.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.0) — 2026-10-15
+### `refactor(redscript): comprehensive SOLID principles refactoring & design pattern architecture`
+* **Chain of Responsibility Pattern for Footwear Resolution (`FootwearResolver`):**
+  * Refactored monolithic if-else resolution into an extensible handler pipeline (`FootwearResolutionHandler`).
+  * Dedicated single-responsibility handlers: `EquipmentExResolutionHandler`, `WardrobeResolutionHandler`, `GameplaySlotResolutionHandler`, and `BarefootFallbackHandler`.
+  * Open/Closed Principle (OCP): New equipment/wardrobe mod handlers can be registered into the chain without modifying existing resolution logic.
+* **Specification & Rule Engine Pattern for Context Suppression (`SuppressionRuleEngine`):**
+  * Eliminated mutation-by-query anti-pattern from `SuppressionEvaluator` (Query/Command separation).
+  * Implemented immutable `PlayerSuppressionSnapshot` capturing blackboard state.
+  * Modular rules (`VehicleSuppressionRule`, `WorkspotSuppressionRule`, `SceneTierSuppressionRule`, `LocomotionTraversalRule`, `SwimmingSuppressionRule`, `CombatActionLockRule`) evaluated purely without side-effects.
+* **Repository Pattern for Custom Overrides & Configuration (`FootwearOverrideRepository`):**
+  * Eliminated 4 parallel arrays from `ImmersiveFootwearPOVSystem`, replacing them with typed `ShoeOverrideEntry` records.
+  * Broke circular dependency between `ImmersiveFootwearPOVSystem` and `FootwearStorageManager`.
+  * Isolated legacy CET migration logic into `LegacyCetMigrationService`.
+* **Strategy Pattern & Actuator Facade for Elevation Output (`ElevationActuatorCoordinator`):**
+  * Abstract base `IElevationActuator` with dedicated strategies for `FppAnimgraphActuator` (IFP animgraph blend), `TppAnimgraphActuator` (ITP foot elevation offset), and `TfpCameraActuator` (TFP cameraZ and weapon sync).
+  * `ElevationActuatorCoordinator` encapsulates perspective routing, eliminating nested conditionals.
+* **Interface Segregation Principle (ISP) & Event Dispatcher (`FootwearEventDispatcher`):**
+  * Segregated fat listener interface into `IFootwearChangeListener`, `ISuppressionChangeListener`, and `IConfigChangeListener`.
+  * Centralized event subscriptions and multicasting in `FootwearEventDispatcher`, keeping the core coordinator decoupled from observer lists.
+* **Pure Domain Services for Metadata (`FootwearUnitConverter`, `FootwearClampingPolicy`, `ShoeTagRule`):**
+  * Unified duplicated string and unit conversion algorithms into DRY domain classes.
+  * Maintained `ShoeHeightParser` as a lightweight delegating facade.
+* **Coordinator Facade (`ImmersiveFootwearPOVSystem`):**
+  * Slimmed down the core system from 810 lines into a clean, cohesive coordinator that composes and delegates to specialized domain services.
+
+### `feat(redscript): complete migration to 100% native REDscript architecture via DigitalVixen Mod Suite`
+* **Full Deprecation and Removal of Cyber Engine Tweaks (CET):**
+  * Replaced CET Lua runtime, ImGui overlay, and timers with a 100% native Redscript architecture adhering strictly to SOLID principles.
+  * Zero per-frame Lua-to-C++ FFI overhead; mod runs natively in REDengine at full execution speed.
+  * Archived legacy CET files to `legacy/cyber_engine_tweaks/`.
+* **Native Storage Repository via RedFunctions (`FootwearStorageManager`):**
+  * Implemented Repository pattern using DigitalVixen's `RedFunctions.ModStorage` (`r6/storages/ImmersiveFootwearPOV/`).
+  * Typed data model `FootwearConfig` with safe factory defaults for all configuration keys.
+  * Automatic seamless migration: on first boot, existing `config.json` (mod settings) and `user_shoe_overrides.json` (shoe calibrations) from the legacy CET directory are automatically detected, parsed, and transferred into native `r6/storages/ImmersiveFootwearPOV/` with zero user intervention.
+* **Native In-Game Settings Menu via Redscript Configuration Framework (RCF):**
+  * Created `FootwearRCFProvider extends DVRCF_Provider` with a 4-tab fluent schema builder accessible directly in the native pause menu (Settings -> Mods -> Immersive Footwear POV).
+  * Covers Stance & Elevation (FPP eye lift, camera easing duration, ITP 3rd-person character elevation, Photo Mode auto-elevation).
+  * Covers Catwalk Locomotion (Pelvic hip sway toggle, low heel multiplier, mid heel multiplier, high heel multiplier).
+  * Covers Contextual Auto-Suppression (Vehicles, Workspots, Scripted Scenes).
+  * Covers Management & Storage (Live HUD & Calibrator launcher buttons, verbose debug logs, disk reload, factory reset).
+* **Native Floating HUD & Live Shoe Calibrator via RedWindows (`FootwearWindowsController`):**
+  * `IFP_Diagnostics`: floating native `inkWidget` HUD displaying equipped footwear, active elevation, suppression state, and camera mode.
+  * `IFP_Calibrator`: live on-the-fly shoe height calibrator with real-time sliders for Heel Height (cm) and Platform Sole (cm) with INSTANT character model preview on V.
+  * One-click buttons to "Save as Permanent Custom Override" and "Revert to Tag/Preset Default".
+* **Decoupled Observer Pattern (`IFootwearStateListener`):**
+  * Decoupled UI and integrations from core state management via an event-driven listener interface (`OnFootwearChanged`, `OnSuppressionChanged`, `OnConfigChanged`).
+* **100% Native Locomotion Frame Tick (`LocomotionGroundEvents.OnUpdate`):**
+  * Hooked native REDengine ground locomotion tick for feline catwalk stride and pelvic sway, completely eliminating per-frame Lua-to-C++ FFI calls.
+* **Updated Build & Distribution Pipelines:**
+  * Updated `pack_and_deploy.ps1` to deploy native storage templates and clean up legacy CET Lua files in game folder while preserving user data.
+  * Updated `create_release_zips.ps1` for clean `archive` + `r6` distribution packages.
+
 ## [**`v2.3.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.0) — 2026-10-12
 ### `feat(itp): add compatibility with new Immersive Third Person (ITP) release & official Developer API`
 * **AnimGraph Rebuild for New ITP Release:**

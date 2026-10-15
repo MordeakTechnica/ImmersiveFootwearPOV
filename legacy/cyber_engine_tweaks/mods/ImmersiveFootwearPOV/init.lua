@@ -282,6 +282,9 @@ registerForEvent("onSessionStart", function()
     mod.lastSysHeel = nil
     mod.lastSysPlat = nil
     mod.lastSysSuppressed = nil
+    mod.lastSysInVehicle = nil
+    mod.lastSysInWorkspot = nil
+    mod.lastIsSuppressed = nil
     mod.ifpSuppressedReason = nil
     mod.footwearPollTimer = 0.0
     cachedIsTFP = nil
@@ -295,6 +298,9 @@ registerForEvent("onSessionEnd", function()
     mod.lastSysHeel = nil
     mod.lastSysPlat = nil
     mod.lastSysSuppressed = nil
+    mod.lastSysInVehicle = nil
+    mod.lastSysInWorkspot = nil
+    mod.lastIsSuppressed = nil
     mod.ifpSuppressedReason = nil
     mod.footwearPollTimer = 0.0
     cachedSys = nil
@@ -316,6 +322,47 @@ registerForEvent("onOverlayClose", function()
     RefreshIFPBaseHeight()
     SyncOverridesToREDscript()
 end)
+
+local function DetermineViewSwitchContext(player, sys, mod, isITPActive)
+    local inVehicle = (sys and sys.IsInVehicle and sys:IsInVehicle()) or false
+    if not inVehicle and player and VehicleComponent and VehicleComponent.IsMountedToVehicle then
+        pcall(function() inVehicle = VehicleComponent.IsMountedToVehicle(player:GetGame(), player) end)
+    end
+    if inVehicle then
+        return isITPActive and "Vehicle Occupancy (Vehicle 3rd-Person Chase Camera)" or "Vehicle Occupancy (Vehicle 1st-Person Cockpit Camera)"
+    end
+
+    local inWorkspot = (sys and sys.IsInWorkspot and sys:IsInWorkspot()) or false
+    if not inWorkspot and player and Game.GetWorkspotSystem then
+        pcall(function() inWorkspot = Game.GetWorkspotSystem():IsActorInWorkspot(player) end)
+    end
+    if inWorkspot then
+        return isITPActive and "Authored Workspot (3rd-Person / External Camera: Chair, Vending Machine, Furniture)" or "Authored Workspot (1st-Person Workspot Camera)"
+    end
+
+    if mod.isPhotoModeOpen or (sys and sys.IsPhotoModeActive and sys:IsPhotoModeActive()) then
+        return "Photo Mode Camera"
+    end
+
+    local isScene = false
+    pcall(function()
+        if player and player.GetPlayerStateMachineBlackboard then
+            local psm = player:GetPlayerStateMachineBlackboard()
+            local psmDefs = GetAllBlackboardDefs().PlayerStateMachine
+            if psm and psmDefs then
+                local sceneTier = psm:GetInt(psmDefs.SceneTier)
+                if sceneTier >= 3 or sceneTier <= 0 then
+                    isScene = true
+                end
+            end
+        end
+    end)
+    if isScene then
+        return "Scripted Dialogue / Quest Scene Camera"
+    end
+
+    return isITPActive and "Manual Camera Toggle / ITP Activated (On-Foot 3rd Person)" or "Manual Camera Toggle / ITP Deactivated (On-Foot 1st Person)"
+end
 
 registerForEvent("onUpdate", function(deltaTime)
     local player = Game.GetPlayer()
@@ -389,17 +436,128 @@ registerForEvent("onUpdate", function(deltaTime)
     -- Update Photo Mode platform lift once per frame (very cheap 2 booleans when inactive)
     PMIntegration.OnUpdate(deltaTime)
 
+    -- Check vehicle and workspot state from REDscript system
+    local currentSysInVehicle = (sys.IsInVehicle and sys:IsInVehicle()) or false
+    local currentSysInWorkspot = (sys.IsInWorkspot and sys:IsInWorkspot()) or false
+
+    -- Detect and log Vehicle entry/exit with explicit actions taken
+    if mod.lastSysInVehicle ~= nil and currentSysInVehicle ~= mod.lastSysInVehicle then
+        if currentSysInVehicle then
+            Logger.LogFile("Vehicle entered: Action: Enforcing Vehicle Occupancy suppression (neutralizing stance to 0.0 cm / blend 0.50). Releasing ITP ground lease | Shoe: %s | Heel: %.1f cm | Platform: %.1f cm",
+                tostring(mod.currentShoeState.displayName),
+                mod.currentShoeState.heelCm or 0.0,
+                mod.currentShoeState.platformCm or 0.0)
+        else
+            Logger.LogFile("Vehicle exited: Action: Clearing Vehicle Occupancy suppression (restoring footwear elevation). Setting target stance to %+.1f cm | Shoe: %s | Heel: %.1f cm | Platform: %.1f cm",
+                mod.currentShoeState.heelCm or 0.0,
+                tostring(mod.currentShoeState.displayName),
+                mod.currentShoeState.heelCm or 0.0,
+                mod.currentShoeState.platformCm or 0.0)
+        end
+    end
+    mod.lastSysInVehicle = currentSysInVehicle
+
+    -- Detect and log Workspot entry/exit with explicit actions taken
+    if mod.lastSysInWorkspot ~= nil and currentSysInWorkspot ~= mod.lastSysInWorkspot then
+        if currentSysInWorkspot then
+            Logger.LogFile("Workspot activated (Chair/Vending Machine/Furniture): Action: Enforcing Authored Workspot suppression (neutralizing stance to 0.0 cm / blend 0.50). Releasing ITP ground lease | Shoe: %s | Heel: %.1f cm | Platform: %.1f cm",
+                tostring(mod.currentShoeState.displayName),
+                mod.currentShoeState.heelCm or 0.0,
+                mod.currentShoeState.platformCm or 0.0)
+        else
+            Logger.LogFile("Workspot finished (Standing/Exited): Action: Clearing Authored Workspot suppression (restoring footwear elevation). Setting target stance to %+.1f cm | Shoe: %s | Heel: %.1f cm | Platform: %.1f cm",
+                mod.currentShoeState.heelCm or 0.0,
+                tostring(mod.currentShoeState.displayName),
+                mod.currentShoeState.heelCm or 0.0,
+                mod.currentShoeState.platformCm or 0.0)
+        end
+    end
+    mod.lastSysInWorkspot = currentSysInWorkspot
+
+    -- Resolve suppression state and reason
+    local isSuppressed = currentSysSuppressed or (mod.ifpSuppressedReason ~= nil) or mod.isPhotoModeOpen or currentSysInVehicle or currentSysInWorkspot
+    mod.currentShoeState.isSuppressed = isSuppressed
+    if isSuppressed then
+        if currentSysInVehicle then
+            mod.currentShoeState.suppressionReason = "Vehicle Occupancy"
+        elseif currentSysInWorkspot then
+            mod.currentShoeState.suppressionReason = "Authored Workspot"
+        elseif currentSysSuppressed then
+            mod.currentShoeState.suppressionReason = (sys.GetSuppressionReason and sys:GetSuppressionReason()) or "Suppressed"
+        elseif mod.ifpSuppressedReason ~= nil then
+            mod.currentShoeState.suppressionReason = mod.ifpSuppressedReason
+        elseif mod.isPhotoModeOpen then
+            mod.currentShoeState.suppressionReason = "Photo Mode"
+        end
+    else
+        mod.currentShoeState.suppressionReason = ""
+    end
+
+    -- Safety check: ensure suppression is active if player is in vehicle or workspot
+    if (currentSysInVehicle or currentSysInWorkspot) and not isSuppressed then
+        Logger.Warn("SUPPRESSION", "Player is in vehicle (%s) or workspot (%s) but isSuppressed was false! Forcing suppression.", tostring(currentSysInVehicle), tostring(currentSysInWorkspot))
+        isSuppressed = true
+        mod.currentShoeState.isSuppressed = true
+        mod.currentShoeState.suppressionReason = currentSysInVehicle and "Vehicle Occupancy" or "Authored Workspot"
+    end
+
+    -- Detect and log generic suppression changes (e.g. Scenes, Ladders)
+    if mod.lastIsSuppressed ~= nil and isSuppressed ~= mod.lastIsSuppressed and currentSysInVehicle == mod.lastSysInVehicle and currentSysInWorkspot == mod.lastSysInWorkspot then
+        local reason = mod.currentShoeState.suppressionReason or "Suppressed"
+        if isSuppressed then
+            Logger.LogFile("Suppression activated ('%s'): Action: Neutralizing footwear elevation (0.0 cm / blend 0.50). Releasing ITP ground lease | Shoe: %s",
+                reason, tostring(mod.currentShoeState.displayName))
+        else
+            Logger.LogFile("Suppression cleared: Action: Restoring footwear elevation to %+.1f cm | Shoe: %s",
+                mod.currentShoeState.heelCm or 0.0, tostring(mod.currentShoeState.displayName))
+        end
+    end
+    mod.lastIsSuppressed = isSuppressed
+
     -- Detect if Immersive Third Person (ITP) camera is currently active
     local isITPActive = (Perspective and Perspective.IsTPPActive and Perspective.IsTPPActive(player, sys)) or false
     if isITPActive ~= mod.isITPActive then
         local wasITP = mod.isITPActive
         mod.isITPActive = isITPActive
-        Logger.LogFile("Perspective changed: %s -> %s | Shoe: %s | Heel: %.1f cm | Platform: %.1f cm",
-            wasITP and "3rd Person (ITP Active)" or "1st Person (FPP)",
-            isITPActive and "3rd Person (ITP Active)" or "1st Person (FPP)",
-            tostring(mod.currentShoeState.displayName),
-            mod.currentShoeState.heelCm or 0.0,
-            mod.currentShoeState.platformCm or 0.0)
+
+        local triggerContext = DetermineViewSwitchContext(player, sys, mod, isITPActive)
+        local shoeName = tostring(mod.currentShoeState.displayName)
+        local heelCm = mod.currentShoeState.heelCm or 0.0
+        local platCm = mod.currentShoeState.platformCm or 0.0
+        local actionTaken = ""
+
+        if isITPActive then
+            if isSuppressed then
+                actionTaken = string.format("Suppression active ('%s') -> 3rd-person elevation neutralized (0.0 cm), FPP skeletal blend held neutral (0.50), ITP ground lease released, stride/sway reset",
+                    tostring(mod.currentShoeState.suppressionReason))
+            else
+                if ITPIntegration.IsLeaseHeld() and platCm > 0.05 then
+                    actionTaken = string.format("Active ITP ground elevation lease (+%.1f mm, priority %d), held FPP skeletal blend neutral (0.50), reset IFP blend cache and stride/sway",
+                        platCm * 10.0, ITPIntegration.PRIORITY)
+                elseif platCm > 0.05 then
+                    actionTaken = string.format("Applying 3rd-person platform elevation (+%.1f cm via foot_elevation_offset/ITP), held FPP skeletal blend neutral (0.50), reset IFP blend cache and stride/sway",
+                        platCm)
+                else
+                    actionTaken = "Neutral 3rd-person elevation (0.0 cm platform), held FPP skeletal blend neutral (0.50), reset stride/sway"
+                end
+            end
+        else
+            if isSuppressed then
+                actionTaken = string.format("Released ITP ground lease, reset puppet foot_elevation_offset to 0.0m, suppression active ('%s') -> FPP skeletal blend held neutral (0.50)",
+                    tostring(mod.currentShoeState.suppressionReason))
+            else
+                local estTarget = 0.50 + ((mod.ifpBaseHeightCm or 0.0) + heelCm) / 100.0
+                actionTaken = string.format("Released ITP ground lease, reset puppet foot_elevation_offset to 0.0m, restoring FPP skeletal height blend to target %.3f (%+.1f cm) [Heel: %+.1f cm, IFP Base: %+.1f cm], reset IFP blend cache and stride",
+                    estTarget, (estTarget - 0.50) * 100.0, heelCm, mod.ifpBaseHeightCm or 0.0)
+            end
+        end
+
+        Logger.LogFile("View Switched: %s -> %s | Trigger: %s | Action Taken: %s | Shoe: %s | Heel: %.1f cm | Platform: %.1f cm",
+            wasITP and "3rd Person (ITP/TPP)" or "1st Person (FPP)",
+            isITPActive and "3rd Person (ITP/TPP)" or "1st Person (FPP)",
+            triggerContext,
+            actionTaken,
+            shoeName, heelCm, platCm)
 
         IFPIntegration.ResetBlendCache()
         Stride.Reset(player, sys)
@@ -408,7 +566,12 @@ registerForEvent("onUpdate", function(deltaTime)
             -- Returning to First Person (FPP): release ITP ground offset and zero out 3rd-person puppet elevation variable
             ITPIntegration.ReleaseGroundOffset()
             if AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
-                pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), 0.0)
+                local ok, err = pcall(AnimationControllerComponent.SetInputFloat, player, CName.new("foot_elevation_offset"), 0.0)
+                if not ok then
+                    Logger.Error("INIT", "Failed to reset foot_elevation_offset to 0.0: %s", tostring(err))
+                end
+            else
+                Logger.Warn("INIT", "AnimationControllerComponent or SetInputFloat unavailable when resetting foot_elevation_offset")
             end
         end
     end
@@ -418,22 +581,6 @@ registerForEvent("onUpdate", function(deltaTime)
     if mod.ifpPollTimer >= 0.25 or mod.isOverlayOpen then
         mod.ifpPollTimer = 0.0
         RefreshIFPBaseHeight()
-    end
-
-    -- Resolve target stance via StanceResolver (Strategy Pattern)
-    -- Mutate static context to eliminate per-frame table allocation
-    local isSuppressed = currentSysSuppressed or (mod.ifpSuppressedReason ~= nil) or mod.isPhotoModeOpen
-    mod.currentShoeState.isSuppressed = isSuppressed
-    if isSuppressed then
-        if currentSysSuppressed then
-            mod.currentShoeState.suppressionReason = (sys.GetSuppressionReason and sys:GetSuppressionReason()) or "Suppressed"
-        elseif mod.ifpSuppressedReason ~= nil then
-            mod.currentShoeState.suppressionReason = mod.ifpSuppressedReason
-        elseif mod.isPhotoModeOpen then
-            mod.currentShoeState.suppressionReason = "Photo Mode"
-        end
-    else
-        mod.currentShoeState.suppressionReason = ""
     end
 
     stanceContext.forcedBlend = mod.forcedBlend

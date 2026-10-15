@@ -11,6 +11,7 @@ public class HeightController {
   // Applies physical platform elevation to V's character model via IFP animgraph variable
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetZ: Float) -> Bool {
     if !IsDefined(player) {
+      FootwearRedLogger.LogError("IFP", "ApplyHeightOffset failed: player is undefined");
       return false;
     };
 

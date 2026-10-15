@@ -5,6 +5,7 @@
 -- =============================================================================
 
 local UIManager = require("modules/ui")
+local Logger = require("modules/logger")
 
 local IFP = {
     inputName = nil,
@@ -206,7 +207,11 @@ end
 -- Feeds anim input values continuously each frame to prevent engine animgraph resets
 -- -----------------------------------------------------------------------------
 function IFP.ApplyBlend(player, activeBlend, offsetMeters)
-    if not player or not AnimationControllerComponent or not AnimationControllerComponent.SetInputFloat then
+    if not player then
+        return
+    end
+    if not AnimationControllerComponent or not AnimationControllerComponent.SetInputFloat then
+        Logger.Error("IFP", "AnimationControllerComponent.SetInputFloat is not available")
         return
     end
 
@@ -218,11 +223,17 @@ function IFP.ApplyBlend(player, activeBlend, offsetMeters)
     end
 
     if IFP.inputName and activeBlend ~= nil then
-        pcall(AnimationControllerComponent.SetInputFloat, player, IFP.inputName, activeBlend)
+        local ok, err = pcall(AnimationControllerComponent.SetInputFloat, player, IFP.inputName, activeBlend)
+        if not ok then
+            Logger.Error("IFP", "Failed to set animgraph float '%s' to %.3f: %s", tostring(IFP.inputName), activeBlend, tostring(err))
+        end
     end
 
     if IFP.footElevationName and offsetMeters ~= nil then
-        pcall(AnimationControllerComponent.SetInputFloat, player, IFP.footElevationName, offsetMeters)
+        local ok, err = pcall(AnimationControllerComponent.SetInputFloat, player, IFP.footElevationName, offsetMeters)
+        if not ok then
+            Logger.Error("IFP", "Failed to set animgraph float '%s' to %.3f: %s", tostring(IFP.footElevationName), offsetMeters, tostring(err))
+        end
     end
 end
 

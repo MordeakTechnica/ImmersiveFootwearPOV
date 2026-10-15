@@ -4,6 +4,8 @@
 -- Optimized: lazy-initializes CNames to avoid startup crashes, caches transforms and components
 -- =============================================================================
 
+local Logger = require("modules/logger")
+
 local Perspective = {}
 
 -- Cached static data (lazy-initialized to protect against boot-time VM unreadiness)
@@ -99,6 +101,10 @@ function Perspective.IsTPPActive(player, sys)
         if ok and type(active) == "boolean" then
             if active then isITPInstalledCache = true end
             return active
+        else
+            if not ok then
+                Logger.Warn("CAMERA", "Native sys:IsTPPActive query failed: %s", tostring(active))
+            end
         end
     end
 
@@ -125,7 +131,7 @@ function Perspective.IsTPPActive(player, sys)
                 or (Transform and Transform.new and Transform.new())
         end
         if reusableTransform then
-            local okXf = pcall(function() return cameraSystem:GetActiveCameraWorldTransform(reusableTransform) end)
+            local okXf, errXf = pcall(function() return cameraSystem:GetActiveCameraWorldTransform(reusableTransform) end)
             if okXf then
                 local activePos = nil
                 if reusableTransform.GetPosition then activePos = reusableTransform:GetPosition() end
@@ -147,9 +153,15 @@ function Perspective.IsTPPActive(player, sys)
                             return true
                         elseif distSq < 0.25 then
                             return false
+                        else
+                            -- Ambiguous zone (0.25 to 0.64) - camera is between 0.5m and 0.8m from head
+                            -- Typically happens during transitions (entering vehicle / sitting down on furniture)
+                            Logger.Log("CAMERA", "Camera distance in transition threshold zone: distSq=%.3f (FPP < 0.25, TPP >= 0.64)", distSq)
                         end
                     end
                 end
+            else
+                Logger.Warn("CAMERA", "GetActiveCameraWorldTransform query failed: %s", tostring(errXf))
             end
         end
     end

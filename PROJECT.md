@@ -2,18 +2,18 @@
 
 **Mod Name:** Immersive Footwear POV  
 **Target Game:** Cyberpunk 2077  
-**Frameworks:** REDscript, TweakXL (Optional: ArchiveXL), Cyber Engine Tweaks (CET)  
-**Scope:** First-Person Perspective (FPP) Camera Adjustment & Height Stance based on Shoe TweakDB Metadata
+**Frameworks:** REDscript, TweakXL, DigitalVixen Mod Suite (`RedFunctions`, `Redscript Configuration Framework`, `RedWindows`)  
+**Scope:** First-Person Perspective (FPP) Camera Adjustment, Third-Person (ITP) Character Elevation & Stance based on Shoe TweakDB Metadata
 
 ---
 
 ## 1. Project Overview
 
-This mod dynamically adjusts V's First-Person Perspective (FPP) camera eye height based on the currently equipped footwear. By reading custom TweakDB tags from the equipped footwear's item record, the mod calculates a vertical Z-offset and applies it directly to V's physical skeleton via the REDengine animation graph (`ifp_height_blend`).
+This mod dynamically adjusts V's First-Person Perspective (FPP) camera eye height and physical skeleton stance based on the currently equipped footwear. By reading custom TweakDB tags from the equipped footwear's item record, the mod calculates a vertical Z-offset and applies it directly to V's physical skeleton via the REDengine animation graph (`ifp_height_blend`) for FPP, and `foot_elevation_offset` on `AnimationControllerComponent` for third-person (ITP) elevation.
 
 ### Dual-Height Specification:
-1. **Heel Height (`HeelHeight_<VAL>`):** **Primary FPP Height Offset**. Determines the vertical elevation applied to V's character model, root stance, and eye-line in real-time first-person gameplay.
-2. **Platform Height (`PlatformHeight_<VAL>`):** **Secondary Sole Offset**. Captures the front sole / platform thickness under the ball of the foot. Stored in memory and reserved for Photo Mode (PM) pose height shifting.
+1. **Heel Height (`HeelHeight_<VAL>`):** **Primary FPP Height Offset**. Determines the vertical elevation applied to V's character model, root stance, and eye-line in real-time first-person gameplay. Also scales dynamic feline catwalk hip sway.
+2. **Platform Height (`PlatformHeight_<VAL>`):** **Secondary Sole Offset**. Captures the front sole / platform thickness under the ball of the foot. Drives physical character elevation in third-person (ITP) view and Photo Mode (PM) pose height shifting.
 
 To maintain immersion and prevent visual clipping or misalignment:
 - The height offset is **active** while standing, walking, running, or crouching.
@@ -23,7 +23,7 @@ To maintain immersion and prevent visual clipping or misalignment:
 
 ## 2. Directory Structure & Workspace Layout
 
-The repository is organized into distinct functional layers, with **[`source/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source)** designated as the **main mod folder** containing all active game assets, scripts, CET modules, and archive inputs.
+The repository is organized into distinct functional layers, with **[`source/`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source)** designated as the **main mod folder** containing all active game assets, scripts, and archive inputs.
 
 ```
 Immersive Footwear POV/
@@ -34,20 +34,33 @@ Immersive Footwear POV/
 │   │   └── base/gameplay/anim_graphs/player_base.animgraph.json
 │   └── resources/                 # Ready-to-deploy game resources (mirrors game installation layout)
 │       ├── archive/pc/mod/        # Packed archive package (##_ITP_Immersive_Footwear_POV.archive)
-│       ├── bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/  # CET mod files
-│       │   ├── init.lua           # CET core lifecycle & overlay orchestrator
-│       │   ├── shoe_presets.example.json  # Reference shoe calibration configuration
-│       │   ├── integrations/      # 3rd-party bridge modules (ifp.lua, pm.lua)
-│       │   └── modules/           # Modular CET subsystems (config, ui, state, stride, etc.)
-│       └── r6/                    # Engine scripts and metadata definitions
-│           ├── scripts/ImmersiveFootwearPOV/  # Authoritative REDscript codebase
+│       └── r6/                    # Engine scripts, storage templates, and metadata definitions
+│           ├── scripts/ImmersiveFootwearPOV/  # 100% Native REDscript codebase (SOLID architecture)
+│           │   ├── Interfaces/    # Decoupled Observer pattern (IFootwearStateListener)
+│           │   ├── Storage/       # RedFunctions native ModStorage repository (FootwearStorageManager, FootwearConfig)
+│           │   ├── UI/            # In-game menus (FootwearRCFProvider) & floating HUD/Calibrator (FootwearWindowsController)
+│           │   ├── Integrations/  # Mod integrations (ITP, IFP, TFP, Equipment-EX, PM)
+│           │   ├── Systems/       # Authoritative ScriptableSystems (System, Stride, Suppression, Telemetry)
 │           │   ├── ImmersiveFootwearPOV_FootwearResolver.reds
 │           │   ├── ImmersiveFootwearPOV_Hooks.reds
-│           │   ├── ImmersiveFootwearPOV_TweakReader.reds
-│           │   ├── Integrations/  # Mod integrations (ITP, IFP, TFP, Equipment-EX, PM)
-│           │   └── Systems/       # Authoritative ScriptableSystems (System, Stride, Suppression)
+│           │   └── ImmersiveFootwearPOV_TweakReader.reds
+│           ├── storages/ImmersiveFootwearPOV/ # Native RedFunctions ModStorage presets template
 │           └── tweaks/ImmersiveFootwearPOV/   # TweakXL YAML metadata examples
 │
+├── tools/                         # Automated build, deployment, animgraph, and packaging tooling
+│   ├── pack_and_deploy.ps1        # Master packaging, deployment, and validation pipeline
+│   ├── create_release_zips.ps1    # Automated release archive packager
+│   ├── animgraph_toolkit/         # Python framework for animgraph inspection and transformation
+│   ├── preset_variant_expander/   # Python utility for generating shoe variant presets
+│   └── ...
+│
+├── legacy/                        # Archived legacy code (Cyber Engine Tweaks Lua implementation)
+├── packed/                        # Distribution archives generated during build
+├── docs/                          # Architecture diagrams, specifications, and reference notes
+├── CHANGES.md                     # Comprehensive chronological changelog
+├── PROJECT.md                     # Technical architecture & project roadmap
+└── USER_GUIDE.md                  # Player installation, configuration, and troubleshooting guide
+```
 ├── tools/                         # Automated build, deployment, animgraph, and packaging tooling
 │   ├── pack_and_deploy.ps1        # Master packaging, deployment, and validation pipeline
 │   ├── create_release_zips.ps1    # Automated release archive packager
@@ -176,31 +189,42 @@ Items.Custom_Chunky_Platforms_01:
 
 ---
 
-## 5. REDscript & CET Implementation Design
+## 5. Native REDscript Architecture & Design Patterns (SOLID)
 
-### Core Components
+Following the complete deprecation of CET in `v2.4.0`, the mod operates as a 100% native REDscript architecture structured strictly around SOLID principles and design patterns:
 
-1. **`ShoeHeightParser` & `ShoeHeightData` ([`ImmersiveFootwearPOV_TweakReader.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_TweakReader.reds))**
-   - Parses both `HeelHeight` and `PlatformHeight` from item tags.
-   - Supplies `heelHeight` for active FPP skeletal elevation and `platformHeight` for future Photo Mode shifting.
+### Core Architecture & Design Patterns
 
-2. **`ImmersiveFootwearPOVSystem` ([`ImmersiveFootwearPOV_System.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_System.reds))**
-   - Tracks current `m_currentHeelHeight` and `m_currentPlatformHeight`.
-   - Listens for equipment and wardrobe changes.
-   - Evaluates context suppression (`isInVehicle`, `isInWorkspot`).
-   - Computes effective elevation offset:  
-     `EffectiveOffset = (isInVehicle || isInWorkspot) ? 0.0 : m_currentHeelHeight`
+1. **Chain of Responsibility Pattern — Footwear Resolution Pipeline ([`FootwearResolver.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_FootwearResolver.reds))**
+   - Base handler: `FootwearResolutionHandler`.
+   - Sequential chain: `EquipmentExResolutionHandler` -> `WardrobeResolutionHandler` -> `GameplaySlotResolutionHandler` -> `BarefootFallbackHandler`.
+   - Open/Closed Principle (OCP): New equipment/wardrobe mod layers can be linked into the chain without modifying existing resolution logic.
 
-3. **Equipment & Outfit Resolver ([`FootwearResolver.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_FootwearResolver.reds))**
-   - Resolves active footwear with strict priority: Equipment-EX -> Vanilla Wardrobe / Transmog -> Gameplay Equipment Slot.
+2. **Specification & Rule Engine Pattern — Context-Aware Suppression ([`Suppression.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Suppression.reds))**
+   - Pure, query-command separated evaluation via `SuppressionRuleEngine` and `PlayerSuppressionSnapshot`.
+   - Decoupled specification rules: `VehicleSuppressionRule`, `WorkspotSuppressionRule`, `SceneTierSuppressionRule`, `LocomotionTraversalRule`, `SwimmingSuppressionRule`, `CombatActionLockRule`.
+   - Zero side-effects during evaluation; returns typed `SuppressionRuleResult(isSuppressed, reason)`.
 
-4. **Physical Animation Graph Height Controller ([`HeightController.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_HeightController.reds))**
-   - Directly drives the player skeleton two-branch blend (`ifp_height_blend`) on `AnimationControllerComponent`.
-   - Zero modification of `FPPCameraComponent` (camera naturally follows V's elevated head).
+3. **Repository Pattern & Data Mapper — Storage & Overrides ([`Storage.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Storage/ImmersiveFootwearPOV_Storage.reds))**
+   - Encapsulates shoe height overrides in typed `ShoeOverrideEntry` records within `FootwearOverrideRepository`.
+   - Eliminates parallel arrays from the core system and breaks circular dependencies between system and storage.
+   - Isolates legacy migration in `LegacyCetMigrationService`.
 
-5. **Continuous Dynamic Frame Bridge ([`init.lua`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/bin/x64/plugins/cyber_engine_tweaks/mods/ImmersiveFootwearPOV/init.lua))**
-   - CET background worker continuously publishes the dynamic footwear height blend to the animation graph.
-   - Implements direct Dear ImGui window appending to IFP's existing CET window.
+4. **Strategy Pattern & Actuator Facade — Elevation Output ([`ElevationCoordinator.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_ElevationCoordinator.reds))**
+   - Abstract `IElevationActuator` interface.
+   - Concrete actuators: `FppAnimgraphActuator` (`ifp_height_blend`), `TppAnimgraphActuator` (`foot_elevation_offset`), and `TfpCameraActuator` (TFP cameraZ and weapon sync).
+   - `ElevationActuatorCoordinator` encapsulates perspective routing, eliminating nested conditionals in core state management.
+
+5. **Interface Segregation Principle (ISP) — Event Dispatcher ([`Interfaces.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Interfaces/ImmersiveFootwearPOV_Interfaces.reds))**
+   - Granular event channels: `IFootwearChangeListener`, `ISuppressionChangeListener`, `IConfigChangeListener`.
+   - Managed centrally by `FootwearEventDispatcher`, keeping the core coordinator decoupled from observer lists.
+
+6. **Domain Services & Metadata Facade ([`TweakReader.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_TweakReader.reds))**
+   - Pure domain algorithms: `FootwearUnitConverter`, `FootwearClampingPolicy`, and `ShoeTagRule`.
+   - Facade `ShoeHeightParser` provides 100% backward-compatible access.
+
+7. **System Coordinator Facade ([`System.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds))**
+   - `ImmersiveFootwearPOVSystem` acts as the high-level REDengine `ScriptableSystem` coordinator, composing and delegating to specialized domain repositories, rule engines, and actuators.
 
 ---
 
@@ -345,6 +369,58 @@ Items.Custom_Chunky_Platforms_01:
   - Eliminated stale Lua `mod.currentShoeState.isSuppressed` latch by dynamically checking suppression per frame and synchronizing REDscript state changes.
   - Added self-healing reconciliation in REDscript (`ClearWorkspotState` / `ClearVehicleState`) against `WorkspotSystem` and `VehicleComponent`.
 
+### Phase 9: Full REDscript & DigitalVixen Suite Migration (Removal of CET)
+- [x] **Repository Pattern Storage via RedFunctions (`FootwearStorageManager`):**
+  - Migrated configuration and shoe overrides from CET Lua tables to native `RedFunctions.ModStorage` (`r6/storages/ImmersiveFootwearPOV/`).
+  - Added one-time automatic backward-compatible migration of legacy CET `user_shoe_overrides.json`.
+  - Added typed data model `FootwearConfig` with safe factory defaults.
+- [x] **Native Pause Menu via Redscript Configuration Framework (RCF):**
+  - Created `FootwearRCFProvider extends DVRCF_Provider` with a 4-tab fluent schema builder:
+    * *Stance & Elevation:* FPP eye lift, camera easing duration, ITP 3rd-person character elevation, Photo Mode auto-elevation.
+    * *Catwalk Locomotion:* Pelvic hip sway toggle, low heel multiplier, mid heel multiplier, high heel multiplier.
+    * *Suppression:* Context-aware auto-suppression toggles for vehicles, workspots (sitting), and scripted cutscenes.
+    * *Management & Storage:* HUD and Calibrator launch buttons, verbose debug logs, disk reload, and factory reset.
+- [x] **Native Floating HUD & Live Shoe Calibrator via RedWindows (`FootwearWindowsController`):**
+  - Built `IFP_Diagnostics`: native inkWidget floating HUD displaying equipped footwear, active elevation, suppression state, and camera mode.
+  - Built `IFP_Calibrator`: live on-the-fly shoe height calibrator with real-time sliders for Heel Height (cm) and Platform Sole (cm) with INSTANT character model preview on V.
+  - Added one-click actions: "Save as Permanent Custom Override" and "Revert to Tag/Preset Default".
+- [x] **Observer Pattern Decoupling (`IFootwearStateListener`):**
+  - Implemented decoupled event-driven listener interface notifying registered UI components and integrations on footwear equip, suppression change, and config update.
+- [x] **100% Native Locomotion Frame Tick (`LocomotionGroundEvents.OnUpdate`):**
+  - Hooked native Redscript ground locomotion tick for feline catwalk stride and pelvic sway, completely eliminating per-frame Lua-to-C++ FFI calls.
+- [x] **Legacy Codebase Removal & Clean Packaging Pipeline:**
+  - Archived legacy CET Lua implementation to `legacy/cyber_engine_tweaks/`.
+  - Updated `pack_and_deploy.ps1` and `create_release_zips.ps1` for clean `archive` + `r6` distribution.
+
+### Phase 10: SOLID Architectural Refactor & Modularization (v2.4.1+)
+- [x] **Chain of Responsibility Pattern (Footwear Resolution):**
+  - Refactored [`ImmersiveFootwearPOV_FootwearResolver.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_FootwearResolver.reds) with `FootwearResolutionHandler` and isolated handler links: `EquipmentExResolutionHandler`, `WardrobeResolutionHandler`, `GameplaySlotResolutionHandler`, and `BarefootFallbackHandler`.
+- [x] **Specification & Rule Engine Pattern (Suppression Evaluation):**
+  - Refactored [`Systems/ImmersiveFootwearPOV_Suppression.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Suppression.reds) into `ISuppressionRule` with individual atomic rule specifications (`VehicleSuppressionRule`, `WorkspotSuppressionRule`, `SceneTierSuppressionRule`, `LocomotionTraversalSuppressionRule`, `SwimmingSuppressionRule`, `CombatActionLockSuppressionRule`), evaluated via `SuppressionRuleEngine` on side-effect-free snapshots (`PlayerSuppressionSnapshot`).
+- [x] **Catwalk Locomotion Biomechanics Separation:**
+  - Extracted locomotion sway kinematics into dedicated [`Systems/ImmersiveFootwearPOV_Sway.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Sway.reds) (`SwayContextData`, `SwayEvaluator`).
+- [x] **Domain Service Extraction (Tweak & Clamping):**
+  - Sliced `ImmersiveFootwearPOV_TweakReader.reds` into single-responsibility services:
+    * [`ImmersiveFootwearPOV_ClampingPolicy.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_ClampingPolicy.reds) (`FootwearHeightLimits`, `FootwearClampingPolicy`)
+    * [`ImmersiveFootwearPOV_UnitConverter.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_UnitConverter.reds) (`FootwearUnitConverter`)
+    * [`ImmersiveFootwearPOV_TagRule.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/ImmersiveFootwearPOV_TagRule.reds) (`ShoeTagRule`)
+- [x] **Strategy Pattern & Actuator Facade (Elevation Actuation):**
+  - Created [`Systems/ImmersiveFootwearPOV_ElevationCoordinator.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_ElevationCoordinator.reds) with `IElevationActuator` implementations (`FppAnimgraphActuator`, `TppAnimgraphActuator`, `TfpCameraActuator`) coordinated through `ElevationActuatorCoordinator`.
+- [x] **Interface Segregation Principle (ISP):**
+  - Modularized [`Interfaces/ImmersiveFootwearPOV_Interfaces.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Interfaces/ImmersiveFootwearPOV_Interfaces.reds) into role-specific listener interfaces: `IFootwearChangeListener`, `ISuppressionChangeListener`, `IConfigChangeListener`, and composite `IFootwearStateListener`.
+- [x] **Repository Pattern & Storage Slicing:**
+  - Decomposed monolithic storage into 4 focused units:
+    * [`Storage/FootwearConfig.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Storage/FootwearConfig.reds)
+    * [`Storage/FootwearOverrideRepository.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Storage/FootwearOverrideRepository.reds)
+    * [`Storage/FootwearStorageManager.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Storage/FootwearStorageManager.reds)
+    * [`Storage/LegacyCetMigrationService.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Storage/LegacyCetMigrationService.reds)
+- [x] **UI Separation of Concerns:**
+  - Sliced `UI/ImmersiveFootwearPOV_RedWindows.reds` into [`UI/FootwearDiagnosticsHUD.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/UI/FootwearDiagnosticsHUD.reds), [`UI/FootwearCalibratorWindow.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/UI/FootwearCalibratorWindow.reds), and facade `FootwearWindowsController`.
+- [x] **Telemetry & Display Helpers:**
+  - Extracted [`Systems/ImmersiveFootwearPOV_DisplayHelper.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_DisplayHelper.reds) and encapsulated telemetry logging in [`Systems/ImmersiveFootwearPOV_Telemetry.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_Telemetry.reds).
+- [x] **Coordinator Slimming & Encapsulation:**
+  - Slimmed [`Systems/ImmersiveFootwearPOV_System.reds`](file:///c:/Users/cogli/Documents/CyberPunk%20-%20Projects/Immersive%20Footwear%20POV/source/resources/r6/scripts/ImmersiveFootwearPOV/Systems/ImmersiveFootwearPOV_System.reds) down to pure coordinator responsibilities, delegating all subsystem logic to specialized domain collaborators.
+
 ---
 
 ## 7. Dependencies & Publishing Requirements
@@ -354,10 +430,12 @@ These framework mods must be installed for **Immersive Footwear POV** to functio
 
 | Mod / Framework | Minimum Version | Nexus Mod Link / ID | Purpose in This Mod |
 | :--- | :--- | :--- | :--- |
-| **Cyber Engine Tweaks (CET)** | `v1.30+` | [CET (Nexus: 107)](https://www.nexusmods.com/cyberpunk2077/mods/107) | Drives the per-frame animgraph blend publisher, hotkey, and IFP window extension. |
-| **REDscript** | `v0.5.25+` | [REDscript (Nexus: 1511)](https://www.nexusmods.com/cyberpunk2077/mods/1511) | Compiles the mod's core state system, TweakDB reader, and outfit hooks. |
+| **REDscript** | `v0.5.25+` | [REDscript (Nexus: 1511)](https://www.nexusmods.com/cyberpunk2077/mods/1511) | Compiles the mod's core 100% native Redscript architecture. |
 | **RED4ext** | `v1.20+` | [RED4ext (Nexus: 2380)](https://www.nexusmods.com/cyberpunk2077/mods/2380) | Prerequisite framework for REDscript and script compilation. |
-| **Immersive First Person (IFP)** | `v2.0+` | [IFP (Nexus: 2675)](https://www.nexusmods.com/cyberpunk2077/mods/2675) | Provides the modified `player_base.animgraph` with the `ifp_height_blend` skeletal height node. |
+| **RedFunctions** | `v1.0.0+` | [RedFunctions (Nexus: 18128)](https://www.nexusmods.com/cyberpunk2077/mods/18128) | Native JSON file persistence (`ModStorage`), file I/O, and storage management. |
+| **Redscript Configuration Framework (RCF)** | `v1.0.0+` | [RCF (Nexus: 18209)](https://www.nexusmods.com/cyberpunk2077/mods/18209) | Native in-game settings menu integration under Pause Menu -> Mods. |
+| **RedWindows** | `v1.0.0+` | [RedWindows (Nexus: 18274)](https://www.nexusmods.com/cyberpunk2077/mods/18274) | Native floating `inkWidget` UI for live HUD diagnostics and the real-time shoe calibrator. |
+| **Immersive Third Person (ITP)** *(Optional for FPP, Recommended)* | `v1.0+` | [ITP (Nexus: 19894)](https://www.nexusmods.com/cyberpunk2077/mods/19894) | Enables third-person character elevation via skeletal animgraph blend nodes and feline stride sway. |
 
 ---
 
@@ -377,7 +455,8 @@ The mod natively detects and supports these mods automatically when present:
 | Mod / Integration | Compatibility / Function |
 | :--- | :--- |
 | **Equipment-EX** | Priority 1 outfit resolution. Footwear in custom Equipment-EX slots is automatically detected and prioritized over vanilla transmog/equipment. |
-| **Native Settings UI** | Displays real-time footwear and total stance height readouts directly inside the in-game *Mod Settings* menu. |
+| **True First Person (TFP)** | Dynamic weapon height synchronization and optic alignment in native Redscript. |
+| **Immersive First Person (IFP)** | Coexists additively with IFP base height adjustments. |
 
 ---
 

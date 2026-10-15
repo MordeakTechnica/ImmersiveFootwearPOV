@@ -3,6 +3,8 @@
 -- Tracks equipped footwear metadata, suppression contexts, and custom overrides
 -- =============================================================================
 
+local Logger = require("modules/logger")
+
 local State = {
     lastEquippedKey = "",
     currentShoeState = {
@@ -67,7 +69,15 @@ function State.ApplyCustomOverride(player, sys, shoeKey, overrides)
 end
 
 function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOverridesCallback)
-    if not player or not sys then return end
+    if not player or not sys then
+        if not player then
+            Logger.Warn("STATE", "State.Sync aborted: player entity is nil")
+        end
+        if not sys then
+            Logger.Warn("STATE", "State.Sync aborted: ImmersiveFootwearPOVSystem is nil")
+        end
+        return
+    end
 
     -- Synchronize debug logging mode with REDscript system
     pcall(function()
@@ -126,6 +136,13 @@ function State.Sync(player, sys, overrides, modSettings, ifpIntegration, saveOve
             State.ApplyCustomOverride(player, sys, shoeKey, overrides)
         end
         State.lastEquippedKey = shoeKey
+
+        if (shoeState.heelCm or 0.0) > 40.0 then
+            Logger.Warn("STATE", "Equipped footwear '%s' heel height %.1f cm exceeds 40.0 cm limit", tostring(shoeState.displayName), shoeState.heelCm)
+        end
+        if (shoeState.platformCm or 0.0) > 30.0 then
+            Logger.Warn("STATE", "Equipped footwear '%s' platform height %.1f cm exceeds 30.0 cm limit", tostring(shoeState.displayName), shoeState.platformCm)
+        end
     else
         if sys:HasCustomOverride() then
             sys:ClearCustomHeightOverride(player, true)

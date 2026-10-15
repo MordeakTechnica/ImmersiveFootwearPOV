@@ -92,9 +92,6 @@ public class TFPHelper {
         // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
         weapon.RefreshCurrentWeapon(config.cameraZ, config);
 
-        povSys.SetTFPLastAppliedWeaponLift(effectiveOffset);
-        povSys.SetTFPLastWeaponKey(key);
-
         let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
         let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
         let tag: String = povSys.GetActiveModTag(player);
@@ -105,6 +102,7 @@ public class TFPHelper {
       };
     };
   }
+
 
   // Queries the active effective footwear height offset (in meters) from ImmersiveFootwearPOVSystem
   public static func GetFootwearHeightOffset(game: GameInstance) -> Float {

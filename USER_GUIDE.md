@@ -11,27 +11,39 @@ A comprehensive guide for configuring custom footwear heights and getting accura
 
 ---
 
-## 2. Configuring Custom / Untagged Shoes (CET Overlay)
+## 2. In-Game Settings & Live Shoe Calibrator (100% Native Redscript)
 
+Immersive Footwear POV is 100% native Redscript and no longer requires Cyber Engine Tweaks (CET). All menus and overlays run directly in REDengine:
+
+### 2.1 Native In-Game Settings Menu (RCF)
+1. Pause the game and navigate to **Settings** $\rightarrow$ **Mods** $\rightarrow$ **Immersive Footwear POV** (powered by *Redscript Configuration Framework*).
+2. Configure your experience across 4 organized tabs:
+   * **Stance & Elevation:** Toggle First-Person (FPP) camera lift, adjust camera easing speed (`0.10s` – `1.0s`), toggle Third-Person (ITP) physical elevation, and configure Photo Mode auto-elevation.
+   * **Catwalk Locomotion:** Toggle dynamic pelvic hip sway and customize sway intensity multipliers for low (`2–5 cm`), mid (`6–9 cm`), and high (`10+ cm`) heels.
+   * **Suppression:** Enable or disable contextual auto-suppression during vehicles, workspots (sitting on chairs/beds), and scripted dialogue scenes.
+   * **Management & Storage:** One-click launch buttons for the **Live Diagnostics HUD** and **Live Shoe Calibrator**, toggle verbose debug logs, reload presets from disk, or reset to factory defaults.
+
+### 2.2 Live Shoe Height Calibrator (RedWindows)
+To calibrate any custom or untagged mod shoe with instant real-time character preview:
 1. Equip your footwear using **Inventory**, **Vanilla Wardrobe (Transmog)**, or **Equipment-EX**.
-2. Open the **Cyber Engine Tweaks (CET) Overlay** (`~`).
-3. In the mod window, adjust using either the **Sliders** or direct **Manual Numerical Input**:
-   * **Custom Heel (cm):** Sets total shoe heel height (`0.0` – `40.0 cm`). Elevates 1st-person camera in IFP (capped at `25.0 cm` max), and drives 3rd-person catwalk sway pitch.
-   * **Custom Platform (cm):** Sets Third Person and Photo Mode platform sole lift (`0.0` – `30.0 cm`).
-   * **Manual Input & Auto-Clamping:** Type exact numbers into the `Manual Heel (cm)` or `Manual Platform (cm)` fields (or use the `+` / `-` stepper buttons). Any entered value exceeding the maximum allowed height automatically clamps to the maximum (`40.0 cm` heel, `30.0 cm` platform). Negative values are strictly disallowed and automatically set to `0.0 cm`.
-4. **Console Shortcuts:** You can also set custom heights directly via the CET console using:
-   * `SetFootwearHeight(heelCm, platformCm)` or `SetCustomHeight(heelCm, platformCm)` (with the same auto-clamping and non-negative enforcement).
-5. **Auto-Save & Isolated Persistence:**
-   * Custom shoe calibrations are automatically saved per shoe in `user_shoe_overrides.json` (strictly footwear entries only, no general mod options).
-   * General mod settings (Photo Mode auto-elevation, debug logging, hip sway multipliers) are saved separately in `config.json`.
-6. **Multiple Community Preset Packs & Auto-Consolidation:**
-   * You can install community preset packs by placing any file named `*_presets.json` (e.g. `community_presets.json`, `shoe_presets.json`, `gama_presets.json`) or `presets.json` directly into the mod folder.
-   * On game launch, the mod automatically discovers all `*_presets.json` packs and consolidates any new footwear calibrations into the master `presets.json`.
-   * **Strict Priority:** Existing items in `presets.json` always take priority and are never overwritten.
-   * **Automatic Clean-up & Zero Overhead:** Once merged, source `*_presets.json` files are automatically cleaned up so `presets.json` is not overwritten on subsequent loads, minimizing runtime disk access.
-   * Personal adjustments in `user_shoe_overrides.json` seamlessly override all presets, and the overlay UI includes a convenient **Reset to Preset** button to revert any shoe to its default preset calibration.
-   * **Automated Variant Expander Tool:** You can automatically expand a single calibrated shoe across all of its colors, materials, and mod variants using the built-in [Preset Variant Expander](tools/preset_variant_expander/README.md).
-7. **Official Tag Precedence:** Shoes with official modder TweakDB tags (`HeelHeight_XXX` / `PlatformHeight_XXX`) will automatically detect their values and lock the sliders.
+2. Open the Calibrator via **Pause Menu $\rightarrow$ Mods $\rightarrow$ Immersive Footwear POV $\rightarrow$ Open Live Shoe Height Calibrator** (or click the button in the Diagnostics HUD).
+3. Adjust the floating sliders:
+   * **Heel Height (cm):** Sets total shoe heel height (`0.0` – `15.0 cm`). Instantly updates V's physical stance and eye-line in real time.
+   * **Platform Sole (cm):** Sets front sole / platform lift (`0.0` – `10.0 cm`). Instantly updates V's third-person ground clearance.
+4. Click **Save as Permanent Custom Override** to persist your calibration permanently.
+5. If a shoe has official TweakDB tags or community presets, click **Revert to Tag/Preset Default** at any time to return to baseline.
+
+### 2.3 Live Diagnostics HUD (RedWindows)
+* Open via **Pause Menu $\rightarrow$ Mods $\rightarrow$ Immersive Footwear POV $\rightarrow$ Open Live Diagnostics HUD**.
+* Displays real-time telemetry: equipped footwear ItemID and resolution source, heel height (cm), platform thickness (cm), effective Z-lift (cm), active perspective (FPP, ITP, PM), and contextual suppression state (Vehicles, Workspots, Scenes).
+
+### 2.4 Native Storage & Community Presets (RedFunctions)
+* All settings and calibrations are saved natively in `<Cyberpunk 2077>\r6\storages\ImmersiveFootwearPOV\`:
+  * `config.json`: Mod settings, locomotion multipliers, and suppression toggles.
+  * `user_shoe_overrides.json`: Personal shoe height calibrations.
+  * `presets.json`: Community preset catalog.
+* **Automatic CET Migration:** If you previously had `user_shoe_overrides.json` from the legacy CET version, the mod automatically detects and migrates your calibrations into native `r6/storages/` on first launch—zero manual copying required!
+* **Automated Variant Expander Tool:** You can automatically expand a single calibrated shoe across all of its colors, materials, and mod variants using the built-in [Preset Variant Expander](tools/preset_variant_expander/README.md).
 
 ---
 

@@ -3,6 +3,8 @@
 -- Manages smoothstep mathematical easing and linear blend transition state
 -- =============================================================================
 
+local Logger = require("modules/logger")
+
 local Transition = {
     DURATION = 0.20,
     currentBlend = 0.50,
@@ -42,6 +44,13 @@ function Transition.SetImmediate(newTarget)
 end
 
 function Transition.SetTarget(newTarget, reason, onLogCallback)
+    if newTarget == nil or newTarget ~= newTarget then
+        Logger.Warn("TRANSITION", "Invalid blend target received: %s (defaulting to 0.50)", tostring(newTarget))
+        newTarget = 0.50
+    end
+    if newTarget < 0.0 or newTarget > 1.0 then
+        Logger.Warn("TRANSITION", "Blend target out of range [0.0, 1.0]: %.3f (clamping)", newTarget)
+    end
     newTarget = math.max(0.0, math.min(1.0, newTarget))
     if math.abs(newTarget - Transition.targetBlend) < 0.0001 then
         return
@@ -62,8 +71,12 @@ function Transition.SetTarget(newTarget, reason, onLogCallback)
     if (stateChanged or (stanceChanged and isModuloZero)) and onLogCallback and type(onLogCallback) == "function" then
         Transition.lastLoggedTargetStanceCm = targetStanceCm
         Transition.lastLoggedBaseReason = baseReason
-        onLogCallback(string.format("Transition started: Blend %.3f (%+.1f cm) -> %.3f (%+.1f cm) over %.2fs | Trigger: %s",
-            Transition.currentBlend, startStanceCm, newTarget, targetStanceCm, Transition.DURATION, reason or "State Update"))
+        local actionDesc = (targetStanceCm < startStanceCm) and "Lowering stance" or ((targetStanceCm > startStanceCm) and "Elevating stance" or "Adjusting stance")
+        if math.abs(targetStanceCm) < 0.05 and math.abs(startStanceCm) >= 0.05 then
+            actionDesc = "Neutralizing stance (0.0 cm)"
+        end
+        onLogCallback(string.format("Transition started: %s (Blend %.3f [%+.1f cm] -> %.3f [%+.1f cm] over %.2fs) | Trigger: %s",
+            actionDesc, Transition.currentBlend, startStanceCm, newTarget, targetStanceCm, Transition.DURATION, reason or "State Update"))
     end
 
     Transition.startBlend = Transition.currentBlend
@@ -95,7 +108,8 @@ function Transition.Update(deltaTime, onLogCallback)
 
             if (settledChanged and isModuloZero) and onLogCallback and type(onLogCallback) == "function" then
                 Transition.lastLoggedSettledStanceCm = settledStanceCm
-                onLogCallback(string.format("Transition settled: Blend %.3f (Stance: %+.1f cm)", Transition.targetBlend, settledStanceCm))
+                local actionDesc = math.abs(settledStanceCm) < 0.05 and "Neutral baseline settled" or "Elevation settled"
+                onLogCallback(string.format("Transition settled: %s (Blend %.3f | Stance: %+.1f cm)", actionDesc, Transition.targetBlend, settledStanceCm))
             end
         end
     else

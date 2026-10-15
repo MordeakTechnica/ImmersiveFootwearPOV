@@ -12,6 +12,7 @@ public class ITPController {
   /// Example: +0.08 for 8cm high heels / platform boots, 0.0 for flat footwear.
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetMeters: Float) -> Bool {
     if !IsDefined(player) {
+      FootwearRedLogger.LogError("ITP", "ApplyHeightOffset failed: player is undefined");
       return false;
     };
 

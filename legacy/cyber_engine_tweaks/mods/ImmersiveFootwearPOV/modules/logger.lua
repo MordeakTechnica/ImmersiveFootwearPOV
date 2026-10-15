@@ -78,11 +78,45 @@ function Logger.LogFPP(isTFP, fmt, ...)
     end
 end
 
+function Logger.Info(tag, fmt, ...)
+    local msg
+    if fmt == nil then
+        msg = tostring(tag)
+        tag = "INFO"
+    else
+        msg = string.format(fmt, ...)
+    end
+    print(string.format("[ImmersiveFootwearPOV][%s] %s", tag or "INFO", msg))
+    ForwardToRedLogger("INFO", tag or "INFO", msg)
+end
+
+function Logger.Warn(tag, fmt, ...)
+    local msg
+    if fmt == nil then
+        msg = tostring(tag)
+        tag = "WARN"
+    else
+        msg = string.format(fmt, ...)
+    end
+    print(string.format("[ImmersiveFootwearPOV][%s][WARN] %s", tag or "WARN", msg))
+    ForwardToRedLogger("WARN", tag or "WARN", msg)
+end
+
+function Logger.Error(tag, fmt, ...)
+    local msg
+    if fmt == nil then
+        msg = tostring(tag)
+        tag = "ERROR"
+    else
+        msg = string.format(fmt, ...)
+    end
+    print(string.format("[ImmersiveFootwearPOV][%s][ERROR] %s", tag or "ERROR", msg))
+    ForwardToRedLogger("ERROR", tag or "ERROR", msg)
+end
+
 function Logger.LogFile(fmt, ...)
     local msg = string.format(fmt, ...)
-    if Logger.debugLogs then
-        print(string.format("[ImmersiveFootwearPOV] %s", msg))
-    end
+    print(string.format("[ImmersiveFootwearPOV] %s", msg))
     ForwardToRedLogger("INFO", "", msg)
 end
 
