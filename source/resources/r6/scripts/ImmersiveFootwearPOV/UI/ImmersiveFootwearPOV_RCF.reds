@@ -12,6 +12,13 @@ public class FootwearRCFProvider extends DVRCF_Provider {
   private let m_config: ref<FootwearConfig>;
   private let m_system: wref<ImmersiveFootwearPOVSystem>;
 
+  /**
+   * Instantiates an RCF provider linking the active mod configuration and system.
+   *
+   * @param config Active footwear configuration reference.
+   * @param system Active footwear system reference.
+   * @return Initialized RCF provider instance.
+   */
   public static func Create(config: ref<FootwearConfig>, system: ref<ImmersiveFootwearPOVSystem>) -> ref<FootwearRCFProvider> {
     let provider: ref<FootwearRCFProvider> = new FootwearRCFProvider();
     provider.m_config = config;
@@ -22,6 +29,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
   // -----------------------------------------------------------------------------
   // Schema Declaration (Fluent Builder Pattern)
   // -----------------------------------------------------------------------------
+  /**
+   * Builds the declarative RCF menu schema containing tabs, sections,
+   * toggles, sliders, and action buttons for native menu rendering.
+   *
+   * @return Constructed DVRCF schema definition.
+   */
   public func BuildSchema() -> ref<DVRCF_Schema> {
     let builder: ref<DVRCF_SchemaBuilder> = DVRCF_SchemaBuilder.New("Immersive Footwear POV");
 
@@ -79,6 +92,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
   // -----------------------------------------------------------------------------
   // Typesafe Getters & Setters
   // -----------------------------------------------------------------------------
+  /**
+   * Retrieves boolean configuration values by identifier for RCF binding.
+   *
+   * @param key Setting identifier key.
+   * @return Boolean value of the setting, or false if undefined.
+   */
   public func GetBool(key: String) -> Bool {
     if !IsDefined(this.m_config) {
       return false;
@@ -94,6 +113,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     return false;
   }
 
+  /**
+   * Updates boolean configuration values by identifier and persists modifications.
+   *
+   * @param key Setting identifier key.
+   * @param value New boolean value.
+   */
   public func SetBool(key: String, value: Bool) -> Void {
     if !IsDefined(this.m_config) {
       return;
@@ -118,6 +143,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     };
   }
 
+  /**
+   * Retrieves floating-point configuration values by identifier for RCF binding.
+   *
+   * @param key Setting identifier key.
+   * @return Float value of the setting, or 0.0 if undefined.
+   */
   public func GetFloat(key: String) -> Float {
     if !IsDefined(this.m_config) {
       return 0.0;
@@ -129,6 +160,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     return 0.0;
   }
 
+  /**
+   * Updates floating-point configuration values by identifier and persists modifications.
+   *
+   * @param key Setting identifier key.
+   * @param value New float value.
+   */
   public func SetFloat(key: String, value: Float) -> Void {
     if !IsDefined(this.m_config) {
       return;
@@ -149,18 +186,38 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     };
   }
 
+  /**
+   * Retrieves integer configuration values by identifier for RCF binding.
+   *
+   * @param key Setting identifier key.
+   * @return Integer value (defaults to 0).
+   */
   public func GetInt(key: String) -> Int32 {
     return 0;
   }
 
+  /**
+   * Updates integer configuration values by identifier for RCF binding.
+   *
+   * @param key Setting identifier key.
+   * @param value New integer value.
+   */
   public func SetInt(key: String, value: Int32) -> Void {}
 
+  /**
+   * Callback invoked by RCF when user settings are restored or reloaded.
+   */
   public func OnSettingsRestored() -> Void {
     if IsDefined(this.m_system) && IsDefined(this.m_config) {
       this.m_system.OnConfigUpdated(this.m_config);
     };
   }
 
+  /**
+   * Handles action button clicks dispatched from the native RCF menu.
+   *
+   * @param key Action button identifier key.
+   */
   public func OnButton(key: String) -> Void {
     if Equals(key, "openDiagnostics") {
       if IsDefined(this.m_system) {
@@ -194,6 +251,13 @@ public class FootwearRCFProvider extends DVRCF_Provider {
   // -----------------------------------------------------------------------------
   // Registration Helper
   // -----------------------------------------------------------------------------
+  /**
+   * Registers the mod's settings provider with the Redscript Configuration Framework.
+   *
+   * @param gi Game instance context.
+   * @param config Active footwear configuration reference.
+   * @param system Active footwear system reference.
+   */
   public static func Register(gi: GameInstance, config: ref<FootwearConfig>, system: ref<ImmersiveFootwearPOVSystem>) -> Void {
     let provider: ref<FootwearRCFProvider> = FootwearRCFProvider.Create(config, system);
     DVRCF.Register(

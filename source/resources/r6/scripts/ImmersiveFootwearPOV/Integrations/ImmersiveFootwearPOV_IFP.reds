@@ -8,7 +8,13 @@ module ImmersiveFootwearPOV
 
 public class HeightController {
 
-  // Applies physical platform elevation to V's character model via IFP animgraph variable
+  /**
+   * Applies physical platform elevation to V's character model via the IFP animgraph variable 'ifp_height_blend'.
+   * Skipped if True First Person is active to prevent double-height elevation conflicts.
+   * @param player The local player puppet reference.
+   * @param offsetZ Vertical height offset in meters.
+   * @return True if blend was successfully applied, false if player undefined or TFP is handling elevation.
+   */
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetZ: Float) -> Bool {
     if !IsDefined(player) {
       FootwearRedLogger.LogError("IFP", "ApplyHeightOffset failed: player is undefined");
@@ -27,7 +33,10 @@ public class HeightController {
     return true;
   }
 
-  // Resets V's physical platform elevation back to base (0.0m)
+  /**
+   * Resets V's physical platform elevation back to baseline (0.0m).
+   * @param player The local player puppet reference.
+   */
   public static func ResetHeightOffset(player: ref<PlayerPuppet>) -> Void {
     HeightController.ApplyHeightOffset(player, 0.0);
   }

@@ -11,7 +11,19 @@ module ImmersiveFootwearPOV
 // =============================================================================
 
 public abstract class IElevationActuator {
+  /**
+   * Applies perspective-specific footwear elevation to the character model or camera.
+   * @param player The local player puppet reference.
+   * @param heelMeters Footwear heel height offset in meters.
+   * @param platformMeters Footwear platform height offset in meters.
+   * @param isSuppressed True if elevation is currently suppressed by gameplay states.
+   */
   public func ApplyElevation(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool) -> Void {}
+
+  /**
+   * Resets perspective-specific elevation back to default baseline (0.0m).
+   * @param player The local player puppet reference.
+   */
   public func ResetElevation(player: ref<PlayerPuppet>) -> Void {}
 }
 
@@ -19,12 +31,23 @@ public abstract class IElevationActuator {
 // Strategy 1: FPP Skeletal Elevation (IFP animgraph blend)
 // -----------------------------------------------------------------------------
 public class FppAnimgraphActuator extends IElevationActuator {
+  /**
+   * Applies skeletal animgraph elevation for first-person perspective via HeightController.
+   * @param player The local player puppet reference.
+   * @param heelMeters Footwear heel height offset in meters.
+   * @param platformMeters Footwear platform height offset in meters.
+   * @param isSuppressed True if elevation is currently suppressed.
+   */
   public func ApplyElevation(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool) -> Void {
     if !IsDefined(player) { return; };
     let effHeel: Float = isSuppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(heelMeters);
     HeightController.ApplyHeightOffset(player, effHeel);
   }
 
+  /**
+   * Resets first-person skeletal elevation blend to baseline.
+   * @param player The local player puppet reference.
+   */
   public func ResetElevation(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
     HeightController.ResetHeightOffset(player);
@@ -35,12 +58,23 @@ public class FppAnimgraphActuator extends IElevationActuator {
 // Strategy 2: TPP Puppet Elevation (ITP foot_elevation_offset)
 // -----------------------------------------------------------------------------
 public class TppAnimgraphActuator extends IElevationActuator {
+  /**
+   * Applies character model elevation for third-person perspective via ITPController.
+   * @param player The local player puppet reference.
+   * @param heelMeters Footwear heel height offset in meters.
+   * @param platformMeters Footwear platform height offset in meters.
+   * @param isSuppressed True if elevation is currently suppressed.
+   */
   public func ApplyElevation(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool) -> Void {
     if !IsDefined(player) { return; };
     let effPlat: Float = isSuppressed ? 0.0 : FootwearClampingPolicy.ClampPlatformHeight(platformMeters);
     ITPController.ApplyHeightOffset(player, effPlat);
   }
 
+  /**
+   * Resets third-person character model elevation to baseline.
+   * @param player The local player puppet reference.
+   */
   public func ResetElevation(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
     ITPController.ResetHeightOffset(player);
@@ -51,11 +85,22 @@ public class TppAnimgraphActuator extends IElevationActuator {
 // Strategy 3: TFP Camera & Weapon Reticle Alignment (True First Person)
 // -----------------------------------------------------------------------------
 public class TfpCameraActuator extends IElevationActuator {
+  /**
+   * Updates True First Person camera elevation and realigns weapon ADS.
+   * @param player The local player puppet reference.
+   * @param heelMeters Footwear heel height offset in meters.
+   * @param platformMeters Footwear platform height offset in meters.
+   * @param isSuppressed True if elevation is currently suppressed.
+   */
   public func ApplyElevation(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool) -> Void {
     if !IsDefined(player) { return; };
     TFPHelper.ApplyFootwearHeight(player.GetGame());
   }
 
+  /**
+   * Resets True First Person camera elevation and realigns weapon reticle.
+   * @param player The local player puppet reference.
+   */
   public func ResetElevation(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
     TFPHelper.ApplyFootwearHeight(player.GetGame());
@@ -70,6 +115,10 @@ public class ElevationActuatorCoordinator {
   private let m_tppActuator: ref<TppAnimgraphActuator>;
   private let m_tfpActuator: ref<TfpCameraActuator>;
 
+  /**
+   * Factory method initializing the perspective coordinator and constituent actuators.
+   * @return A newly initialized ElevationActuatorCoordinator instance.
+   */
   public static func Create() -> ref<ElevationActuatorCoordinator> {
     let coord: ref<ElevationActuatorCoordinator> = new ElevationActuatorCoordinator();
     coord.m_fppActuator = new FppAnimgraphActuator();
@@ -78,6 +127,16 @@ public class ElevationActuatorCoordinator {
     return coord;
   }
 
+  /**
+   * Coordinates elevation routing between FPP, TPP, and TFP actuators based on active perspective and configuration.
+   * @param player The local player puppet reference.
+   * @param heelMeters Heel height offset in meters.
+   * @param platformMeters Platform height offset in meters.
+   * @param isSuppressed True if elevation is currently suppressed.
+   * @param config The active FootwearConfig instance.
+   * @param debugLogging True if debug telemetry logging is enabled.
+   * @param suppressionReason Active suppression trigger explanation string.
+   */
   public func Apply(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool, config: ref<FootwearConfig>, debugLogging: Bool, suppressionReason: String) -> Void {
     if !IsDefined(player) { return; };
 
@@ -109,6 +168,10 @@ public class ElevationActuatorCoordinator {
     };
   }
 
+  /**
+   * Resets all actuators (FPP, TPP, and TFP) to zero elevation baseline.
+   * @param player The local player puppet reference.
+   */
   public func ResetAll(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
     this.m_fppActuator.ResetElevation(player);

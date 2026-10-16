@@ -11,6 +11,12 @@ public class FootwearResolutionResult {
   public let itemID: ItemID;
   public let sourceName: String;
 
+  /**
+   * Factory method constructing a footwear resolution result.
+   * @param itemID The resolved footwear ItemID.
+   * @param sourceName Description of the resolving layer (e.g. "Equipment-EX", "Vanilla Wardrobe").
+   * @return A newly initialized FootwearResolutionResult.
+   */
   public static func Create(itemID: ItemID, sourceName: String) -> ref<FootwearResolutionResult> {
     let res: ref<FootwearResolutionResult> = new FootwearResolutionResult();
     res.itemID = itemID;
@@ -25,11 +31,21 @@ public class FootwearResolutionResult {
 public abstract class FootwearResolutionHandler {
   protected let m_nextHandler: ref<FootwearResolutionHandler>;
 
+  /**
+   * Links the subsequent resolution handler in the chain.
+   * @param handler The next handler in priority sequence.
+   * @return The linked handler to allow method chaining.
+   */
   public func SetNext(handler: ref<FootwearResolutionHandler>) -> ref<FootwearResolutionHandler> {
     this.m_nextHandler = handler;
     return handler;
   }
 
+  /**
+   * Evaluates the current handler. If unresolved, forwards the request down the chain.
+   * @param player The local player puppet reference.
+   * @return The resolved FootwearResolutionResult.
+   */
   public func Handle(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     let result: ref<FootwearResolutionResult> = this.Resolve(player);
     if IsDefined(result) {
@@ -41,6 +57,11 @@ public abstract class FootwearResolutionHandler {
     return FootwearResolutionResult.Create(ItemID.None(), "None (End of Chain)");
   }
 
+  /**
+   * Performs layer-specific footwear resolution logic.
+   * @param player The local player puppet reference.
+   * @return Resolution result if handled by this layer, or null to delegate.
+   */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     return null;
   }
@@ -50,6 +71,11 @@ public abstract class FootwearResolutionHandler {
 // Priority 1 Handler: Equipment-EX Mod OutfitSystem
 // -----------------------------------------------------------------------------
 public class EquipmentExResolutionHandler extends FootwearResolutionHandler {
+  /**
+   * Resolves footwear from Equipment-EX active outfits. Prevents fall-through if active outfit is bare feet.
+   * @param player The local player puppet reference.
+   * @return Equipment-EX resolution result, or null if Equipment-EX is not active.
+   */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     if EquipmentExHelper.IsEquipmentExActive(player) {
       let exItem: ItemID = EquipmentExHelper.GetActiveFootwear(player);
@@ -68,6 +94,11 @@ public class EquipmentExResolutionHandler extends FootwearResolutionHandler {
 // Priority 2 Handler: Vanilla Transmog / Wardrobe Appearance Slot
 // -----------------------------------------------------------------------------
 public class WardrobeResolutionHandler extends FootwearResolutionHandler {
+  /**
+   * Resolves footwear from vanilla wardrobe visual transmog slots.
+   * @param player The local player puppet reference.
+   * @return Wardrobe visual item result, or null if no wardrobe footwear equipped.
+   */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     let equipSystem: ref<EquipmentSystem> = EquipmentSystem.GetInstance(player);
     if IsDefined(equipSystem) {
@@ -84,6 +115,11 @@ public class WardrobeResolutionHandler extends FootwearResolutionHandler {
 // Priority 3 Handler: Standard Gameplay Equipment Slot
 // -----------------------------------------------------------------------------
 public class GameplaySlotResolutionHandler extends FootwearResolutionHandler {
+  /**
+   * Resolves footwear from standard gameplay equipment slots (inventory armor slot).
+   * @param player The local player puppet reference.
+   * @return Gameplay equipment slot item result, or null if empty.
+   */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     let equipSystem: ref<EquipmentSystem> = EquipmentSystem.GetInstance(player);
     if IsDefined(equipSystem) {
@@ -100,6 +136,11 @@ public class GameplaySlotResolutionHandler extends FootwearResolutionHandler {
 // Fallback Handler: Barefoot / Unequipped
 // -----------------------------------------------------------------------------
 public class BarefootFallbackHandler extends FootwearResolutionHandler {
+  /**
+   * Fallback resolution indicating the player is unequipped or barefoot.
+   * @param player The local player puppet reference.
+   * @return Barefoot resolution result.
+   */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     return FootwearResolutionResult.Create(ItemID.None(), "None (Unequipped)");
   }
@@ -110,6 +151,10 @@ public class BarefootFallbackHandler extends FootwearResolutionHandler {
 // -----------------------------------------------------------------------------
 public class FootwearResolver {
 
+  /**
+   * Assembles and links the full resolution chain: Equipment-EX -> Wardrobe -> Gameplay Slot -> Barefoot Fallback.
+   * @return The head handler of the configured pipeline.
+   */
   public static func CreateChain() -> ref<FootwearResolutionHandler> {
     let eqEx: ref<EquipmentExResolutionHandler> = new EquipmentExResolutionHandler();
     let wardrobe: ref<WardrobeResolutionHandler> = new WardrobeResolutionHandler();
@@ -123,7 +168,11 @@ public class FootwearResolver {
     return eqEx;
   }
 
-  // Resolves currently visible footwear using the Chain of Responsibility
+  /**
+   * Resolves currently visible footwear for the player puppet using the Chain of Responsibility pipeline.
+   * @param player The local player puppet reference.
+   * @return The resolved FootwearResolutionResult containing ItemID and layer name.
+   */
   public static func ResolveFootwear(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     if !IsDefined(player) {
       return FootwearResolutionResult.Create(ItemID.None(), "None (Invalid Player)");

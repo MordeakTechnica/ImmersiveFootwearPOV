@@ -7,6 +7,12 @@ module ImmersiveFootwearPOV
 
 public class ShoeTagRule {
 
+  /**
+   * Extracts the suffix value from a tag string matching any provided prefix.
+   * @param tagStr The full tag name string to inspect.
+   * @param prefixes List of prefixes to match against.
+   * @return The extracted value string following the matched prefix, or empty string if no match.
+   */
   public static func ExtractTagValue(tagStr: String, prefixes: array<String>) -> String {
     let count: Int32 = ArraySize(prefixes);
     let i: Int32 = 0;
@@ -26,7 +32,11 @@ public class ShoeTagRule {
     return "";
   }
 
-  // Parses heel height tags: HeelHeight_XXX, Heel_XXX, ShoeHeel_XXX, ShoeHeight_XXX, FootwearHeight_XXX
+  /**
+   * Parses and validates heel height tags (e.g., HeelHeight_XXX, Heel_XXX, ShoeHeel_XXX).
+   * @param tagStr The tag name string to evaluate.
+   * @return Clamped heel height in meters, or 0.0 if not a matching heel tag.
+   */
   public static func ParseHeelTag(tagStr: String) -> Float {
     let prefixes: array<String>;
     ArrayPush(prefixes, "HeelHeight_");
@@ -49,7 +59,11 @@ public class ShoeTagRule {
     return FootwearClampingPolicy.ClampHeight(rawMeters);
   }
 
-  // Parses platform sole tags: PlatformHeight_XXX, Platform_XXX, ShoePlatform_XXX
+  /**
+   * Parses and validates platform sole tags (e.g., PlatformHeight_XXX, Platform_XXX, ShoePlatform_XXX).
+   * @param tagStr The tag name string to evaluate.
+   * @return Clamped platform height in meters, or 0.0 if not a matching platform tag.
+   */
   public static func ParsePlatformTag(tagStr: String) -> Float {
     let prefixes: array<String>;
     ArrayPush(prefixes, "PlatformHeight_");

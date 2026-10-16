@@ -7,11 +7,13 @@ module ImmersiveFootwearPOV
 
 public class FootwearUnitConverter {
 
-  // Converts a parsed tag value string to meters given a maximum allowed centimeter threshold
-  // Supports:
-  // - Direct decimal meters: "0.06" -> 0.06m
-  // - Centimeter tags: "006" -> 0.06m, "6" -> 0.06m, "10" -> 0.10m
-  // - Millimeter tags: "60" -> 0.06m, "80" -> 0.08m, "250" -> 0.25m
+  /**
+   * Converts a parsed tag value string to meters based on a maximum allowed centimeter threshold.
+   * Supports decimal meters ("0.06"), centimeters ("006", "6", "10"), and millimeters ("60", "80", "250").
+   * @param valueStr Numeric substring extracted from the tag.
+   * @param maxAllowedCm Upper boundary in centimeters defining the cm vs mm interpretation threshold.
+   * @return Converted measurement in meters, or 0.0 if invalid.
+   */
   public static func ConvertTagValueToMeters(valueStr: String, maxAllowedCm: Float) -> Float {
     if StrLen(valueStr) == 0 {
       return 0.0;

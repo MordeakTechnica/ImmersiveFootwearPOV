@@ -9,6 +9,12 @@ import RedFunctions.Storage.*
 // =============================================================================
 public class LegacyCetMigrationService {
 
+  /**
+   * Detects legacy Cyber Engine Tweaks configuration and user shoe overrides on disk,
+   * migrating their contents into RedFunctions ModStorage partition on first launch.
+   * @param storageMgr The initialized FootwearStorageManager instance.
+   * @param config The active FootwearConfig instance to update if legacy settings are imported.
+   */
   public static func MigrateIfNeeded(storageMgr: ref<FootwearStorageManager>, config: ref<FootwearConfig>) -> Void {
     if !IsDefined(storageMgr) || !storageMgr.IsReady() {
       return;

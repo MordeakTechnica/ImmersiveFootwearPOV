@@ -6,6 +6,11 @@ module ImmersiveFootwearPOV
 // =============================================================================
 
 public class FootwearHooksHelper {
+  /**
+   * Notifies the footwear system to re-evaluate equipped shoes and update heights.
+   *
+   * @param player Target player puppet entity.
+   */
   public static func NotifyFootwearChanged(player: ref<PlayerPuppet>) -> Void {
     if IsDefined(player) {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
@@ -15,6 +20,12 @@ public class FootwearHooksHelper {
     };
   }
 
+  /**
+   * Notifies the footwear system of entering or leaving a workspot (sitting/furniture).
+   *
+   * @param player Target player puppet entity.
+   * @param inWorkspot True if entering workspot, false if exiting.
+   */
   public static func NotifyWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
     if !IsDefined(player) {
       FootwearRedLogger.LogError("WORKSPOT", "NotifyWorkspotState failed: player entity is undefined");
@@ -28,6 +39,12 @@ public class FootwearHooksHelper {
     };
   }
 
+  /**
+   * Notifies the footwear system of entering or leaving a vehicle.
+   *
+   * @param player Target player puppet entity.
+   * @param inVehicle True if entering vehicle, false if unmounting.
+   */
   public static func NotifyVehicleState(player: ref<PlayerPuppet>, inVehicle: Bool) -> Void {
     if !IsDefined(player) {
       FootwearRedLogger.LogError("VEHICLE", "NotifyVehicleState failed: player entity is undefined");
@@ -41,6 +58,12 @@ public class FootwearHooksHelper {
     };
   }
 
+  /**
+   * Notifies the footwear system of a weapon manipulation action.
+   *
+   * @param player Target player puppet entity.
+   * @param actionName Descriptive name of the weapon action.
+   */
   public static func NotifyWeaponAction(player: ref<PlayerPuppet>, actionName: String) -> Void {
     if IsDefined(player) {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
@@ -51,6 +74,12 @@ public class FootwearHooksHelper {
   }
 
 
+  /**
+   * Determines whether an input action matches known weapon manipulation events.
+   *
+   * @param actionName Action identifier name.
+   * @return True if the action is a weapon draw, holster, switch, or selection action.
+   */
   public static func IsWeaponAction(actionName: CName) -> Bool {
     return Equals(actionName, n"DrawItem")
       || Equals(actionName, n"DrawWeapon")
@@ -67,6 +96,12 @@ public class FootwearHooksHelper {
 // -----------------------------------------------------------------------------
 // Equipment & Appearance Change Hooks
 // -----------------------------------------------------------------------------
+/**
+ * Hooks item appearance resets on feet equipment area to trigger footwear updates.
+ *
+ * @param area Equipment slot area being reset.
+ * @param force Optional flag forcing appearance recreation.
+ */
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: Bool) -> Void {
   wrappedMethod(area, force);
@@ -75,6 +110,11 @@ private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: B
   };
 }
 
+/**
+ * Hooks appearance clearing events on feet equipment area to trigger footwear updates.
+ *
+ * @param area Equipment slot area being cleared.
+ */
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
@@ -83,6 +123,11 @@ private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void
   };
 }
 
+/**
+ * Hooks appearance reset events on feet equipment area to trigger footwear updates.
+ *
+ * @param area Equipment slot area being reset.
+ */
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ResetItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
@@ -91,12 +136,20 @@ private final func ResetItemAppearanceEvent(area: gamedataEquipmentArea) -> Void
   };
 }
 
+/**
+ * Hooks restoration of player equipment data on save load to initialize footwear.
+ */
 @wrapMethod(EquipmentSystemPlayerData)
 public final func OnRestored() -> Void {
   wrappedMethod();
   FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
 }
 
+/**
+ * Hooks player entity attachment to the game world to initialize footwear height.
+ *
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnGameAttached() -> Bool {
   let result: Bool = wrappedMethod();
@@ -107,6 +160,11 @@ protected cb func OnGameAttached() -> Bool {
 // -----------------------------------------------------------------------------
 // In-Game Menu & Wardrobe UI Closing Hooks
 // -----------------------------------------------------------------------------
+/**
+ * Hooks closing of in-game menus to re-sync footwear state on menu exit.
+ *
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(gameuiInGameMenuGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
@@ -114,6 +172,11 @@ protected cb func OnUninitialize() -> Bool {
   return result;
 }
 
+/**
+ * Hooks closing of inventory menus to re-sync footwear state after gear changes.
+ *
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(gameuiInventoryGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
@@ -126,6 +189,12 @@ protected cb func OnUninitialize() -> Bool {
 // -----------------------------------------------------------------------------
 // Workspot (Furniture, Sitting, Sleeping, Workstations) Lifecycle Hooks
 // -----------------------------------------------------------------------------
+/**
+ * Hooks initiation of furniture and workspot interactions to trigger elevation suppression.
+ *
+ * @param evt Workspot start event payload.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnWorkspotStartedEvent(evt: ref<WorkspotStartedEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
@@ -138,6 +207,12 @@ protected cb func OnWorkspotStartedEvent(evt: ref<WorkspotStartedEvent>) -> Bool
   return result;
 }
 
+/**
+ * Hooks completion or cancellation of workspot interactions to restore elevation.
+ *
+ * @param evt Workspot completion event payload.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnWorkspotFinishedEvent(evt: ref<WorkspotFinishedEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
@@ -153,6 +228,12 @@ protected cb func OnWorkspotFinishedEvent(evt: ref<WorkspotFinishedEvent>) -> Bo
 // -----------------------------------------------------------------------------
 // Vehicle Mounting Lifecycle Hooks
 // -----------------------------------------------------------------------------
+/**
+ * Hooks vehicle mounting events to suppress footwear camera elevation while driving.
+ *
+ * @param evt Vehicle mounting event payload.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnMountingEvent(evt: ref<MountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
@@ -165,6 +246,12 @@ protected cb func OnMountingEvent(evt: ref<MountingEvent>) -> Bool {
   return result;
 }
 
+/**
+ * Hooks vehicle unmounting events to restore footwear elevation upon exiting.
+ *
+ * @param evt Vehicle unmounting event payload.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
@@ -180,6 +267,13 @@ protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
 // -----------------------------------------------------------------------------
 // Weapon Draw / Holster / Weapon Wheel Actions Hook
 // -----------------------------------------------------------------------------
+/**
+ * Hooks player input actions to catch weapon draw/holster gestures.
+ *
+ * @param action Listener action instance.
+ * @param consumer Action consumer reference.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsumer) -> Bool {
   let result: Bool = wrappedMethod(action, consumer);
@@ -190,6 +284,12 @@ protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsu
   return result;
 }
 
+/**
+ * Hooks item equipping into weapon or footwear slots to refresh mod state.
+ *
+ * @param evt Item added to slot event payload.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
   let result: Bool = wrappedMethod(evt);
@@ -202,6 +302,12 @@ protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
   return result;
 }
 
+/**
+ * Hooks item un-equipping from weapon or footwear slots to refresh mod state.
+ *
+ * @param evt Item removed from slot event payload.
+ * @return Wrapped callback return value.
+ */
 @wrapMethod(PlayerPuppet)
 protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
   let result: Bool = wrappedMethod(evt);
@@ -218,6 +324,13 @@ protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
 // Native Locomotion Frame Tick (Catwalk Stride & Hip Sway)
 // Eliminates per-frame Lua-to-C++ FFI overhead entirely
 // -----------------------------------------------------------------------------
+/**
+ * Native locomotion state machine tick for evaluating pelvic sway and catwalk stride.
+ *
+ * @param timeDelta Frame delta time in seconds.
+ * @param stateContext Locomotion state context reference.
+ * @param scriptInterface Locomotion script interface reference.
+ */
 @wrapMethod(LocomotionEventsTransition)
 protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scriptInterface: ref<StateGameScriptInterface>) -> Void {
   wrappedMethod(timeDelta, stateContext, scriptInterface);

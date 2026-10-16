@@ -8,8 +8,12 @@ module ImmersiveFootwearPOV
 
 public class ITPController {
 
-  /// Sets the dynamic vertical elevation (in meters) on the player puppet for third-person view.
-  /// Example: +0.08 for 8cm high heels / platform boots, 0.0 for flat footwear.
+  /**
+   * Sets dynamic vertical elevation on the player puppet for third-person perspective via 'foot_elevation_offset'.
+   * @param player The local player puppet reference.
+   * @param offsetMeters Elevation offset in meters (e.g. +0.08 for 8cm high heels).
+   * @return True if offset was successfully applied, false if player undefined.
+   */
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetMeters: Float) -> Bool {
     if !IsDefined(player) {
       FootwearRedLogger.LogError("ITP", "ApplyHeightOffset failed: player is undefined");
@@ -25,12 +29,19 @@ public class ITPController {
     return true;
   }
 
-  /// Resets character model elevation back to baseline (0.0m)
+  /**
+   * Resets character model third-person elevation back to baseline (0.0m).
+   * @param player The local player puppet reference.
+   */
   public static func ResetHeightOffset(player: ref<PlayerPuppet>) -> Void {
     ITPController.ApplyHeightOffset(player, 0.0);
   }
 
-  /// Checks if Immersive Third Person (ITP) is active in the running game instance
+  /**
+   * Checks if Immersive Third Person (ITP) or compatible TPP bridges are active in the running game instance.
+   * @param gameInstance The active GameInstance.
+   * @return True if ITP scriptable systems or tppCamera component are present.
+   */
   public static func IsITPPresent(gameInstance: GameInstance) -> Bool {
     let container: ref<ScriptableSystemsContainer> = GameInstance.GetScriptableSystemsContainer(gameInstance);
     if IsDefined(container) {
@@ -54,7 +65,11 @@ public class ITPController {
     return false;
   }
 
-  /// Checks if third-person camera is currently active and rendering
+  /**
+   * Checks if third-person camera is currently active and rendering based on camera distance from player.
+   * @param player The local player puppet reference.
+   * @return True if active camera transform exceeds first-person distance threshold.
+   */
   public static func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
     if !IsDefined(player) {
       return false;

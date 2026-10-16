@@ -12,6 +12,9 @@ import RedFunctions.*
 public class FootwearWindowsTick extends DelayCallback {
   public let m_gi: GameInstance;
 
+  /**
+   * Periodic callback invoked by DelaySystem to tick and render active RedWindows windows.
+   */
   public func Call() -> Void {
     let nextDelay: Float = FootwearWindowsController.Update(this.m_gi);
     let cb: ref<FootwearWindowsTick> = new FootwearWindowsTick();
@@ -22,6 +25,11 @@ public class FootwearWindowsTick extends DelayCallback {
 
 public class FootwearWindowsController {
 
+  /**
+   * Pre-registers mod windows with the RedWindows Window Manager on game startup.
+   *
+   * @param gi Game instance context.
+   */
   public static func Init(gi: GameInstance) -> Void {
     let mgr: ref<RWManager> = RWManager.Get(gi);
     if !IsDefined(mgr) {
@@ -43,12 +51,24 @@ public class FootwearWindowsController {
     };
   }
 
+  /**
+   * Initiates the persistent periodic UI update loop via DelaySystem.
+   *
+   * @param gi Game instance context.
+   */
   public static func StartTick(gi: GameInstance) -> Void {
     let cb: ref<FootwearWindowsTick> = new FootwearWindowsTick();
     cb.m_gi = gi;
     GameInstance.GetDelaySystem(gi).DelayCallback(cb, 1.0, false);
   }
 
+  /**
+   * Ticks active RedWindows windows and dynamically computes the next polling interval
+   * based on user interaction, overlay visibility, and pinned status.
+   *
+   * @param gi Game instance context.
+   * @return Number of seconds to delay before the subsequent tick.
+   */
   public static func Update(gi: GameInstance) -> Float {
     let mgr: ref<RWManager> = RWManager.Get(gi);
     if !IsDefined(mgr) {
@@ -90,6 +110,11 @@ public class FootwearWindowsController {
     return 1.5;
   }
 
+  /**
+   * Forces display and immediate rendering of the diagnostics HUD window.
+   *
+   * @param gi Game instance context.
+   */
   public static func RenderDiagnostics(gi: GameInstance) -> Void {
     let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
     if IsDefined(win) {
@@ -98,6 +123,11 @@ public class FootwearWindowsController {
     };
   }
 
+  /**
+   * Forces display and immediate rendering of the shoe calibrator window.
+   *
+   * @param gi Game instance context.
+   */
   public static func RenderCalibrator(gi: GameInstance) -> Void {
     let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
     if IsDefined(win) {
@@ -107,6 +137,11 @@ public class FootwearWindowsController {
     };
   }
 
+  /**
+   * Toggles the visibility of the diagnostics HUD window between shown and hidden.
+   *
+   * @param gi Game instance context.
+   */
   public static func ToggleDiagnostics(gi: GameInstance) -> Void {
     let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
     if IsDefined(win) {
@@ -119,6 +154,11 @@ public class FootwearWindowsController {
     };
   }
 
+  /**
+   * Toggles the visibility of the shoe calibrator window and opens the RedWindows overlay.
+   *
+   * @param gi Game instance context.
+   */
   public static func ToggleCalibrator(gi: GameInstance) -> Void {
     let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
     if IsDefined(win) {

@@ -12,12 +12,23 @@ public class FootwearCalibratorWindow {
   private let m_lastShoeKey: String;
   private let m_lastHasFootwear: Int32;
 
+  /**
+   * Instantiates a new footwear calibrator window instance with uninitialized state.
+   *
+   * @return Initialized footwear calibrator window reference.
+   */
   public static func Create() -> ref<FootwearCalibratorWindow> {
     let win: ref<FootwearCalibratorWindow> = new FootwearCalibratorWindow();
     win.m_lastHasFootwear = -1;
     return win;
   }
 
+  /**
+   * Static entrypoint for rendering the footwear calibrator window.
+   *
+   * @param gi Game instance context.
+   * @param targetWin Optional RedWindows window container to render within.
+   */
   public static func Render(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if IsDefined(system) {
@@ -25,6 +36,13 @@ public class FootwearCalibratorWindow {
     };
   }
 
+  /**
+   * Internal render implementation handling dynamic UI state, slider adjustments,
+   * manual text input clamping, live elevation preview, and override persistence.
+   *
+   * @param gi Game instance context.
+   * @param targetWin Optional RedWindows window container to render within.
+   */
   public func RenderInternal(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {

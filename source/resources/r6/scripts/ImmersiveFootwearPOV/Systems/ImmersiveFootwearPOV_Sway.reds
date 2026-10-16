@@ -13,12 +13,29 @@ public class SwayContextData {
   public let speed: Float;
   public let heelPitchCm: Float;
 
+  /**
+   * Factory method creating a new SwayContextData container.
+   * @param canSway True if biomechanical conditions permit hip sway.
+   * @param heelScale Normalized intensity scalar (0.0 to 1.0).
+   * @param reason Diagnostic explanation or gait description string.
+   * @param speed Current planar movement speed in m/s.
+   * @param pitchCm Effective heel inclination in cm (heel minus platform).
+   * @return A newly initialized SwayContextData instance.
+   */
   public static func Create(canSway: Bool, heelScale: Float, reason: String, speed: Float, opt pitchCm: Float) -> ref<SwayContextData> {
     let data: ref<SwayContextData> = new SwayContextData();
     data.Set(canSway, heelScale, reason, speed, pitchCm);
     return data;
   }
 
+  /**
+   * Populates fields in an existing SwayContextData instance without allocations.
+   * @param canSway True if biomechanical conditions permit hip sway.
+   * @param heelScale Normalized intensity scalar (0.0 to 1.0).
+   * @param reason Diagnostic explanation or gait description string.
+   * @param speed Current planar movement speed in m/s.
+   * @param pitchCm Effective heel inclination in cm.
+   */
   public func Set(canSway: Bool, heelScale: Float, reason: String, speed: Float, opt pitchCm: Float) -> Void {
     this.canSway = canSway;
     this.heelScale = heelScale;
@@ -30,14 +47,15 @@ public class SwayContextData {
 
 public class SwayEvaluator {
 
-  // -----------------------------------------------------------------------------
-  // Calculates Biomechanical Catwalk Sway Scale (0.00x - 1.00x)
-  // Based on real-world gait kinematics & ankle plantarflexion benchmarks:
-  // - < 2.0 cm (< 0.8"): Flat / Platform (0% sway - neutral gait)
-  // - 1.0" (~2.54 cm): Low / Kitten Heel (~35% sway - subtle sway)
-  // - 2.0" (~5.08 cm): Mid Heel (~70% sway - moderate sway)
-  // - >= 3.0" (7.50 cm): High Heel / Stiletto (100% max sway)
-  // -----------------------------------------------------------------------------
+  /**
+   * Calculates biomechanical catwalk sway scale factor (0.00x to 1.00x) based on heel pitch:
+   * - < 2.0 cm (< 0.8"): Flat / Platform (0% sway - neutral gait)
+   * - 1.0" (~2.54 cm): Low / Kitten Heel (~35% sway - subtle sway)
+   * - 2.0" (~5.08 cm): Mid Heel (~70% sway - moderate sway)
+   * - >= 3.0" (7.50 cm): High Heel / Stiletto (100% max sway)
+   * @param pitchCm Effective heel inclination in centimeters.
+   * @return Normalized sway multiplier scalar between 0.0 and 1.0.
+   */
   public static func CalculateHeelScale(pitchCm: Float) -> Float {
     if pitchCm < 2.0 {
       return 0.0;
@@ -54,10 +72,24 @@ public class SwayEvaluator {
     return 1.0;
   }
 
+  /**
+   * Convenience evaluator creating and returning a new SwayContextData instance.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param player Local player puppet reference.
+   * @return Populated SwayContextData instance.
+   */
   public static func Evaluate(sys: ref<ImmersiveFootwearPOVSystem>, player: ref<PlayerPuppet>) -> ref<SwayContextData> {
     return SwayEvaluator.EvaluateInto(sys, player, new SwayContextData());
   }
 
+  /**
+   * Evaluates all sway prerequisites and populates an existing target SwayContextData container.
+   * Checks configuration, speed threshold, global suppression, ITP presence, third-person perspective, PSM states, and pitch.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param player Local player puppet reference.
+   * @param target Output container to update.
+   * @return The updated target SwayContextData instance.
+   */
   public static func EvaluateInto(sys: ref<ImmersiveFootwearPOVSystem>, player: ref<PlayerPuppet>, target: ref<SwayContextData>) -> ref<SwayContextData> {
     if !IsDefined(target) {
       return SwayEvaluator.Evaluate(sys, player);

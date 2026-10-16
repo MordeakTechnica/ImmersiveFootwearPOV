@@ -10,6 +10,13 @@ public class ShoeOverrideEntry {
   public let heelMeters: Float;
   public let platformMeters: Float;
 
+  /**
+   * Factory method initializing a new shoe override entity with precomputed lowercase key.
+   * @param key Unique shoe identifier string.
+   * @param heelMeters Heel height offset in meters.
+   * @param platformMeters Platform height offset in meters.
+   * @return A newly initialized ShoeOverrideEntry instance.
+   */
   public static func Create(key: String, heelMeters: Float, platformMeters: Float) -> ref<ShoeOverrideEntry> {
     let entry: ref<ShoeOverrideEntry> = new ShoeOverrideEntry();
     entry.key = key;
@@ -23,18 +30,34 @@ public class ShoeOverrideEntry {
 public class FootwearOverrideRepository {
   private let m_entries: array<ref<ShoeOverrideEntry>>;
 
+  /**
+   * Factory method creating a new empty FootwearOverrideRepository.
+   * @return A newly initialized repository instance.
+   */
   public static func Create() -> ref<FootwearOverrideRepository> {
     return new FootwearOverrideRepository();
   }
 
+  /**
+   * Removes all entries from the repository.
+   */
   public func Clear() -> Void {
     ArrayClear(this.m_entries);
   }
 
+  /**
+   * Retrieves the current count of registered overrides.
+   * @return Number of override entries stored.
+   */
   public func GetCount() -> Int32 {
     return ArraySize(this.m_entries);
   }
 
+  /**
+   * Finds the array index for an entry matching the provided key, using case-exact match followed by case-insensitive fallback.
+   * @param key Shoe identifier string to search for.
+   * @return Zero-based index if found, -1 if not found.
+   */
   public func FindIndex(key: String) -> Int32 {
     let count: Int32 = ArraySize(this.m_entries);
     let i: Int32 = 0;
@@ -55,10 +78,20 @@ public class FootwearOverrideRepository {
     return -1;
   }
 
+  /**
+   * Checks whether an override exists for the specified shoe identifier key.
+   * @param key Shoe identifier string.
+   * @return True if an override exists, false otherwise.
+   */
   public func Has(key: String) -> Bool {
     return this.FindIndex(key) >= 0;
   }
 
+  /**
+   * Retrieves the override entry for a given shoe identifier key.
+   * @param key Shoe identifier string.
+   * @return The matching ShoeOverrideEntry, or null if not found.
+   */
   public func Get(key: String) -> ref<ShoeOverrideEntry> {
     let idx: Int32 = this.FindIndex(key);
     if idx >= 0 {
@@ -67,6 +100,11 @@ public class FootwearOverrideRepository {
     return null;
   }
 
+  /**
+   * Queries the heel height offset in meters for a given shoe key.
+   * @param key Shoe identifier string.
+   * @return Heel height in meters, or 0.0 if not overridden.
+   */
   public func GetHeel(key: String) -> Float {
     let entry: ref<ShoeOverrideEntry> = this.Get(key);
     if IsDefined(entry) {
@@ -75,6 +113,11 @@ public class FootwearOverrideRepository {
     return 0.0;
   }
 
+  /**
+   * Queries the platform height offset in meters for a given shoe key.
+   * @param key Shoe identifier string.
+   * @return Platform height in meters, or 0.0 if not overridden.
+   */
   public func GetPlatform(key: String) -> Float {
     let entry: ref<ShoeOverrideEntry> = this.Get(key);
     if IsDefined(entry) {
@@ -83,6 +126,12 @@ public class FootwearOverrideRepository {
     return 0.0;
   }
 
+  /**
+   * Adds or updates a shoe override entry with safety-clamped height bounds.
+   * @param key Shoe identifier string.
+   * @param heelMeters Raw heel height offset in meters.
+   * @param platformMeters Raw platform height offset in meters.
+   */
   public func Register(key: String, heelMeters: Float, platformMeters: Float) -> Void {
     if StrLen(key) == 0 {
       return;
@@ -99,6 +148,11 @@ public class FootwearOverrideRepository {
     };
   }
 
+  /**
+   * Deletes a shoe override entry from the repository.
+   * @param key Shoe identifier string.
+   * @return True if the entry was found and removed, false otherwise.
+   */
   public func Remove(key: String) -> Bool {
     let idx: Int32 = this.FindIndex(key);
     if idx >= 0 {

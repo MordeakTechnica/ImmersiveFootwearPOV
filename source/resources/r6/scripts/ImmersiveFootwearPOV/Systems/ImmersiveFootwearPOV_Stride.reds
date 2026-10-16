@@ -19,12 +19,27 @@ public class StrideController {
   private let m_statusText: String;
   private let m_hasZeroPublished: Bool;
 
+  /**
+   * Factory method initializing a new StrideController in idle state.
+   * @return A newly initialized StrideController instance.
+   */
   public static func Create() -> ref<StrideController> {
     let sc: ref<StrideController> = new StrideController();
     sc.m_statusText = "Idle";
     return sc;
   }
 
+  /**
+   * Primary frame update advancing gait phase, computing pelvic yaw/roll, counter-rotations, and publishing to animgraph.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param player Local player puppet reference.
+   * @param deltaTime Elapsed delta frame time in seconds.
+   * @param enabled True if hip sway simulation is enabled in user settings.
+   * @param intensityLow Multiplier for low heel heights (2.0cm to 5.08cm).
+   * @param intensityMid Multiplier for mid heel heights (5.08cm to 7.5cm).
+   * @param intensityHigh Multiplier for high heel heights (7.5cm and above).
+   * @param isOverlayOpen True if diagnostics HUD or calibrator window is visible.
+   */
   public func Update(sys: ref<ImmersiveFootwearPOVSystem>, player: ref<PlayerPuppet>, deltaTime: Float, enabled: Bool, intensityLow: Float, intensityMid: Float, intensityHigh: Float, isOverlayOpen: Bool) -> Void {
     if !enabled {
       if !this.m_hasZeroPublished {
@@ -123,6 +138,10 @@ public class StrideController {
     this.Publish(player);
   }
 
+  /**
+   * Publishes calculated rotation angles to player animgraph input variables. Suppresses redundant zeroes.
+   * @param player The local player puppet reference.
+   */
   private func Publish(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) {
       return;
@@ -146,6 +165,10 @@ public class StrideController {
     AnimationControllerComponent.SetInputFloat(player, n"ifp_hip_sway_blend", this.m_currentBlend);
   }
 
+  /**
+   * Resets phase and sway angles to zero and immediately publishes zero state to player animgraph.
+   * @param player The local player puppet reference.
+   */
   public func Reset(player: ref<PlayerPuppet>) -> Void {
     this.m_phase = 0.0;
     this.ResetValues();
@@ -156,6 +179,9 @@ public class StrideController {
     };
   }
 
+  /**
+   * Internal helper clearing all cached oscillation and angle states to zero.
+   */
   private func ResetValues() -> Void {
     this.m_currentBlend = 0.0;
     this.m_currentRoll = 0.0;
@@ -167,11 +193,45 @@ public class StrideController {
     this.m_currentPitchCm = 0.0;
   }
 
+  /**
+   * Retrieves the current diagnostic status string describing stride state.
+   * @return Human-readable status string.
+   */
   public func GetStatusText() -> String { return this.m_statusText; }
+
+  /**
+   * Retrieves the instantaneous pelvic roll rotation in degrees.
+   * @return Pelvic roll in degrees.
+   */
   public func GetCurrentRoll() -> Float { return this.m_currentRoll; }
+
+  /**
+   * Retrieves the instantaneous pelvic yaw swivel rotation in degrees.
+   * @return Pelvic yaw in degrees.
+   */
   public func GetCurrentYaw() -> Float { return this.m_currentYaw; }
+
+  /**
+   * Retrieves the current sway blend weight scalar.
+   * @return Normalized blend weight between 0.0 and 1.0.
+   */
   public func GetCurrentBlend() -> Float { return this.m_currentBlend; }
+
+  /**
+   * Retrieves the current leg counter-roll angle in degrees.
+   * @return Counter-roll angle in degrees.
+   */
   public func GetCurrentLegCounterRoll() -> Float { return this.m_currentLegCounterRoll; }
+
+  /**
+   * Retrieves the normalized heel scale factor (0.0 to 1.0) applied to sway intensity.
+   * @return Heel scale factor.
+   */
   public func GetCurrentHeelScale() -> Float { return this.m_currentHeelScale; }
+
+  /**
+   * Retrieves the effective heel pitch in centimeters used for intensity tier evaluation.
+   * @return Heel pitch in cm.
+   */
   public func GetCurrentPitchCm() -> Float { return this.m_currentPitchCm; }
 }

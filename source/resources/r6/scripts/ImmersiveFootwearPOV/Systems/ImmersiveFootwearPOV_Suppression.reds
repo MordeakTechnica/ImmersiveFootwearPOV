@@ -14,6 +14,10 @@ public class SuppressionRuleResult {
   public let isSuppressed: Bool;
   public let reason: String;
 
+  /**
+   * Factory method for unsuppressed evaluation result (elevation permitted).
+   * @return A passing SuppressionRuleResult.
+   */
   public static func Pass() -> ref<SuppressionRuleResult> {
     let res: ref<SuppressionRuleResult> = new SuppressionRuleResult();
     res.isSuppressed = false;
@@ -21,6 +25,11 @@ public class SuppressionRuleResult {
     return res;
   }
 
+  /**
+   * Factory method for suppressed evaluation result with descriptive context trigger.
+   * @param reason Human-readable explanation of why elevation was suppressed.
+   * @return A suppressed SuppressionRuleResult.
+   */
   public static func Suppress(reason: String) -> ref<SuppressionRuleResult> {
     let res: ref<SuppressionRuleResult> = new SuppressionRuleResult();
     res.isSuppressed = true;
@@ -43,6 +52,11 @@ public class PlayerSuppressionSnapshot {
   public let takedownState: Int32;
   public let bodyCarryingState: Int32;
 
+  /**
+   * Captures an immutable snapshot of player state machine blackboard parameters and world attachment.
+   * @param player The local player puppet reference.
+   * @return Populated PlayerSuppressionSnapshot instance.
+   */
   public static func Capture(player: ref<PlayerPuppet>) -> ref<PlayerSuppressionSnapshot> {
     let snap: ref<PlayerSuppressionSnapshot> = new PlayerSuppressionSnapshot();
     if !IsDefined(player) {
@@ -74,6 +88,12 @@ public class PlayerSuppressionSnapshot {
 // Abstract Rule Specification
 // -----------------------------------------------------------------------------
 public abstract class ISuppressionRule {
+  /**
+   * Evaluates a single suppression condition against the player snapshot.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     return SuppressionRuleResult.Pass();
   }
@@ -83,6 +103,12 @@ public abstract class ISuppressionRule {
 // Rule 1: Vehicle Occupancy
 // -----------------------------------------------------------------------------
 public class VehicleSuppressionRule extends ISuppressionRule {
+  /**
+   * Suppresses elevation when player is seated or mounted in any vehicle.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     if IsDefined(cfg) && !cfg.suppressVehicles {
       return SuppressionRuleResult.Pass();
@@ -98,6 +124,12 @@ public class VehicleSuppressionRule extends ISuppressionRule {
 // Rule 2: Authored Workspot (Sitting on chairs, couches, beds, furniture)
 // -----------------------------------------------------------------------------
 public class WorkspotSuppressionRule extends ISuppressionRule {
+  /**
+   * Suppresses elevation when player is bound to an authored workspot animation.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     if IsDefined(cfg) && !cfg.suppressWorkspots {
       return SuppressionRuleResult.Pass();
@@ -113,6 +145,12 @@ public class WorkspotSuppressionRule extends ISuppressionRule {
 // Rule 3: Scripted Quest Scenes & High Dialogue Tiers (Tier >= 3 or <= 0)
 // -----------------------------------------------------------------------------
 public class SceneTierSuppressionRule extends ISuppressionRule {
+  /**
+   * Suppresses elevation during scripted quest cutscenes, high-tier dialogues, or invalid scene tiers.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     if IsDefined(cfg) && !cfg.suppressScenes {
       return SuppressionRuleResult.Pass();
@@ -128,6 +166,12 @@ public class SceneTierSuppressionRule extends ISuppressionRule {
 // Rule 4: Locomotion Traversal & Special Physical Actions
 // -----------------------------------------------------------------------------
 public class LocomotionTraversalRule extends ISuppressionRule {
+  /**
+   * Suppresses elevation during ladder climbing, vaulting, mantling, or knockdown reactions.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     // Locomotion detailed: 8..13 correspond to climbing, vaulting, and ladder climbing
     if snap.detailedLocomotionState >= 8 && snap.detailedLocomotionState <= 13 {
@@ -145,6 +189,12 @@ public class LocomotionTraversalRule extends ISuppressionRule {
 // Rule 5: Swimming & Water Traversal
 // -----------------------------------------------------------------------------
 public class SwimmingSuppressionRule extends ISuppressionRule {
+  /**
+   * Suppresses elevation when player is swimming or treading water.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     if snap.highLevelState == 6 || snap.swimmingState > 0 {
       return SuppressionRuleResult.Suppress("Swimming");
@@ -157,6 +207,12 @@ public class SwimmingSuppressionRule extends ISuppressionRule {
 // Rule 6: Combat / Action Locks (Takedown, Body Carrying)
 // -----------------------------------------------------------------------------
 public class CombatActionLockRule extends ISuppressionRule {
+  /**
+   * Suppresses elevation during enemy takedowns, grappling, or body carrying.
+   * @param snap Captured player state machine snapshot.
+   * @param cfg Active user configuration settings.
+   * @return Result containing suppression status and reason.
+   */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     if snap.takedownState > 0 {
       return SuppressionRuleResult.Suppress("Takedown or Grapple");
@@ -174,6 +230,10 @@ public class CombatActionLockRule extends ISuppressionRule {
 public class SuppressionRuleEngine {
   private let m_rules: array<ref<ISuppressionRule>>;
 
+  /**
+   * Factory method initializing the rule engine with standard gameplay suppression rules.
+   * @return A newly initialized SuppressionRuleEngine instance.
+   */
   public static func CreateDefault() -> ref<SuppressionRuleEngine> {
     let engine: ref<SuppressionRuleEngine> = new SuppressionRuleEngine();
     ArrayPush(engine.m_rules, new VehicleSuppressionRule());
@@ -185,6 +245,12 @@ public class SuppressionRuleEngine {
     return engine;
   }
 
+  /**
+   * Evaluates all registered suppression rules sequentially. Returns early on first suppression trigger.
+   * @param snap Captured player state snapshot.
+   * @param cfg Active configuration settings.
+   * @return First active suppression result, or Pass() if all rules permit elevation.
+   */
   public func EvaluateAll(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
     let count: Int32 = ArraySize(this.m_rules);
     let i: Int32 = 0;
@@ -204,7 +270,12 @@ public class SuppressionRuleEngine {
 // -----------------------------------------------------------------------------
 public class SuppressionEvaluator {
 
-  // Evaluates all suppression contexts and synchronizes state on the system coordinator
+  /**
+   * Evaluates all suppression contexts against the player and synchronizes state on ImmersiveFootwearPOVSystem.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param player The local player puppet reference.
+   * @return True if suppression state changed, false if unchanged.
+   */
   public static func Evaluate(sys: ref<ImmersiveFootwearPOVSystem>, player: ref<PlayerPuppet>) -> Bool {
     if !IsDefined(player) {
       FootwearRedLogger.LogError("SUPPRESSION", "SuppressionEvaluator.Evaluate: Player entity is undefined");

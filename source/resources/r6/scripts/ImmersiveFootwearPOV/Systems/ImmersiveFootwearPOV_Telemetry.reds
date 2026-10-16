@@ -10,10 +10,21 @@ public class FootwearTelemetryLogger {
   private let m_lastLoggedOffset: Float;
   private let m_lastLoggedSuppressed: Bool;
 
+  /**
+   * Factory method initializing a new FootwearTelemetryLogger instance.
+   * @return A newly initialized FootwearTelemetryLogger.
+   */
   public static func Create() -> ref<FootwearTelemetryLogger> {
     return new FootwearTelemetryLogger();
   }
 
+  /**
+   * Logs discrete True First Person camera lifecycle events (e.g. resets, attachments).
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param eventName Identifier of the lifecycle event.
+   * @param baseZ Base camera Z in meters.
+   * @param curZ Current camera Z in meters.
+   */
   public func LogTFPEvent(sys: ref<ImmersiveFootwearPOVSystem>, eventName: String, baseZ: Float, curZ: Float) -> Void {
     if !IsDefined(sys) || !sys.IsDebugLogging() { return; };
     let tag: String = sys.GetActiveModTag(null);
@@ -25,6 +36,12 @@ public class FootwearTelemetryLogger {
     FootwearRedLogger.LogDebug(tag, s"Event: \(eventName) | Footwear: '\(shoeName)' (+\(liftCm) cm) | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
   }
 
+  /**
+   * Logs continuous camera state transitions during polling, throttled to item/suppression changes or significant deltas.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param baseZ Base camera Z in meters.
+   * @param curZ Current camera Z in meters.
+   */
   public func LogTFPPolling(sys: ref<ImmersiveFootwearPOVSystem>, baseZ: Float, curZ: Float) -> Void {
     if !IsDefined(sys) || !sys.IsDebugLogging() { return; };
 
@@ -51,6 +68,11 @@ public class FootwearTelemetryLogger {
     };
   }
 
+  /**
+   * Logs entry or exit from a vehicle and the corresponding suppression action taken.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param inVehicle True if vehicle mount detected, false if dismounted.
+   */
   public static func LogVehicleState(sys: ref<ImmersiveFootwearPOVSystem>, inVehicle: Bool) -> Void {
     if !IsDefined(sys) { return; };
     let shoeName: String = sys.GetResolvedShoeDisplayName();
@@ -62,11 +84,20 @@ public class FootwearTelemetryLogger {
     FootwearRedLogger.LogInfo("VEHICLE", s"Vehicle state updated: inVehicle=\(inVehicle) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Heel: \(heelCm) cm | Platform: \(platCm) cm");
   }
 
+  /**
+   * Logs automatic recovery from vehicle occupancy suppression when player is detected on foot.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   */
   public static func LogVehicleAutoRecovered(sys: ref<ImmersiveFootwearPOVSystem>) -> Void {
     if !IsDefined(sys) { return; };
     FootwearRedLogger.LogWarn("VEHICLE", s"Vehicle state auto-recovered (Exited) | Action: Clearing Vehicle Occupancy suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())'");
   }
 
+  /**
+   * Logs entry or exit from an authored workspot animation and suppression state change.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   * @param inWorkspot True if player entered workspot, false if exited.
+   */
   public static func LogWorkspotState(sys: ref<ImmersiveFootwearPOVSystem>, inWorkspot: Bool) -> Void {
     if !IsDefined(sys) { return; };
     let shoeName: String = sys.GetResolvedShoeDisplayName();
@@ -78,6 +109,10 @@ public class FootwearTelemetryLogger {
     FootwearRedLogger.LogInfo("WORKSPOT", s"Workspot state updated: inWorkspot=\(inWorkspot) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Heel: \(heelCm) cm | Platform: \(platCm) cm");
   }
 
+  /**
+   * Logs automatic recovery from authored workspot suppression when player stands up or departs.
+   * @param sys Reference to ImmersiveFootwearPOVSystem.
+   */
   public static func LogWorkspotAutoRecovered(sys: ref<ImmersiveFootwearPOVSystem>) -> Void {
     if !IsDefined(sys) { return; };
     FootwearRedLogger.LogWarn("WORKSPOT", s"Workspot state auto-recovered (Standing/Exited) | Action: Clearing Authored Workspot suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())'");

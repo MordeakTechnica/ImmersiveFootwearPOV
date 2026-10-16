@@ -21,12 +21,19 @@ public class FootwearConfig {
   public let suppressScenes: Bool;
   public let transitionSpeed: Float;
 
+  /**
+   * Factory method creating a FootwearConfig populated with factory default settings.
+   * @return A newly initialized FootwearConfig with default values.
+   */
   public static func CreateDefault() -> ref<FootwearConfig> {
     let cfg: ref<FootwearConfig> = new FootwearConfig();
     cfg.SetDefaults();
     return cfg;
   }
 
+  /**
+   * Resets all configuration settings to their recommended default values.
+   */
   public func SetDefaults() -> Void {
     this.autoElevatePM = true;
     this.debugLogs = false;
@@ -42,6 +49,11 @@ public class FootwearConfig {
     this.transitionSpeed = 0.35;
   }
 
+  /**
+   * Deserializes configuration attributes from a JSON map object, preserving existing defaults on missing keys.
+   * Handles backwards compatibility migration from legacy 'hipSwayIntensity' if present.
+   * @param map The source JsonMap to read from.
+   */
   public func ReadFromJson(map: ref<JsonMap>) -> Void {
     if !IsDefined(map) {
       return;
@@ -67,6 +79,10 @@ public class FootwearConfig {
     this.transitionSpeed = map.Float("transitionSpeed", this.transitionSpeed);
   }
 
+  /**
+   * Serializes current configuration attributes into a JSON map object for persistent disk storage.
+   * @param map The destination JsonMap to write to.
+   */
   public func WriteToJson(map: ref<JsonMap>) -> Void {
     if !IsDefined(map) {
       return;

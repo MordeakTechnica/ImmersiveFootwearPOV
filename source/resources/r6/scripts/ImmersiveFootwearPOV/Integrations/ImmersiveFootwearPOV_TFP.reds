@@ -11,7 +11,10 @@ import TrueFirstPerson.{IFPSystem, IFPCamera, IFPConfig, IFPWeapon}
 @if(ModuleExists("TrueFirstPerson"))
 public class TFPHelper {
 
-  // Applies additive footwear height offset to TFP camera and syncs weapon ADS
+  /**
+   * Applies additive footwear height offset to TFP camera and triggers weapon ADS alignment.
+   * @param game The active GameInstance.
+   */
   public static func ApplyFootwearHeight(game: GameInstance) -> Void {
     let sysHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
     if IsDefined(sysHandler) && sysHandler.IsPreGame() { return; };
@@ -68,7 +71,10 @@ public class TFPHelper {
     };
   }
 
-  // Synchronizes the active weapon's physical viewmodel & ADS height with footwear lift
+  /**
+   * Synchronizes active weapon viewmodel and ADS reticle alignment with elevated cameraZ.
+   * @param game The active GameInstance.
+   */
   public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
     let sysHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
     if IsDefined(sysHandler) && sysHandler.IsPreGame() { return; };
@@ -103,8 +109,11 @@ public class TFPHelper {
     };
   }
 
-
-  // Queries the active effective footwear height offset (in meters) from ImmersiveFootwearPOVSystem
+  /**
+   * Queries the active effective footwear height offset (in meters) from ImmersiveFootwearPOVSystem.
+   * @param game The active GameInstance.
+   * @return Effective offset in meters.
+   */
   public static func GetFootwearHeightOffset(game: GameInstance) -> Float {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     if IsDefined(sys) {
@@ -113,7 +122,11 @@ public class TFPHelper {
     return 0.0;
   }
 
-  // Queries raw current footwear heel height without suppression
+  /**
+   * Queries the raw current footwear heel height in meters without suppression.
+   * @param game The active GameInstance.
+   * @return Heel height in meters.
+   */
   public static func GetCurrentHeelHeight(game: GameInstance) -> Float {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     if IsDefined(sys) {
@@ -122,7 +135,11 @@ public class TFPHelper {
     return 0.0;
   }
 
-  // Checks whether footwear height is currently suppressed
+  /**
+   * Checks whether footwear height is currently suppressed by gameplay states.
+   * @param game The active GameInstance.
+   * @return True if suppressed, false otherwise.
+   */
   public static func IsSuppressed(game: GameInstance) -> Bool {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     if IsDefined(sys) {
@@ -131,7 +148,13 @@ public class TFPHelper {
     return false;
   }
 
-  // Observational telemetry helper for discrete TFP camera lifecycle events
+  /**
+   * Observational telemetry helper for discrete TFP camera lifecycle events.
+   * @param game The active GameInstance.
+   * @param eventName Identifier of the lifecycle event.
+   * @param baseZ Base camera Z in meters.
+   * @param curZ Current camera Z in meters.
+   */
   public static func LogEvent(game: GameInstance, eventName: String, baseZ: Float, curZ: Float) -> Void {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     if IsDefined(sys) {
@@ -139,7 +162,12 @@ public class TFPHelper {
     };
   }
 
-  // Observational telemetry helper for continuous camera polling (logged on state transitions)
+  /**
+   * Observational telemetry helper for continuous camera polling (logged on state transitions).
+   * @param game The active GameInstance.
+   * @param baseZ Base camera Z in meters.
+   * @param curZ Current camera Z in meters.
+   */
   public static func LogPolling(game: GameInstance, baseZ: Float, curZ: Float) -> Void {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     if IsDefined(sys) {
@@ -147,7 +175,10 @@ public class TFPHelper {
     };
   }
 
-  // Polling helper: queries active TFP camera state directly from IFPSystem
+  /**
+   * Polling helper: queries active TFP camera state directly from IFPSystem.
+   * @param player The local player puppet reference.
+   */
   public static func LogState(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
     let gi: GameInstance = player.GetGame();
@@ -173,34 +204,74 @@ public class TFPHelper {
 @if(!ModuleExists("TrueFirstPerson"))
 public class TFPHelper {
 
+  /**
+   * Fallback elevation application when TFP is not installed.
+   * @param game The active GameInstance.
+   */
   public static func ApplyFootwearHeight(game: GameInstance) -> Void {
     // No-op
   }
 
+  /**
+   * Fallback weapon alignment when TFP is not installed.
+   * @param game The active GameInstance.
+   */
   public static func SyncWeaponForCurrentFootwear(game: GameInstance) -> Void {
     // No-op
   }
 
+  /**
+   * Fallback offset query when TFP is not installed.
+   * @param game The active GameInstance.
+   * @return Always returns 0.0.
+   */
   public static func GetFootwearHeightOffset(game: GameInstance) -> Float {
     return 0.0;
   }
 
+  /**
+   * Fallback heel height query when TFP is not installed.
+   * @param game The active GameInstance.
+   * @return Always returns 0.0.
+   */
   public static func GetCurrentHeelHeight(game: GameInstance) -> Float {
     return 0.0;
   }
 
+  /**
+   * Fallback suppression query when TFP is not installed.
+   * @param game The active GameInstance.
+   * @return Always returns false.
+   */
   public static func IsSuppressed(game: GameInstance) -> Bool {
     return false;
   }
 
+  /**
+   * Fallback event logger when TFP is not installed.
+   * @param game The active GameInstance.
+   * @param eventName Identifier of the lifecycle event.
+   * @param baseZ Base camera Z in meters.
+   * @param curZ Current camera Z in meters.
+   */
   public static func LogEvent(game: GameInstance, eventName: String, baseZ: Float, curZ: Float) -> Void {
     // No-op
   }
 
+  /**
+   * Fallback polling logger when TFP is not installed.
+   * @param game The active GameInstance.
+   * @param baseZ Base camera Z in meters.
+   * @param curZ Current camera Z in meters.
+   */
   public static func LogPolling(game: GameInstance, baseZ: Float, curZ: Float) -> Void {
     // No-op
   }
 
+  /**
+   * Fallback state logger when TFP is not installed.
+   * @param player The local player puppet reference.
+   */
   public static func LogState(player: ref<PlayerPuppet>) -> Void {
     // No-op
   }

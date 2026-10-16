@@ -15,12 +15,19 @@ public class FootwearStorageManager {
   private const let OVERRIDES_FILE: String = "user_shoe_overrides.json";
   private const let PRESETS_FILE: String = "presets.json";
 
+  /**
+   * Factory method initializing and opening the ModStorage file interface for ImmersiveFootwearPOV.
+   * @return A newly initialized FootwearStorageManager instance.
+   */
   public static func GetInstance() -> ref<FootwearStorageManager> {
     let instance: ref<FootwearStorageManager> = new FootwearStorageManager();
     instance.Init();
     return instance;
   }
 
+  /**
+   * Internal initializer opening the ModStorage partition.
+   */
   private func Init() -> Void {
     this.m_storage = ModStorage.Open("ImmersiveFootwearPOV");
     if !IsDefined(this.m_storage) {
@@ -28,10 +35,18 @@ public class FootwearStorageManager {
     };
   }
 
+  /**
+   * Checks whether the underlying ModStorage filesystem handle is open and ready.
+   * @return True if storage handle is defined, false otherwise.
+   */
   public func IsReady() -> Bool {
     return IsDefined(this.m_storage);
   }
 
+  /**
+   * Retrieves the raw ModStorage reference.
+   * @return The underlying ModStorage instance.
+   */
   public func GetStorage() -> ref<ModStorage> {
     return this.m_storage;
   }
@@ -39,6 +54,12 @@ public class FootwearStorageManager {
   // -----------------------------------------------------------------------------
   // Mod Configuration Loading & Saving
   // -----------------------------------------------------------------------------
+
+  /**
+   * Loads user configuration from config.json. Automatically writes default configuration if file is missing.
+   * @param config The FootwearConfig instance to populate.
+   * @return True if configuration was loaded or initialized successfully, false on error.
+   */
   public func LoadConfig(config: ref<FootwearConfig>) -> Bool {
     if !this.IsReady() || !IsDefined(config) {
       return false;
@@ -60,6 +81,11 @@ public class FootwearStorageManager {
     return false;
   }
 
+  /**
+   * Serializes and writes user configuration to config.json.
+   * @param config The FootwearConfig instance to persist.
+   * @return True if write succeeded, false otherwise.
+   */
   public func SaveConfig(config: ref<FootwearConfig>) -> Bool {
     if !this.IsReady() || !IsDefined(config) {
       return false;
@@ -79,6 +105,12 @@ public class FootwearStorageManager {
   // -----------------------------------------------------------------------------
   // User Shoe Overrides Loading & Saving (Decoupled from System via Repository)
   // -----------------------------------------------------------------------------
+
+  /**
+   * Loads user calibrated shoe overrides from user_shoe_overrides.json into the provided repository.
+   * @param repo The target FootwearOverrideRepository to populate.
+   * @return Number of override entries successfully parsed and registered.
+   */
   public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
     if !this.IsReady() || !IsDefined(repo) {
       return 0;
@@ -118,6 +150,13 @@ public class FootwearStorageManager {
     return registered;
   }
 
+  /**
+   * Persists a single calibrated shoe override entry to user_shoe_overrides.json.
+   * @param key Unique shoe identifier string.
+   * @param heelMeters Heel height offset in meters.
+   * @param platMeters Platform height offset in meters.
+   * @return True if save succeeded, false otherwise.
+   */
   public func SaveUserOverride(key: String, heelMeters: Float, platMeters: Float) -> Bool {
     if !this.IsReady() || StrLen(key) == 0 {
       return false;
@@ -149,6 +188,11 @@ public class FootwearStorageManager {
     return success;
   }
 
+  /**
+   * Deletes a shoe override from user_shoe_overrides.json on disk.
+   * @param key Unique shoe identifier string to remove.
+   * @return True if entry existed and was deleted, false otherwise.
+   */
   public func RemoveUserOverride(key: String) -> Bool {
     if !this.IsReady() || StrLen(key) == 0 {
       return false;
@@ -173,6 +217,12 @@ public class FootwearStorageManager {
   // -----------------------------------------------------------------------------
   // Master Presets Loading (Decoupled from System via Repository)
   // -----------------------------------------------------------------------------
+
+  /**
+   * Loads built-in master shoe presets from presets.json into the provided repository.
+   * @param repo The target FootwearOverrideRepository to populate.
+   * @return Number of preset entries successfully loaded.
+   */
   public func LoadMasterPresetsIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
     if !this.IsReady() || !IsDefined(repo) {
       return 0;
@@ -211,7 +261,11 @@ public class FootwearStorageManager {
     return registered;
   }
 
-  // Backward compatibility forwarders
+  /**
+   * Legacy adapter loading user shoe overrides directly through the central system.
+   * @param system Reference to ImmersiveFootwearPOVSystem.
+   * @return Number of entries registered.
+   */
   public func LoadUserOverrides(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
     if IsDefined(system) {
       return this.LoadUserOverridesIntoRepo(system.GetOverrideRepository());
@@ -219,6 +273,11 @@ public class FootwearStorageManager {
     return 0;
   }
 
+  /**
+   * Legacy adapter loading master shoe presets directly through the central system.
+   * @param system Reference to ImmersiveFootwearPOVSystem.
+   * @return Number of entries registered.
+   */
   public func LoadMasterPresets(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
     if IsDefined(system) {
       return this.LoadMasterPresetsIntoRepo(system.GetOverrideRepository());
@@ -226,6 +285,11 @@ public class FootwearStorageManager {
     return 0;
   }
 
+  /**
+   * Initiates migration of legacy CET configuration and shoe overrides if detected.
+   * @param system Reference to ImmersiveFootwearPOVSystem.
+   * @param config The current configuration instance.
+   */
   public func MigrateLegacyCet(system: ref<ImmersiveFootwearPOVSystem>, config: ref<FootwearConfig>) -> Void {
     LegacyCetMigrationService.MigrateIfNeeded(this, config);
   }

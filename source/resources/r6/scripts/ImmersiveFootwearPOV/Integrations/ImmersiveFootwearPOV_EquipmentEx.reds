@@ -9,7 +9,12 @@ import EquipmentEx.OutfitSystem
 @if(ModuleExists("EquipmentEx"))
 public class EquipmentExHelper {
 
-  // Resolves the currently equipped footwear from Equipment-EX's OutfitSystem
+  /**
+   * Resolves the currently equipped footwear ItemID from Equipment-EX's active OutfitSystem.
+   * Checks the default Feet slot first, then inspects occupied slots for items with heel data.
+   * @param player The local player puppet reference.
+   * @return The equipped footwear ItemID, or ItemID.None() if no footwear found.
+   */
   public static func GetActiveFootwear(player: ref<PlayerPuppet>) -> ItemID {
     if !IsDefined(player) {
       return ItemID.None();
@@ -55,7 +60,12 @@ public class EquipmentExHelper {
     return ItemID.None();
   }
 
-  // Resolves footwear ItemID directly from an Equipment-EX outfit if currently equipped
+  /**
+   * Resolves footwear ItemID directly from a specific Equipment-EX outfit if currently equipped.
+   * @param game The active GameInstance.
+   * @param outfitName Name of the outfit record.
+   * @return The active footwear ItemID from the outfit, or ItemID.None() if unequipped.
+   */
   public static func GetFootwearFromOutfit(game: GameInstance, outfitName: CName) -> ItemID {
     let outfitSys: ref<OutfitSystem> = OutfitSystem.GetInstance(game);
     if !IsDefined(outfitSys) {
@@ -72,6 +82,11 @@ public class EquipmentExHelper {
     return ItemID.None();
   }
 
+  /**
+   * Checks whether Equipment-EX is installed and actively controlling outfits for the player.
+   * @param player The local player puppet reference.
+   * @return True if Equipment-EX OutfitSystem is active, false otherwise.
+   */
   public static func IsEquipmentExActive(player: ref<PlayerPuppet>) -> Bool {
     if !IsDefined(player) {
       return false;
@@ -87,14 +102,30 @@ public class EquipmentExHelper {
 @if(!ModuleExists("EquipmentEx"))
 public class EquipmentExHelper {
 
+  /**
+   * Fallback resolution when Equipment-EX is not installed.
+   * @param player The local player puppet reference.
+   * @return Always returns ItemID.None().
+   */
   public static func GetActiveFootwear(player: ref<PlayerPuppet>) -> ItemID {
     return ItemID.None();
   }
 
+  /**
+   * Fallback outfit query when Equipment-EX is not installed.
+   * @param game The active GameInstance.
+   * @param outfitName Name of the outfit record.
+   * @return Always returns ItemID.None().
+   */
   public static func GetFootwearFromOutfit(game: GameInstance, outfitName: CName) -> ItemID {
     return ItemID.None();
   }
 
+  /**
+   * Fallback active check when Equipment-EX is not installed.
+   * @param player The local player puppet reference.
+   * @return Always returns false.
+   */
   public static func IsEquipmentExActive(player: ref<PlayerPuppet>) -> Bool {
     return false;
   }

@@ -5,6 +5,9 @@ module ImmersiveFootwearPOV
 // Hooks Photo Mode menu lifecycle to manage elevation and suppression state
 // =============================================================================
 
+/**
+ * Injects footwear platform elevation directly into Photo Mode's character Z position attribute (attribute 37u).
+ */
 @addMethod(gameuiPhotoModeMenuController)
 public func ApplyFootwearElevation() -> Void {
   let obj: ref<GameObject> = this.GetPlayerControlledObject();
@@ -23,6 +26,11 @@ public func ApplyFootwearElevation() -> Void {
   };
 }
 
+/**
+ * Handles Photo Mode activation lifecycle: sets photo mode state in ImmersiveFootwearPOVSystem and applies elevation.
+ * @param reversedUI Indicates whether the photo mode menu layout is mirrored.
+ * @return Original wrapped execution result.
+ */
 @wrapMethod(gameuiPhotoModeMenuController)
 protected cb func OnShow(reversedUI: Bool) -> Bool {
   let result: Bool = wrappedMethod(reversedUI);
@@ -41,6 +49,10 @@ protected cb func OnShow(reversedUI: Bool) -> Bool {
   return result;
 }
 
+/**
+ * Handles Photo Mode deactivation lifecycle: restores normal gameplay state and recalculates camera offsets.
+ * @return Original wrapped execution result.
+ */
 @wrapMethod(gameuiPhotoModeMenuController)
 protected cb func OnHide() -> Bool {
   let result: Bool = wrappedMethod();

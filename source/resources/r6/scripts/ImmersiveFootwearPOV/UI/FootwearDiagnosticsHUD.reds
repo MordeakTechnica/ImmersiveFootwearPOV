@@ -6,9 +6,15 @@ import RedFunctions.*
 // =============================================================================
 // Immersive Footwear POV - Live Diagnostics HUD Window
 // Single Responsibility: Floating inkWidget HUD displaying live telemetry
-// =============================================================================
 public class FootwearDiagnosticsHUD {
 
+  /**
+   * Renders the real-time diagnostics HUD window displaying telemetry,
+   * active footwear info, contextual suppression states, and perspective modes.
+   *
+   * @param gi Game instance context.
+   * @param targetWin Optional RedWindows window container to render within.
+   */
   public static func Render(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {
