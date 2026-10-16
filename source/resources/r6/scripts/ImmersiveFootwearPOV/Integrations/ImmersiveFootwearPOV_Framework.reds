@@ -187,10 +187,11 @@ public class FrameworkIntegrationService {
   /**
    * Checks whether third-person camera is actively rendering for the player.
    * @param player The local player puppet reference.
+   * @param currentTppState Optional current perspective state for hysteresis evaluation.
    * @return True if in third-person view.
    */
-  public func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
-    return ITPController.IsTPPActive(player);
+  public func IsTPPActive(player: ref<PlayerPuppet>, opt currentTppState: Bool) -> Bool {
+    return ITPController.IsTPPActive(player, currentTppState);
   }
 
   /**

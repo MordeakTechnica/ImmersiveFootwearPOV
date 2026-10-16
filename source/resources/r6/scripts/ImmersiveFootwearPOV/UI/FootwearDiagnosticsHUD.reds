@@ -70,7 +70,7 @@ public class FootwearDiagnosticsHUD {
 
     // Section 3: Perspective & Camera
     win.Header(n"hdr_cam", "Camera & Perspective");
-    let isTPP: Bool = IsDefined(player) && ITPController.IsTPPActive(player);
+    let isTPP: Bool = IsDefined(player) && system.IsTPPActive(player);
     let isPM: Bool = system.IsPhotoModeActive();
     if isPM {
       win.Text(n"txt_cam", "Perspective: Photo Mode");

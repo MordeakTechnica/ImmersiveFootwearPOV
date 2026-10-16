@@ -115,6 +115,7 @@ public class ElevationActuatorCoordinator {
   private let m_fppActuator: ref<FppAnimgraphActuator>;
   private let m_tppActuator: ref<TppAnimgraphActuator>;
   private let m_tfpActuator: ref<TfpCameraActuator>;
+  private let m_lastTppActive: Bool;
 
   /**
    * Factory method initializing the perspective coordinator and constituent actuators.
@@ -137,13 +138,16 @@ public class ElevationActuatorCoordinator {
    * @param config The active FootwearConfig instance.
    * @param debugLogging True if debug telemetry logging is enabled.
    * @param suppressionReason Active suppression trigger explanation string.
+   * @param isTPP Optional explicitly known perspective state.
+   * @param hasExplicitTPP True if isTPP was explicitly passed from caller.
    */
-  public func Apply(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool, config: ref<FootwearConfig>, debugLogging: Bool, suppressionReason: String) -> Void {
+  public func Apply(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool, config: ref<FootwearConfig>, debugLogging: Bool, suppressionReason: String, opt isTPP: Bool, opt hasExplicitTPP: Bool) -> Void {
     if !IsDefined(player) { return; };
 
-    let isTPP: Bool = ITPController.IsTPPActive(player);
+    let effectiveTpp: Bool = hasExplicitTPP ? isTPP : ITPController.IsTPPActive(player, this.m_lastTppActive);
+    this.m_lastTppActive = effectiveTpp;
 
-    if isTPP {
+    if effectiveTpp {
       this.m_fppActuator.ResetElevation(player);
       if IsDefined(config) && !config.enableITP {
         this.m_tppActuator.ResetElevation(player);

@@ -67,11 +67,17 @@ public class ITPController {
 
   /**
    * Checks if third-person camera is currently active and rendering based on camera distance from player.
+   * Employs dual-threshold hysteresis to eliminate perspective flapping during locomotion head bob, crouch, or stairs.
+   *
    * @param player The local player puppet reference.
-   * @return True if active camera transform exceeds first-person distance threshold.
+   * @param currentTppState Optional current perspective state to apply hysteresis against.
+   * @return True if active camera transform indicates third-person perspective.
    */
-  public static func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
+  public static func IsTPPActive(player: ref<PlayerPuppet>, opt currentTppState: Bool) -> Bool {
     if !IsDefined(player) {
+      return false;
+    };
+    if !ITPDetector.IsPresent(player.GetGame()) {
       return false;
     };
     let camSys: ref<CameraSystem> = GameInstance.GetCameraSystem(player.GetGame());
@@ -90,7 +96,13 @@ public class ITPController {
     let dy: Float = camPos.Y - basePos.Y;
     let dz: Float = camPos.Z - eyeZ;
     let distSq: Float = dx * dx + dy * dy + dz * dz;
-    let minTppDistSq: Float = 0.64; // Distance threshold squared: (0.8m)^2
-    return distSq > minTppDistSq;
+
+    // Hysteresis thresholds to eliminate perspective flapping:
+    // When currently in TPP, camera must move close (< 0.80m, distSq < 0.64) to transition back to FPP.
+    // When currently in FPP, camera must separate significantly (> 1.41m, distSq > 2.00) to transition to TPP.
+    if currentTppState {
+      return distSq >= 0.64;
+    };
+    return distSq > 2.0;
   }
 }

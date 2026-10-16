@@ -40,6 +40,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_driftCheckTimer: Float;
   private let m_swayContext: ref<SwayContextData>;
   private let m_lastStrideFrame: Uint64;
+  private let m_lastLocoFrame: Uint64;
   private let m_isRcfRegistered: Bool;
   private let m_config: ref<FootwearConfig>;
 
@@ -288,7 +289,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    */
   public func CheckPerspectiveDrift(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
-    let isTPP: Bool = ITPController.IsTPPActive(player);
+    let isTPP: Bool = ITPController.IsTPPActive(player, this.m_lastTppActive);
     if !this.m_hasTppInitialized || NotEquals(isTPP, this.m_lastTppActive) {
       this.m_hasTppInitialized = true;
       this.m_lastTppActive = isTPP;
@@ -298,14 +299,21 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   /**
    * Frame tick called by locomotion state machine transition to evaluate dynamic perspective drift and hip sway.
+   * Deduplicates execution per render frame to prevent synthetic timer acceleration across state machine sub-transitions.
    * @param player The local player puppet reference.
    * @param timeDelta Frame delta time in seconds.
    */
   public func OnLocomotionUpdate(player: ref<PlayerPuppet>, timeDelta: Float) -> Void {
     if !IsDefined(player) { return; };
 
+    let currentFrame: Uint64 = GameInstance.GetFrameNumber(player.GetGame());
+    if currentFrame == this.m_lastLocoFrame {
+      return;
+    };
+    this.m_lastLocoFrame = currentFrame;
+
     this.m_driftCheckTimer += timeDelta;
-    if this.m_driftCheckTimer >= 0.20 {
+    if this.m_driftCheckTimer >= 0.25 {
       this.m_driftCheckTimer = 0.0;
       this.CheckPerspectiveDrift(player);
     };
@@ -362,7 +370,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       suppressed,
       this.m_config,
       this.m_debugLogging,
-      this.GetSuppressionReason()
+      this.GetSuppressionReason(),
+      this.m_lastTppActive,
+      true
     );
   }
 
