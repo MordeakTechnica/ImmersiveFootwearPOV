@@ -96,6 +96,7 @@ public class FootwearCalibratorWindow {
     if !hasFootwear {
       win.Spacer(n"calib_spc_none");
       if win.Button(n"calib_btn_close", "Close Calibrator") {
+        FootwearWindowsController.SaveGeometryImmediate(gi);
         win.Hide();
       };
       return;
@@ -186,6 +187,7 @@ public class FootwearCalibratorWindow {
     };
 
     if win.Button(n"calib_btn_close", "Close Calibrator") {
+      FootwearWindowsController.SaveGeometryImmediate(gi);
       win.Hide();
     };
   }

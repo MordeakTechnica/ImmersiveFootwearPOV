@@ -45,6 +45,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_config: ref<FootwearConfig>;
   private let m_isRcfRegistered: Bool;
   private let m_windowsLoopStarted: Bool;
+  private let m_diagGeoApplied: Bool;
+  private let m_calibGeoApplied: Bool;
 
 
   // -----------------------------------------------------------------------------
@@ -1150,5 +1152,41 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.ClearCustomHeightOverride(player, true);
       this.UpdateEquippedFootwear(player);
     };
+  }
+
+  /**
+   * Checks whether initial geometry has been applied to the diagnostics window.
+   *
+   * @return True if geometry was applied, false otherwise.
+   */
+  public func IsDiagGeoApplied() -> Bool {
+    return this.m_diagGeoApplied;
+  }
+
+  /**
+   * Sets the flag indicating whether initial geometry has been applied to the diagnostics window.
+   *
+   * @param applied True if applied, false otherwise.
+   */
+  public func SetDiagGeoApplied(applied: Bool) -> Void {
+    this.m_diagGeoApplied = applied;
+  }
+
+  /**
+   * Checks whether initial geometry has been applied to the calibrator window.
+   *
+   * @return True if geometry was applied, false otherwise.
+   */
+  public func IsCalibGeoApplied() -> Bool {
+    return this.m_calibGeoApplied;
+  }
+
+  /**
+   * Sets the flag indicating whether initial geometry has been applied to the calibrator window.
+   *
+   * @param applied True if applied, false otherwise.
+   */
+  public func SetCalibGeoApplied(applied: Bool) -> Void {
+    this.m_calibGeoApplied = applied;
   }
 }

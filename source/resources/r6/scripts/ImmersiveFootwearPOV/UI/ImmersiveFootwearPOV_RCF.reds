@@ -73,6 +73,8 @@ public class FootwearRCFProvider extends DVRCF_Provider {
 
       .Tab("Management & Storage")
       .Section("HUD & Live Calibrator")
+      .Toggle("hudPinned", "Show Diagnostics on HUD")
+      .Tip("Keeps the floating diagnostics HUD visible in first-person gameplay even when the RedWindows overlay is closed.")
       .Button("openDiagnostics", "Open Live Diagnostics HUD (RedWindows)")
       .Tip("Opens or focuses the floating native HUD showing active footwear, elevation, and suppression telemetry.")
       .Button("openCalibrator", "Open Live Shoe Height Calibrator (RedWindows)")
@@ -110,6 +112,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "suppressWorkspots") { return this.m_config.suppressWorkspots; };
     if Equals(key, "suppressScenes") { return this.m_config.suppressScenes; };
     if Equals(key, "debugLogs") { return this.m_config.debugLogs; };
+    if Equals(key, "hudPinned") { return this.m_config.hudPinned; };
     return false;
   }
 
@@ -132,6 +135,20 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "suppressWorkspots") && NotEquals(this.m_config.suppressWorkspots, value) { this.m_config.suppressWorkspots = value; changed = true; };
     if Equals(key, "suppressScenes") && NotEquals(this.m_config.suppressScenes, value) { this.m_config.suppressScenes = value; changed = true; };
     if Equals(key, "debugLogs") && NotEquals(this.m_config.debugLogs, value) { this.m_config.debugLogs = value; changed = true; };
+    if Equals(key, "hudPinned") && NotEquals(this.m_config.hudPinned, value) {
+      this.m_config.hudPinned = value;
+      changed = true;
+      if IsDefined(this.m_system) {
+        let diagWin: ref<RWWindow> = RedWindowsAPI.Window(this.m_system.GetGameInstance(), n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
+        if IsDefined(diagWin) {
+          diagWin.SetOverlayOnly(!value);
+          diagWin.SetBoolValue(n"ifp_diag_pin", value);
+          if value {
+            diagWin.Show();
+          };
+        };
+      };
+    };
 
     if !changed {
       return;

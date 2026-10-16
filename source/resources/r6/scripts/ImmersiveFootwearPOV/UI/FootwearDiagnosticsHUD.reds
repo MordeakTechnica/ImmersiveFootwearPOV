@@ -83,13 +83,23 @@ public class FootwearDiagnosticsHUD {
     win.Spacer(n"spc_bot");
 
     // HUD mode pinning control
-    let pinned: Bool = win.Checkbox(n"ifp_diag_pin", "Show on HUD (when overlay is closed)", true);
-    win.SetOverlayOnly(!pinned);
+    let cfg: ref<FootwearConfig> = system.GetConfig();
+    let initialPinned: Bool = IsDefined(cfg) ? cfg.hudPinned : false;
+    let pinned: Bool = win.Checkbox(n"ifp_diag_pin", "Show on HUD (when overlay is closed)", initialPinned);
+    if win.Changed(n"ifp_diag_pin") {
+      if IsDefined(cfg) {
+        cfg.hudPinned = pinned;
+        FootwearStorageManager.GetInstance().SaveConfig(cfg);
+        FootwearRedLogger.LogInfo("HUD", s"Updated Show on HUD to: \(pinned)");
+      };
+      win.SetOverlayOnly(!pinned);
+    };
 
     if win.Button(n"btn_open_calib", "Open Live Shoe Calibrator") {
       FootwearWindowsController.ToggleCalibrator(gi);
     };
     if win.Button(n"btn_close", "Close HUD") {
+      FootwearWindowsController.SaveGeometryImmediate(gi);
       win.Hide();
     };
   }
