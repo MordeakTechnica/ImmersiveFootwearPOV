@@ -3,6 +3,7 @@ module ImmersiveFootwearPOV
 // =============================================================================
 // Immersive Footwear POV - Framework Detection & Diagnostics
 // Compile-time & runtime presence detection for 1st-person and outfit frameworks
+// Design Pattern: Adapter / Registry Pattern (FrameworkIntegrationService)
 // =============================================================================
 
 @if(ModuleExists("TrueFirstPerson"))
@@ -86,5 +87,131 @@ public class FootwearAnimgraphHelper {
    */
   public static func CalculateHeightBlend(offsetMeters: Float) -> Float {
     return ClampF((offsetMeters + 0.50) / 1.00, 0.0, 1.0);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Framework Integration Service (Adapter / Registry Pattern)
+// Single Responsibility Principle (SRP) & Open/Closed Principle (OCP)
+// -----------------------------------------------------------------------------
+public class FrameworkIntegrationService {
+  private let m_isIFPPresent: Bool;
+  private let m_isITPPresent: Bool;
+  private let m_isITPChecked: Bool;
+  private let m_isPhotoModeActive: Bool;
+
+  /**
+   * Factory method initializing a new FrameworkIntegrationService instance.
+   * @return Initialized FrameworkIntegrationService instance.
+   */
+  public static func Create() -> ref<FrameworkIntegrationService> {
+    let service: ref<FrameworkIntegrationService> = new FrameworkIntegrationService();
+    return service;
+  }
+
+  /**
+   * Checks whether Immersive First Person (IFP) is present.
+   * @return True if IFP is available.
+   */
+  public func IsIFPPresent() -> Bool {
+    return this.m_isIFPPresent;
+  }
+
+  /**
+   * Sets the IFP presence flag.
+   * @param present True if IFP detected.
+   */
+  public func SetIFPPresent(present: Bool) -> Void {
+    this.m_isIFPPresent = present;
+  }
+
+  /**
+   * Checks whether Immersive Third Person (ITP) is present in the game instance (cached).
+   * @param gameInstance The active GameInstance.
+   * @return True if ITP is available.
+   */
+  public func IsITPPresent(gameInstance: GameInstance) -> Bool {
+    if !this.m_isITPChecked {
+      this.m_isITPChecked = true;
+      this.m_isITPPresent = ITPDetector.IsPresent(gameInstance);
+    };
+    return this.m_isITPPresent;
+  }
+
+  /**
+   * Sets the ITP presence flag and marks presence as checked.
+   * @param present True if ITP detected.
+   */
+  public func SetITPPresent(present: Bool) -> Void {
+    this.m_isITPPresent = present;
+    this.m_isITPChecked = true;
+  }
+
+  /**
+   * Checks whether Photo Mode is currently active in the game session.
+   * @param gameInstance The active GameInstance.
+   * @return True if Photo Mode is active.
+   */
+  public func IsPhotoModeActive(gameInstance: GameInstance) -> Bool {
+    let pmSys: ref<PhotoModeSystem> = GameInstance.GetPhotoModeSystem(gameInstance);
+    if IsDefined(pmSys) {
+      return pmSys.IsPhotoModeActive();
+    };
+    return this.m_isPhotoModeActive;
+  }
+
+  /**
+   * Explicitly sets the internal Photo Mode state flag.
+   * @param active True if Photo Mode activated.
+   */
+  public func SetPhotoModeActive(active: Bool) -> Void {
+    this.m_isPhotoModeActive = active;
+  }
+
+  /**
+   * Checks whether True First Person (TFP) is installed.
+   * @return True if TFP is present.
+   */
+  public func IsTFPPresent() -> Bool {
+    return FrameworkDetector.IsTFPPresent();
+  }
+
+  /**
+   * Checks whether Equipment-EX is installed.
+   * @return True if EquipmentEx is present.
+   */
+  public func IsEquipmentExPresent() -> Bool {
+    return EquipmentExDetector.IsPresent();
+  }
+
+  /**
+   * Checks whether third-person camera is actively rendering for the player.
+   * @param player The local player puppet reference.
+   * @return True if in third-person view.
+   */
+  public func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
+    return ITPController.IsTPPActive(player);
+  }
+
+  /**
+   * Resolves the active camera or framework integration acronym tag (PM, ITP, TFP, IFP).
+   * @param gameInstance The active GameInstance.
+   * @param player Optional local player puppet reference.
+   * @return 2-3 letter framework acronym string.
+   */
+  public func GetActiveModTag(gameInstance: GameInstance, opt player: ref<PlayerPuppet>) -> String {
+    if this.IsPhotoModeActive(gameInstance) {
+      return "PM";
+    };
+    if this.IsITPPresent(gameInstance) {
+      return "ITP";
+    };
+    if this.IsTFPPresent() {
+      return "TFP";
+    };
+    if this.m_isIFPPresent {
+      return "IFP";
+    };
+    return "PM";
   }
 }

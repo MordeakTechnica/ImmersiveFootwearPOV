@@ -8,50 +8,57 @@ module ImmersiveFootwearPOV
 // operations to specialized repositories, rule engines, actuators, and dispatchers.
 // =============================================================================
 
+// -----------------------------------------------------------------------------
+// Post-Restore / Post-Attach Delayed Initialization Callback
+// Ensures late-streaming outfit components, Equipment-EX, and camera setup complete
+// -----------------------------------------------------------------------------
+public class FootwearPostRestoreTick extends DelayCallback {
+  public let m_system: wref<ImmersiveFootwearPOVSystem>;
+
+  public static func Create(sys: ref<ImmersiveFootwearPOVSystem>) -> ref<FootwearPostRestoreTick> {
+    let cb: ref<FootwearPostRestoreTick> = new FootwearPostRestoreTick();
+    cb.m_system = sys;
+    return cb;
+  }
+
+  public func Call() -> Void {
+    if IsDefined(this.m_system) {
+      this.m_system.OnPostRestoreTick();
+    };
+  }
+}
+
 public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
-  // Authoritative State
-  private let m_currentHeelHeight: Float;      // Active FPP elevation height (meters)
-  private let m_currentPlatformHeight: Float;  // Secondary platform height (reserved for PM / TPP)
-  private let m_effectiveOffset: Float;        // Current effective height after suppression
-  private let m_equippedFootwearID: ItemID;
-  private let m_activeSource: String;
-  private let m_hasOfficialTags: Bool;
-  private let m_hasCustomOverride: Bool;
-  private let m_customHeelHeight: Float;
-  private let m_customPlatformHeight: Float;
-  private let m_isInVehicle: Bool;
-  private let m_isInWorkspot: Bool;
-  private let m_isSuppressed: Bool;
-  private let m_suppressionReason: String;
+  // Authoritative State Model
+  private let m_equipmentState: ref<FootwearEquipmentState>;
   private let m_isInitialized: Bool;
   private let m_debugLogging: Bool;
-  private let m_isPhotoModeActive: Bool;
-  private let m_isIFPPresent: Bool;
-  private let m_isITPPresent: Bool;
-  private let m_isITPChecked: Bool;
   private let m_isStorageLoaded: Bool;
+  private let m_lastTppActive: Bool;
+  private let m_hasTppInitialized: Bool;
+  private let m_driftCheckTimer: Float;
   private let m_swayContext: ref<SwayContextData>;
   private let m_lastStrideFrame: Uint64;
+  private let m_isRcfRegistered: Bool;
+  private let m_config: ref<FootwearConfig>;
 
   // Domain Collaborators (Inversion of Control & Encapsulation)
+  private let m_calibrationService: ref<FootwearCalibrationService>;
+  private let m_suppressionController: ref<SuppressionStateController>;
+  private let m_frameworkService: ref<FrameworkIntegrationService>;
+  private let m_windowsController: ref<FootwearWindowsController>;
   private let m_overrideRepo: ref<FootwearOverrideRepository>;
+  private let m_storageManager: ref<FootwearStorageManager>;
   private let m_eventDispatcher: ref<FootwearEventDispatcher>;
   private let m_elevationCoordinator: ref<ElevationActuatorCoordinator>;
   private let m_strideController: ref<StrideController>;
-  private let m_suppressionEngine: ref<SuppressionRuleEngine>;
   private let m_telemetry: ref<FootwearTelemetryLogger>;
-  private let m_calibratorWindow: ref<FootwearCalibratorWindow>;
-  private let m_config: ref<FootwearConfig>;
-  private let m_isRcfRegistered: Bool;
-  private let m_windowsLoopStarted: Bool;
-  private let m_diagGeoApplied: Bool;
-  private let m_calibGeoApplied: Bool;
-
 
   // -----------------------------------------------------------------------------
   // Singleton Accessor
   // -----------------------------------------------------------------------------
+
   /**
    * Singleton accessor retrieving the running ImmersiveFootwearPOVSystem instance from the game container.
    * @param gameInstance The active GameInstance.
@@ -65,6 +72,72 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   // -----------------------------------------------------------------------------
   // Lazy Collaborator Initializers
   // -----------------------------------------------------------------------------
+
+  /**
+   * Lazily initializes and retrieves the FootwearEquipmentState value container.
+   * @return The active FootwearEquipmentState instance.
+   */
+  public func GetEquipmentState() -> ref<FootwearEquipmentState> {
+    if !IsDefined(this.m_equipmentState) {
+      this.m_equipmentState = FootwearEquipmentState.Create();
+    };
+    return this.m_equipmentState;
+  }
+
+  /**
+   * Lazily initializes and retrieves the FootwearCalibrationService.
+   * @return The FootwearCalibrationService domain collaborator.
+   */
+  public func GetCalibrationService() -> ref<FootwearCalibrationService> {
+    if !IsDefined(this.m_calibrationService) {
+      this.m_calibrationService = FootwearCalibrationService.Create();
+    };
+    return this.m_calibrationService;
+  }
+
+  /**
+   * Lazily initializes and retrieves the SuppressionStateController.
+   * @return The SuppressionStateController state machine instance.
+   */
+  public func GetSuppressionController() -> ref<SuppressionStateController> {
+    if !IsDefined(this.m_suppressionController) {
+      this.m_suppressionController = SuppressionStateController.Create();
+    };
+    return this.m_suppressionController;
+  }
+
+  /**
+   * Lazily initializes and retrieves the FrameworkIntegrationService.
+   * @return The FrameworkIntegrationService adapter instance.
+   */
+  public func GetFrameworkService() -> ref<FrameworkIntegrationService> {
+    if !IsDefined(this.m_frameworkService) {
+      this.m_frameworkService = FrameworkIntegrationService.Create();
+    };
+    return this.m_frameworkService;
+  }
+
+  /**
+   * Lazily initializes and retrieves the FootwearWindowsController UI facade.
+   * @return The FootwearWindowsController instance.
+   */
+  public func GetWindowsController() -> ref<FootwearWindowsController> {
+    if !IsDefined(this.m_windowsController) {
+      this.m_windowsController = FootwearWindowsController.Create();
+    };
+    return this.m_windowsController;
+  }
+
+  /**
+   * Lazily initializes and retrieves the shared FootwearStorageManager handle.
+   * @return The FootwearStorageManager instance.
+   */
+  public func GetStorageManager() -> ref<FootwearStorageManager> {
+    if !IsDefined(this.m_storageManager) {
+      this.m_storageManager = FootwearStorageManager.Create();
+    };
+    return this.m_storageManager;
+  }
 
   /**
    * Lazily initializes and retrieves the FootwearOverrideRepository.
@@ -100,14 +173,11 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   /**
-   * Lazily initializes and retrieves the SuppressionRuleEngine.
-   * @return The SuppressionRuleEngine instance.
+   * Lazily initializes and retrieves the underlying SuppressionRuleEngine.
+   * @return The active SuppressionRuleEngine instance.
    */
   public func GetSuppressionEngine() -> ref<SuppressionRuleEngine> {
-    if !IsDefined(this.m_suppressionEngine) {
-      this.m_suppressionEngine = SuppressionRuleEngine.CreateDefault();
-    };
-    return this.m_suppressionEngine;
+    return this.GetSuppressionController().GetRuleEngine();
   }
 
   /**
@@ -126,10 +196,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @return The FootwearCalibratorWindow instance.
    */
   public func GetCalibratorWindow() -> ref<FootwearCalibratorWindow> {
-    if !IsDefined(this.m_calibratorWindow) {
-      this.m_calibratorWindow = FootwearCalibratorWindow.Create();
-    };
-    return this.m_calibratorWindow;
+    return this.GetWindowsController().GetCalibratorWindow();
   }
 
   // -----------------------------------------------------------------------------
@@ -140,7 +207,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * REDengine system attachment lifecycle callback. Initializes storage, config, and registers session callbacks.
    */
   private func OnAttach() -> Void {
-    let gi: GameInstance = this.GetGameInstance();
     this.InitStorageAndConfig();
     GameInstance.GetCallbackSystem()
       .RegisterCallback(n"Session/Ready", this, n"OnSessionReady")
@@ -153,8 +219,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    */
   protected cb func OnSessionReady(event: ref<GameSessionEvent>) -> Void {
     this.InitStorageAndConfig();
-    if !this.m_windowsLoopStarted {
-      this.m_windowsLoopStarted = true;
+    let winCtrl: ref<FootwearWindowsController> = this.GetWindowsController();
+    if !winCtrl.IsWindowsLoopStarted() {
+      winCtrl.SetWindowsLoopStarted(true);
       FootwearWindowsController.StartTick(this.GetGameInstance());
     };
   }
@@ -167,12 +234,11 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(request.owner.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
       this.m_isInitialized = false;
-      this.m_isInWorkspot = false;
-      this.m_isInVehicle = false;
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
+      this.m_hasTppInitialized = false;
+      this.GetSuppressionController().Reset();
       this.InitStorageAndConfig();
       this.UpdateEquippedFootwear(player);
+      this.QueuePostRestoreTick();
     };
   }
 
@@ -185,21 +251,82 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
       this.m_isInitialized = false;
-      this.m_isInWorkspot = false;
-      this.m_isInVehicle = false;
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
+      this.m_hasTppInitialized = false;
+      this.m_isStorageLoaded = false;
+      this.GetSuppressionController().Reset();
       this.InitStorageAndConfig();
       this.UpdateEquippedFootwear(player);
+      this.QueuePostRestoreTick();
+    };
+  }
+
+  /**
+   * Schedules a delayed callback after player attachment or save load to evaluate footwear
+   * after streaming systems, Equipment-EX, and wardrobe appearances have finished instantiating.
+   */
+  public func QueuePostRestoreTick() -> Void {
+    let cb: ref<FootwearPostRestoreTick> = FootwearPostRestoreTick.Create(this);
+    GameInstance.GetDelaySystem(this.GetGameInstance()).DelayCallback(cb, 0.40, false);
+  }
+
+  /**
+   * Delayed callback executing 0.4s after load/attach to re-evaluate footwear and elevation with full assets loaded.
+   */
+  public func OnPostRestoreTick() -> Void {
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) {
+      let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
+      if repo.GetCount() == 0 {
+        let storageMgr: ref<FootwearStorageManager> = this.GetStorageManager();
+        storageMgr.LoadMasterPresetsIntoRepo(repo);
+        storageMgr.LoadUserOverridesIntoRepo(repo);
+      };
+      this.UpdateEquippedFootwear(player);
+      this.CheckPerspectiveDrift(player);
+      this.RecalculateEffectiveOffset(player);
+    };
+  }
+
+  /**
+   * Detects whether the active camera perspective transitioned between FPP and TPP, triggering elevation recalculation.
+   * @param player The local player puppet reference.
+   */
+  public func CheckPerspectiveDrift(player: ref<PlayerPuppet>) -> Void {
+    if !IsDefined(player) { return; };
+    let isTPP: Bool = ITPController.IsTPPActive(player);
+    if !this.m_hasTppInitialized || NotEquals(isTPP, this.m_lastTppActive) {
+      this.m_hasTppInitialized = true;
+      this.m_lastTppActive = isTPP;
+      this.RecalculateEffectiveOffset(player);
+    };
+  }
+
+  /**
+   * Frame tick called by locomotion state machine transition to evaluate dynamic perspective drift and hip sway.
+   * @param player The local player puppet reference.
+   * @param timeDelta Frame delta time in seconds.
+   */
+  public func OnLocomotionUpdate(player: ref<PlayerPuppet>, timeDelta: Float) -> Void {
+    if !IsDefined(player) { return; };
+
+    this.m_driftCheckTimer += timeDelta;
+    if this.m_driftCheckTimer >= 0.20 {
+      this.m_driftCheckTimer = 0.0;
+      this.CheckPerspectiveDrift(player);
+    };
+
+    let cfg: ref<FootwearConfig> = this.GetConfig();
+    if IsDefined(cfg) && cfg.enableHipSway {
+      this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
     };
   }
 
   // -----------------------------------------------------------------------------
-  // Footwear Resolution & Height Update
+  // High-Level Footwear Coordination
   // -----------------------------------------------------------------------------
 
   /**
-   * Evaluates the player's visible footwear via FootwearResolver, extracts tag or override heights, and recalculates elevation.
+   * Evaluates the player's visible footwear via FootwearCalibrationService and recalculates elevation.
    * @param player The local player puppet reference.
    */
   public func UpdateEquippedFootwear(player: ref<PlayerPuppet>) -> Void {
@@ -208,56 +335,14 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       return;
     };
 
-    let result: ref<FootwearResolutionResult> = FootwearResolver.ResolveFootwear(player);
-    let itemChanged: Bool = !this.m_isInitialized || NotEquals(result.itemID, this.m_equippedFootwearID);
-
-    if itemChanged {
-      this.m_isInitialized = true;
-      this.m_equippedFootwearID = result.itemID;
-      this.m_activeSource = result.sourceName;
-      this.m_hasCustomOverride = false;
-      this.m_customHeelHeight = 0.0;
-      this.m_customPlatformHeight = 0.0;
-    };
-
-    if ItemID.IsValid(this.m_equippedFootwearID) {
-      if itemChanged || (!this.m_hasOfficialTags && !this.m_hasCustomOverride) {
-        let heightData: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(this.m_equippedFootwearID);
-        
-        if heightData.heelHeight > 0.0 || heightData.platformHeight > 0.0 {
-          this.m_hasOfficialTags = true;
-          this.m_hasCustomOverride = false;
-          this.m_currentHeelHeight = heightData.heelHeight;
-          this.m_currentPlatformHeight = heightData.platformHeight;
-        } else {
-          this.m_hasOfficialTags = false;
-          let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
-          let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
-          if repo.Has(shoeKey) {
-            this.m_hasCustomOverride = true;
-            this.m_customHeelHeight = repo.GetHeel(shoeKey);
-            this.m_customPlatformHeight = repo.GetPlatform(shoeKey);
-            this.m_currentHeelHeight = this.m_customHeelHeight;
-            this.m_currentPlatformHeight = this.m_customPlatformHeight;
-          } else {
-            this.m_hasCustomOverride = false;
-            this.m_customHeelHeight = 0.0;
-            this.m_customPlatformHeight = 0.0;
-            this.m_currentHeelHeight = 0.0;
-            this.m_currentPlatformHeight = 0.0;
-          };
-        };
-      };
-    } else {
-      this.m_hasOfficialTags = false;
-      this.m_hasCustomOverride = false;
-      this.m_currentHeelHeight = 0.0;
-      this.m_currentPlatformHeight = 0.0;
-    };
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
+    this.GetCalibrationService().EvaluateEquippedFootwear(player, state, repo);
+    this.m_isInitialized = true;
 
     this.RecalculateEffectiveOffset(player);
     this.LogTFPState(player);
-    this.NotifyFootwearChanged(this.m_equippedFootwearID, this.m_currentHeelHeight, this.m_currentPlatformHeight, this.m_activeSource);
+    this.NotifyFootwearChanged(state.equippedFootwearID, state.currentHeelHeight, state.currentPlatformHeight, state.activeSource);
   }
 
   /**
@@ -271,43 +356,40 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
 
     let suppressed: Bool = this.EvaluateSuppressionState(player);
-    this.m_effectiveOffset = suppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(this.m_currentHeelHeight);
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    state.effectiveOffset = suppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(state.currentHeelHeight);
 
     this.GetElevationCoordinator().Apply(
       player,
-      this.m_currentHeelHeight,
-      this.m_currentPlatformHeight,
+      state.currentHeelHeight,
+      state.currentPlatformHeight,
       suppressed,
       this.m_config,
       this.m_debugLogging,
-      this.m_suppressionReason
+      this.GetSuppressionReason()
     );
   }
 
-  // -----------------------------------------------------------------------------
-  // Custom Overrides Map & Management (Delegated to FootwearOverrideRepository)
-  // -----------------------------------------------------------------------------
   /**
-   * Clears all custom shoe overrides from repository and resets active override variables if footwear lacks official tags.
+   * Calibrates and persists height overrides for currently equipped footwear.
+   * @param player The local player puppet reference.
+   * @param heel Heel height offset in meters.
+   * @param platform Platform height offset in meters.
+   * @param force True to override even if official tags exist.
    */
-  public func ClearCustomOverrides() -> Void {
-    this.GetOverrideRepository().Clear();
-    if !this.m_hasOfficialTags {
-      this.m_hasCustomOverride = false;
-      this.m_customHeelHeight = 0.0;
-      this.m_customPlatformHeight = 0.0;
-      this.m_currentHeelHeight = 0.0;
-      this.m_currentPlatformHeight = 0.0;
-    };
+  public func SetCustomHeightOverride(player: ref<PlayerPuppet>, heel: Float, platform: Float, opt force: Bool) -> Void {
+    this.GetCalibrationService().SetCustomHeightOverride(this.GetEquipmentState(), this.GetOverrideRepository(), heel, platform, force);
+    this.RecalculateEffectiveOffset(player);
   }
 
   /**
-   * Finds the repository index for a shoe override key.
-   * @param key Unique shoe identifier string.
-   * @return Array index or -1 if not found.
+   * Clears custom height override for the current footwear and restores tag or zero baseline.
+   * @param player The local player puppet reference.
+   * @param force True to force clear regardless of official tags.
    */
-  public func FindCustomOverrideIndex(key: String) -> Int32 {
-    return this.GetOverrideRepository().FindIndex(key);
+  public func ClearCustomHeightOverride(player: ref<PlayerPuppet>, opt force: Bool) -> Void {
+    this.GetCalibrationService().ClearCustomHeightOverride(this.GetEquipmentState(), this.GetOverrideRepository(), force);
+    this.RecalculateEffectiveOffset(player);
   }
 
   /**
@@ -317,67 +399,39 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param platform Raw platform height in meters.
    */
   public func RegisterCustomOverride(key: String, heel: Float, platform: Float) -> Void {
-    if StrLen(key) == 0 {
-      return;
-    };
+    if StrLen(key) == 0 { return; };
     let clampedHeel: Float = FootwearClampingPolicy.ClampHeight(heel);
     let clampedPlat: Float = FootwearClampingPolicy.ClampPlatformHeight(platform);
     this.GetOverrideRepository().Register(key, clampedHeel, clampedPlat);
 
-    if ItemID.IsValid(this.m_equippedFootwearID) {
-      let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    if ItemID.IsValid(state.equippedFootwearID) {
+      let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
       if Equals(currentKey, key) || Equals(StrLower(currentKey), StrLower(key)) {
-        if !this.m_hasOfficialTags {
-          this.m_hasCustomOverride = true;
-          this.m_customHeelHeight = clampedHeel;
-          this.m_customPlatformHeight = clampedPlat;
-          this.m_currentHeelHeight = clampedHeel;
-          this.m_currentPlatformHeight = clampedPlat;
+        if !state.hasOfficialTags {
+          state.hasCustomOverride = true;
+          state.customHeelHeight = clampedHeel;
+          state.customPlatformHeight = clampedPlat;
+          state.currentHeelHeight = clampedHeel;
+          state.currentPlatformHeight = clampedPlat;
         };
       };
     };
   }
 
   /**
-   * Removes a shoe override entry from the repository.
-   * @param key Unique shoe identifier string to delete.
+   * Clears all custom shoe overrides from repository and resets active override variables if footwear lacks official tags.
    */
-  public func RemoveCustomOverride(key: String) -> Void {
-    this.GetOverrideRepository().Remove(key);
-  }
-
-  /**
-   * Bulk registers parallel arrays of keys, heels, and platforms into the override repository.
-   * @param keys List of shoe identifier strings.
-   * @param heels List of heel heights in meters.
-   * @param platforms List of platform heights in meters.
-   */
-  public func SetCustomOverridesMap(keys: array<String>, heels: array<Float>, platforms: array<Float>) -> Void {
-    this.ClearCustomOverrides();
-    let count: Int32 = ArraySize(keys);
-    let i: Int32 = 0;
-    while i < count {
-      this.RegisterCustomOverride(keys[i], heels[i], platforms[i]);
-      i += 1;
+  public func ClearCustomOverrides() -> Void {
+    this.GetOverrideRepository().Clear();
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    if !state.hasOfficialTags {
+      state.hasCustomOverride = false;
+      state.customHeelHeight = 0.0;
+      state.customPlatformHeight = 0.0;
+      state.currentHeelHeight = 0.0;
+      state.currentPlatformHeight = 0.0;
     };
-  }
-
-  /**
-   * Queries custom heel height for a shoe key.
-   * @param key Unique shoe identifier string.
-   * @return Heel height in meters, or 0.0 if not overridden.
-   */
-  public func GetCustomOverrideHeel(key: String) -> Float {
-    return this.GetOverrideRepository().GetHeel(key);
-  }
-
-  /**
-   * Queries custom platform height for a shoe key.
-   * @param key Unique shoe identifier string.
-   * @return Platform height in meters, or 0.0 if not overridden.
-   */
-  public func GetCustomOverridePlatform(key: String) -> Float {
-    return this.GetOverrideRepository().GetPlatform(key);
   }
 
   /**
@@ -389,69 +443,17 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     return this.GetOverrideRepository().Has(key);
   }
 
-  /**
-   * Calibrates and persists height overrides for currently equipped footwear.
-   * @param player The local player puppet reference.
-   * @param heel Heel height offset in meters.
-   * @param platform Platform height offset in meters.
-   * @param force True to override even if official tags exist.
-   */
-  public func SetCustomHeightOverride(player: ref<PlayerPuppet>, heel: Float, platform: Float, opt force: Bool) -> Void {
-    if this.m_hasOfficialTags && !force {
-      return;
-    };
-
-    this.m_hasCustomOverride = true;
-    this.m_customHeelHeight = FootwearClampingPolicy.ClampHeight(heel);
-    this.m_customPlatformHeight = FootwearClampingPolicy.ClampPlatformHeight(platform);
-    this.m_currentHeelHeight = this.m_customHeelHeight;
-    this.m_currentPlatformHeight = this.m_customPlatformHeight;
-
-    if ItemID.IsValid(this.m_equippedFootwearID) {
-      let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
-      this.RegisterCustomOverride(shoeKey, this.m_customHeelHeight, this.m_customPlatformHeight);
-    };
-
-    this.RecalculateEffectiveOffset(player);
-  }
-
-  /**
-   * Clears custom height override for the current footwear and restores tag or zero baseline.
-   * @param player The local player puppet reference.
-   * @param force True to force clear regardless of official tags.
-   */
-  public func ClearCustomHeightOverride(player: ref<PlayerPuppet>, opt force: Bool) -> Void {
-    if !this.m_hasOfficialTags || force {
-      this.m_hasCustomOverride = false;
-      this.m_customHeelHeight = 0.0;
-      this.m_customPlatformHeight = 0.0;
-      if ItemID.IsValid(this.m_equippedFootwearID) {
-        let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(this.m_equippedFootwearID));
-        this.RemoveCustomOverride(shoeKey);
-      };
-      if !this.m_hasOfficialTags {
-        this.m_currentHeelHeight = 0.0;
-        this.m_currentPlatformHeight = 0.0;
-      } else {
-        let data: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(this.m_equippedFootwearID);
-        this.m_currentHeelHeight = data.heelHeight;
-        this.m_currentPlatformHeight = data.platformHeight;
-      };
-      this.RecalculateEffectiveOffset(player);
-    };
-  }
-
   // -----------------------------------------------------------------------------
   // Suppression State Management & Delegation
   // -----------------------------------------------------------------------------
 
   /**
-   * Runs the SuppressionEvaluator to check vehicle, workspot, scene, and movement state.
+   * Runs the SuppressionStateController to evaluate player state snapshot.
    * @param player The local player puppet reference.
    * @return True if elevation is currently suppressed.
    */
   public func EvaluateSuppressionState(player: ref<PlayerPuppet>) -> Bool {
-    return SuppressionEvaluator.Evaluate(this, player);
+    return this.GetSuppressionController().Evaluate(player, this.m_config, this.GetEventDispatcher());
   }
 
   /**
@@ -461,13 +463,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @return Current suppression boolean value.
    */
   public func SetSuppressionState(suppressed: Bool, reason: String) -> Bool {
-    let changed: Bool = NotEquals(this.m_isSuppressed, suppressed) || NotEquals(this.m_suppressionReason, reason);
-    this.m_isSuppressed = suppressed;
-    this.m_suppressionReason = reason;
-    if changed {
-      this.NotifySuppressionChanged(suppressed, reason);
-    };
-    return this.m_isSuppressed;
+    return this.GetSuppressionController().SetSuppressionState(suppressed, reason, this.GetEventDispatcher());
   }
 
   /**
@@ -476,18 +472,13 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param inVehicle True if player entered vehicle, false if exited.
    */
   public func SetVehicleState(player: ref<PlayerPuppet>, inVehicle: Bool) -> Void {
-    if Equals(this.m_isInVehicle, inVehicle) { return; };
-    this.m_isInVehicle = inVehicle;
-    if !inVehicle && Equals(this.m_suppressionReason, "Vehicle Occupancy") {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-    };
-    FootwearTelemetryLogger.LogVehicleState(this, inVehicle);
-    this.RecalculateEffectiveOffset(player);
-    if IsDefined(player) {
-      let eventName: String = inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)";
-      this.LogTFPEvent(eventName, 0.0, 0.0);
-      this.LogTFPState(player);
+    if this.GetSuppressionController().SetVehicleState(inVehicle, this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      this.RecalculateEffectiveOffset(player);
+      if IsDefined(player) {
+        let eventName: String = inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)";
+        this.LogTFPEvent(eventName, 0.0, 0.0);
+        this.LogTFPState(player);
+      };
     };
   }
 
@@ -496,17 +487,12 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param player The local player puppet reference.
    */
   public func ClearVehicleState(player: ref<PlayerPuppet>) -> Void {
-    if !this.m_isInVehicle { return; };
-    this.m_isInVehicle = false;
-    if Equals(this.m_suppressionReason, "Vehicle Occupancy") {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-    };
-    FootwearTelemetryLogger.LogVehicleAutoRecovered(this);
-    this.RecalculateEffectiveOffset(player);
-    if IsDefined(player) {
-      this.LogTFPEvent("VehicleAutoRecovered (Exited)", 0.0, 0.0);
-      this.LogTFPState(player);
+    if this.GetSuppressionController().ClearVehicleState(this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      this.RecalculateEffectiveOffset(player);
+      if IsDefined(player) {
+        this.LogTFPEvent("VehicleAutoRecovered (Exited)", 0.0, 0.0);
+        this.LogTFPState(player);
+      };
     };
   }
 
@@ -516,18 +502,13 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param inWorkspot True if player entered workspot, false if exited.
    */
   public func SetWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
-    if Equals(this.m_isInWorkspot, inWorkspot) { return; };
-    this.m_isInWorkspot = inWorkspot;
-    if !inWorkspot && Equals(this.m_suppressionReason, "Authored Workspot") {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-    };
-    FootwearTelemetryLogger.LogWorkspotState(this, inWorkspot);
-    this.RecalculateEffectiveOffset(player);
-    if IsDefined(player) {
-      let eventName: String = inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)";
-      this.LogTFPEvent(eventName, 0.0, 0.0);
-      this.LogTFPState(player);
+    if this.GetSuppressionController().SetWorkspotState(inWorkspot, this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      this.RecalculateEffectiveOffset(player);
+      if IsDefined(player) {
+        let eventName: String = inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)";
+        this.LogTFPEvent(eventName, 0.0, 0.0);
+        this.LogTFPState(player);
+      };
     };
   }
 
@@ -536,17 +517,12 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param player The local player puppet reference.
    */
   public func ClearWorkspotState(player: ref<PlayerPuppet>) -> Void {
-    if !this.m_isInWorkspot { return; };
-    this.m_isInWorkspot = false;
-    if Equals(this.m_suppressionReason, "Authored Workspot") {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-    };
-    FootwearTelemetryLogger.LogWorkspotAutoRecovered(this);
-    this.RecalculateEffectiveOffset(player);
-    if IsDefined(player) {
-      this.LogTFPEvent("WorkspotAutoRecovered (Standing/Exited)", 0.0, 0.0);
-      this.LogTFPState(player);
+    if this.GetSuppressionController().ClearWorkspotState(this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      this.RecalculateEffectiveOffset(player);
+      if IsDefined(player) {
+        this.LogTFPEvent("WorkspotAutoRecovered (Standing/Exited)", 0.0, 0.0);
+        this.LogTFPState(player);
+      };
     };
   }
 
@@ -563,159 +539,45 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   // -----------------------------------------------------------------------------
-  // State Queries & Getters
+  // Authoritative State Queries & Getters
   // -----------------------------------------------------------------------------
 
-  /**
-   * Checks whether footwear elevation is currently suppressed.
-   * @return True if suppressed, false if elevation is active.
-   */
-  public func IsSuppressed() -> Bool { return this.m_isSuppressed; }
+  public func IsSuppressed() -> Bool { return this.GetSuppressionController().IsSuppressed(); }
+  public func GetSuppressionReason() -> String { return this.GetSuppressionController().GetSuppressionReason(); }
+  public func IsInVehicle() -> Bool { return this.GetSuppressionController().IsInVehicle(); }
+  public func IsInWorkspot() -> Bool { return this.GetSuppressionController().IsInWorkspot(); }
+  public func GetCurrentHeelHeight() -> Float { return this.GetEquipmentState().currentHeelHeight; }
+  public func GetCurrentPlatformHeight() -> Float { return this.GetEquipmentState().currentPlatformHeight; }
+  public func GetEffectiveOffset() -> Float { return this.GetEquipmentState().effectiveOffset; }
+  public func GetEffectivePlatformOffset() -> Float { return this.GetEquipmentState().GetEffectivePlatformOffset(this.IsSuppressed()); }
+  public func HasOfficialTweakTags() -> Bool { return this.GetEquipmentState().hasOfficialTags; }
+  public func HasCustomOverride() -> Bool { return this.GetEquipmentState().hasCustomOverride; }
+  public func GetEquippedFootwearID() -> ItemID { return this.GetEquipmentState().equippedFootwearID; }
+  public func GetActiveSource() -> String { return this.GetEquipmentState().activeSource; }
+  public func GetEffectiveHeelPitch() -> Float { return this.GetEquipmentState().GetEffectiveHeelPitch(); }
 
-  /**
-   * Retrieves the human-readable explanation of why elevation was suppressed.
-   * @return Suppression trigger string.
-   */
-  public func GetSuppressionReason() -> String { return this.m_suppressionReason; }
+  // -----------------------------------------------------------------------------
+  // Framework & Camera Integration Queries
+  // -----------------------------------------------------------------------------
 
-  /**
-   * Retrieves the raw unsuppressed heel height in meters.
-   * @return Heel height in meters.
-   */
-  public func GetCurrentHeelHeight() -> Float { return this.m_currentHeelHeight; }
-
-  /**
-   * Retrieves the raw unsuppressed platform height in meters.
-   * @return Platform height in meters.
-   */
-  public func GetCurrentPlatformHeight() -> Float { return this.m_currentPlatformHeight; }
-
-  /**
-   * Retrieves the active effective elevation offset in meters (0.0m if suppressed).
-   * @return Effective offset in meters.
-   */
-  public func GetEffectiveOffset() -> Float { return this.m_effectiveOffset; }
-
-  /**
-   * Retrieves the effective platform offset in meters (0.0m if suppressed).
-   * @return Effective platform offset in meters.
-   */
-  public func GetEffectivePlatformOffset() -> Float {
-    if this.m_isSuppressed {
-      return 0.0;
-    };
-    return this.m_currentPlatformHeight;
-  }
-
-  /**
-   * Checks whether the current footwear has official TweakDB tags defining height.
-   * @return True if official tags exist on the item record.
-   */
-  public func HasOfficialTweakTags() -> Bool { return this.m_hasOfficialTags; }
-
-  /**
-   * Checks whether the current footwear is actively using a user-calibrated custom override.
-   * @return True if using custom override.
-   */
-  public func HasCustomOverride() -> Bool { return this.m_hasCustomOverride; }
-
-  /**
-   * Retrieves the ItemID of the currently resolved equipped footwear.
-   * @return Equipped footwear ItemID.
-   */
-  public func GetEquippedFootwearID() -> ItemID { return this.m_equippedFootwearID; }
-
-  /**
-   * Retrieves the descriptor of the source layer resolving the footwear (e.g. "Equipment-EX", "Vanilla Wardrobe").
-   * @return Source name string.
-   */
-  public func GetActiveSource() -> String { return this.m_activeSource; }
-
-  /**
-   * Checks whether player is currently flagged as seated in a vehicle.
-   * @return True if in vehicle.
-   */
-  public func IsInVehicle() -> Bool { return this.m_isInVehicle; }
-
-  /**
-   * Checks whether player is currently flagged in an authored workspot animation.
-   * @return True if in workspot.
-   */
-  public func IsInWorkspot() -> Bool { return this.m_isInWorkspot; }
-
-  /**
-   * Checks whether verbose debug logging is enabled.
-   * @return True if debug logging is enabled.
-   */
-  public func IsDebugLogging() -> Bool { return this.m_debugLogging; }
-
-  /**
-   * Enables or disables verbose debug logging.
-   * @param enable True to enable debug logging.
-   */
-  public func SetDebugLogging(enable: Bool) -> Void { this.m_debugLogging = enable; }
-
-  /**
-   * Checks whether Photo Mode is currently active in the game session.
-   * @return True if Photo Mode is active.
-   */
-  public func IsPhotoModeActive() -> Bool {
-    let pmSys: ref<PhotoModeSystem> = GameInstance.GetPhotoModeSystem(this.GetGameInstance());
-    if IsDefined(pmSys) {
-      return pmSys.IsPhotoModeActive();
-    };
-    return this.m_isPhotoModeActive;
-  }
-
-  /**
-   * Explicitly sets the internal Photo Mode state flag.
-   * @param active True if Photo Mode activated.
-   */
-  public func SetPhotoModeActive(active: Bool) -> Void { this.m_isPhotoModeActive = active; }
-
-  /**
-   * Checks whether Immersive First Person (IFP) is present.
-   * @return True if IFP is available.
-   */
-  public func IsIFPPresent() -> Bool { return this.m_isIFPPresent; }
-
-  /**
-   * Sets the IFP presence flag.
-   * @param present True if IFP detected.
-   */
-  public func SetIFPPresent(present: Bool) -> Void { this.m_isIFPPresent = present; }
-
-  /**
-   * Checks whether Immersive Third Person (ITP) is present in the game instance (cached).
-   * @return True if ITP is available.
-   */
-  public func IsITPPresent() -> Bool {
-    if !this.m_isITPChecked {
-      this.m_isITPChecked = true;
-      this.m_isITPPresent = ITPDetector.IsPresent(this.GetGameInstance());
-    };
-    return this.m_isITPPresent;
-  }
-
-  /**
-   * Sets the ITP presence flag and marks presence as checked.
-   * @param present True if ITP detected.
-   */
-  public func SetITPPresent(present: Bool) -> Void {
-    this.m_isITPPresent = present;
-    this.m_isITPChecked = true;
-  }
-  /**
-   * Checks whether third-person camera is actively rendering for the player.
-   * @param player The local player puppet reference.
-   * @return True if in third-person view.
-   */
+  public func IsPhotoModeActive() -> Bool { return this.GetFrameworkService().IsPhotoModeActive(this.GetGameInstance()); }
+  public func SetPhotoModeActive(active: Bool) -> Void { this.GetFrameworkService().SetPhotoModeActive(active); }
+  public func IsIFPPresent() -> Bool { return this.GetFrameworkService().IsIFPPresent(); }
+  public func SetIFPPresent(present: Bool) -> Void { this.GetFrameworkService().SetIFPPresent(present); }
+  public func IsITPPresent() -> Bool { return this.GetFrameworkService().IsITPPresent(this.GetGameInstance()); }
+  public func SetITPPresent(present: Bool) -> Void { this.GetFrameworkService().SetITPPresent(present); }
   public func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
-    return ITPController.IsTPPActive(player);
+    if !this.m_hasTppInitialized {
+      this.CheckPerspectiveDrift(player);
+    };
+    return this.m_lastTppActive;
   }
+  public func IsTFPPresent() -> Bool { return this.GetFrameworkService().IsTFPPresent(); }
+  public func IsEquipmentExPresent() -> Bool { return this.GetFrameworkService().IsEquipmentExPresent(); }
+  public func GetActiveModTag(opt player: ref<PlayerPuppet>) -> String { return this.GetFrameworkService().GetActiveModTag(this.GetGameInstance(), player); }
 
   // -----------------------------------------------------------------------------
-  // Feminine Locomotion & Catwalk Sway Context
+  // Locomotion & Sway Stride Simulation
   // -----------------------------------------------------------------------------
 
   /**
@@ -728,14 +590,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.m_swayContext = new SwayContextData();
     };
     return SwayEvaluator.EvaluateInto(this, player, this.m_swayContext);
-  }
-
-  /**
-   * Computes effective heel pitch inclination in meters (heel minus platform).
-   * @return Heel pitch in meters.
-   */
-  public func GetEffectiveHeelPitch() -> Float {
-    return MaxF(0.0, this.m_currentHeelHeight - this.m_currentPlatformHeight);
   }
 
   /**
@@ -785,181 +639,21 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * Retrieves the current diagnostic text from StrideController.
    * @return Diagnostic status string.
    */
-  public func GetStrideStatus() -> String { return IsDefined(this.m_strideController) ? this.m_strideController.GetStatusText() : "Idle"; }
-
-  /**
-   * Retrieves current pelvic roll rotation in degrees from StrideController.
-   * @return Pelvic roll in degrees.
-   */
-  public func GetStrideRoll() -> Float { return IsDefined(this.m_strideController) ? this.m_strideController.GetCurrentRoll() : 0.0; }
-
-  /**
-   * Retrieves current pelvic yaw swivel rotation in degrees from StrideController.
-   * @return Pelvic yaw in degrees.
-   */
-  public func GetStrideYaw() -> Float { return IsDefined(this.m_strideController) ? this.m_strideController.GetCurrentYaw() : 0.0; }
-
-  /**
-   * Retrieves current sway blend weight from StrideController.
-   * @return Normalized blend weight between 0.0 and 1.0.
-   */
-  public func GetStrideBlend() -> Float { return IsDefined(this.m_strideController) ? this.m_strideController.GetCurrentBlend() : 0.0; }
-
-  /**
-   * Retrieves current leg counter-roll angle in degrees from StrideController.
-   * @return Counter-roll angle in degrees.
-   */
-  public func GetStrideLegCounterRoll() -> Float { return IsDefined(this.m_strideController) ? this.m_strideController.GetCurrentLegCounterRoll() : 0.0; }
-
-  /**
-   * Retrieves current heel scale factor from StrideController.
-   * @return Normalized scale factor.
-   */
-  public func GetStrideHeelScale() -> Float { return IsDefined(this.m_strideController) ? this.m_strideController.GetCurrentHeelScale() : 0.0; }
-
-  /**
-   * Retrieves current effective heel pitch in cm from StrideController.
-   * @return Heel pitch in cm.
-   */
-  public func GetStridePitchCm() -> Float { return IsDefined(this.m_strideController) ? this.m_strideController.GetCurrentPitchCm() : 0.0; }
-
-  // -----------------------------------------------------------------------------
-  // Display & Localization Helpers (Delegated to FootwearDisplayHelper)
-  // -----------------------------------------------------------------------------
-
-  /**
-   * Formats debug TweakDB ID string for equipped footwear.
-   * @return Debug TDBID string.
-   */
-  public func GetResolvedShoeTDBIDString() -> String {
-    return FootwearDisplayHelper.GetResolvedShoeTDBIDString(this.m_equippedFootwearID);
-  }
-
-  /**
-   * Resolves localized display name for equipped footwear.
-   * @return Human-readable shoe name.
-   */
-  public func GetResolvedShoeDisplayName() -> String {
-    return FootwearDisplayHelper.GetResolvedShoeDisplayName(this.m_equippedFootwearID);
+  public func GetStrideStatus() -> String {
+    return IsDefined(this.m_strideController) ? this.m_strideController.GetStatusText() : "Idle";
   }
 
   // -----------------------------------------------------------------------------
-  // Public ShoeHeightParser Helpers
+  // Display, Logging & Telemetry
   // -----------------------------------------------------------------------------
 
-  /**
-   * Reads platform height in meters from an ItemID.
-   * @param itemID Footwear item identifier.
-   * @return Platform height in meters.
-   */
-  public func ReadPlatformHeightFromItemID(itemID: ItemID) -> Float {
-    return ShoeHeightParser.ReadPlatformHeight(itemID);
-  }
+  public func GetResolvedShoeTDBIDString() -> String { return FootwearDisplayHelper.GetResolvedShoeTDBIDString(this.GetEquipmentState().equippedFootwearID); }
+  public func GetResolvedShoeDisplayName() -> String { return FootwearDisplayHelper.GetResolvedShoeDisplayName(this.GetEquipmentState().equippedFootwearID); }
+  public func IsDebugLogging() -> Bool { return this.m_debugLogging; }
+  public func SetDebugLogging(enable: Bool) -> Void { this.m_debugLogging = enable; }
+  public func LogTFPEvent(eventName: String, baseZ: Float, curZ: Float) -> Void { this.GetTelemetry().LogTFPEvent(this, eventName, baseZ, curZ); }
+  public func LogTFPPolling(baseZ: Float, curZ: Float) -> Void { this.GetTelemetry().LogTFPPolling(this, baseZ, curZ); }
 
-  /**
-   * Reads heel height in meters from an ItemID.
-   * @param itemID Footwear item identifier.
-   * @return Heel height in meters.
-   */
-  public func ReadHeelHeightFromItemID(itemID: ItemID) -> Float {
-    return ShoeHeightParser.ReadHeelHeight(itemID);
-  }
-
-  /**
-   * Reads platform height in meters from a TweakDBID.
-   * @param tdbid Item record TweakDB ID.
-   * @return Platform height in meters.
-   */
-  public func ReadPlatformHeightFromTDBID(tdbid: TweakDBID) -> Float {
-    return ShoeHeightParser.ReadShoeHeightDataFromTDBID(tdbid).platformHeight;
-  }
-
-  /**
-   * Reads heel height in meters from a TweakDBID.
-   * @param tdbid Item record TweakDB ID.
-   * @return Heel height in meters.
-   */
-  public func ReadHeelHeightFromTDBID(tdbid: TweakDBID) -> Float {
-    return ShoeHeightParser.ReadShoeHeightDataFromTDBID(tdbid).heelHeight;
-  }
-
-  /**
-   * Queries footwear ItemID from a specific Equipment-EX outfit.
-   * @param outfitName Name of the outfit record.
-   * @return Footwear ItemID or ItemID.None().
-   */
-  public func ReadFootwearFromEquipmentExOutfit(outfitName: CName) -> ItemID {
-    return EquipmentExHelper.GetFootwearFromOutfit(this.GetGameInstance(), outfitName);
-  }
-
-  // -----------------------------------------------------------------------------
-  // Framework Detection & Active Mod Tagging
-  // -----------------------------------------------------------------------------
-
-  /**
-   * Checks whether True First Person (TFP) is installed.
-   * @return True if TFP is present.
-   */
-  public func IsTFPPresent() -> Bool {
-    return FrameworkDetector.IsTFPPresent();
-  }
-
-  /**
-   * Checks whether Equipment-EX is installed.
-   * @return True if EquipmentEx is present.
-   */
-  public func IsEquipmentExPresent() -> Bool {
-    return EquipmentExDetector.IsPresent();
-  }
-
-  /**
-   * Resolves the active camera or framework integration acronym tag (PM, ITP, TFP, IFP).
-   * @param player Local player puppet reference.
-   * @return 2-3 letter framework acronym string.
-   */
-  public func GetActiveModTag(opt player: ref<PlayerPuppet>) -> String {
-    if this.IsPhotoModeActive() {
-      return "PM";
-    };
-    if this.IsITPPresent() {
-      return "ITP";
-    };
-    if this.IsTFPPresent() {
-      return "TFP";
-    };
-    if this.m_isIFPPresent {
-      return "IFP";
-    };
-    return "PM";
-  }
-
-  // -----------------------------------------------------------------------------
-  // Telemetry Logger Delegation
-  // -----------------------------------------------------------------------------
-
-  /**
-   * Forwards discrete TFP camera lifecycle events to the telemetry logger.
-   * @param eventName Name of the lifecycle event.
-   * @param baseZ Base camera Z in meters.
-   * @param curZ Current camera Z in meters.
-   */
-  public func LogTFPEvent(eventName: String, baseZ: Float, curZ: Float) -> Void {
-    this.GetTelemetry().LogTFPEvent(this, eventName, baseZ, curZ);
-  }
-
-  /**
-   * Forwards continuous TFP camera polling state to the telemetry logger.
-   * @param baseZ Base camera Z in meters.
-   * @param curZ Current camera Z in meters.
-   */
-  public func LogTFPPolling(baseZ: Float, curZ: Float) -> Void {
-    this.GetTelemetry().LogTFPPolling(this, baseZ, curZ);
-  }
-
-  /**
-   * Forwards instantaneous TFP camera state log request.
-   * @param player The local player puppet reference.
-   */
   public func LogTFPState(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) || !this.m_debugLogging { return; };
     TFPHelper.LogState(player);
@@ -969,94 +663,23 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   // Observer Pattern Delegation (FootwearEventDispatcher)
   // -----------------------------------------------------------------------------
 
-  /**
-   * Registers a composite listener for footwear, suppression, and config events.
-   * @param listener The composite state listener to add.
-   */
-  public func RegisterListener(listener: ref<IFootwearStateListener>) -> Void {
-    this.GetEventDispatcher().RegisterListener(listener);
-  }
+  public func RegisterListener(listener: ref<IFootwearStateListener>) -> Void { this.GetEventDispatcher().RegisterListener(listener); }
+  public func UnregisterListener(listener: ref<IFootwearStateListener>) -> Void { this.GetEventDispatcher().UnregisterListener(listener); }
+  public func RegisterFootwearListener(l: ref<IFootwearChangeListener>) -> Void { this.GetEventDispatcher().RegisterFootwearListener(l); }
+  public func UnregisterFootwearListener(l: ref<IFootwearChangeListener>) -> Void { this.GetEventDispatcher().UnregisterFootwearListener(l); }
+  public func RegisterSuppressionListener(l: ref<ISuppressionChangeListener>) -> Void { this.GetEventDispatcher().RegisterSuppressionListener(l); }
+  public func UnregisterSuppressionListener(l: ref<ISuppressionChangeListener>) -> Void { this.GetEventDispatcher().UnregisterSuppressionListener(l); }
+  public func RegisterConfigListener(l: ref<IConfigChangeListener>) -> Void { this.GetEventDispatcher().RegisterConfigListener(l); }
+  public func UnregisterConfigListener(l: ref<IConfigChangeListener>) -> Void { this.GetEventDispatcher().UnregisterConfigListener(l); }
 
-  /**
-   * Unregisters a composite state listener.
-   * @param listener The composite state listener to remove.
-   */
-  public func UnregisterListener(listener: ref<IFootwearStateListener>) -> Void {
-    this.GetEventDispatcher().UnregisterListener(listener);
-  }
-
-  /**
-   * Registers a footwear change listener.
-   * @param l Footwear change listener instance.
-   */
-  public func RegisterFootwearListener(l: ref<IFootwearChangeListener>) -> Void {
-    this.GetEventDispatcher().RegisterFootwearListener(l);
-  }
-
-  /**
-   * Unregisters a footwear change listener.
-   * @param l Footwear change listener instance.
-   */
-  public func UnregisterFootwearListener(l: ref<IFootwearChangeListener>) -> Void {
-    this.GetEventDispatcher().UnregisterFootwearListener(l);
-  }
-
-  /**
-   * Registers a suppression state listener.
-   * @param l Suppression change listener instance.
-   */
-  public func RegisterSuppressionListener(l: ref<ISuppressionChangeListener>) -> Void {
-    this.GetEventDispatcher().RegisterSuppressionListener(l);
-  }
-
-  /**
-   * Unregisters a suppression state listener.
-   * @param l Suppression change listener instance.
-   */
-  public func UnregisterSuppressionListener(l: ref<ISuppressionChangeListener>) -> Void {
-    this.GetEventDispatcher().UnregisterSuppressionListener(l);
-  }
-
-  /**
-   * Registers a configuration update listener.
-   * @param l Configuration change listener instance.
-   */
-  public func RegisterConfigListener(l: ref<IConfigChangeListener>) -> Void {
-    this.GetEventDispatcher().RegisterConfigListener(l);
-  }
-
-  /**
-   * Unregisters a configuration update listener.
-   * @param l Configuration change listener instance.
-   */
-  public func UnregisterConfigListener(l: ref<IConfigChangeListener>) -> Void {
-    this.GetEventDispatcher().UnregisterConfigListener(l);
-  }
-
-  /**
-   * Dispatches footwear change event to registered listeners.
-   * @param itemID Footwear ItemID.
-   * @param heel Heel height offset in meters.
-   * @param platform Platform height offset in meters.
-   * @param source Identification tag of resolution source.
-   */
   private func NotifyFootwearChanged(itemID: ItemID, heel: Float, platform: Float, source: String) -> Void {
     this.GetEventDispatcher().NotifyFootwearChanged(itemID, heel, platform, source);
   }
 
-  /**
-   * Dispatches suppression change event to registered listeners.
-   * @param suppressed True if elevation is suppressed.
-   * @param reason Human-readable suppression reason string.
-   */
   private func NotifySuppressionChanged(suppressed: Bool, reason: String) -> Void {
     this.GetEventDispatcher().NotifySuppressionChanged(suppressed, reason);
   }
 
-  /**
-   * Dispatches configuration update event to registered listeners.
-   * @param config The updated FootwearConfig instance.
-   */
   private func NotifyConfigChanged(config: ref<FootwearConfig>) -> Void {
     this.GetEventDispatcher().NotifyConfigChanged(config);
   }
@@ -1073,13 +696,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.m_config = FootwearConfig.CreateDefault();
     };
 
-    if !this.m_isStorageLoaded {
+    let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
+    if !this.m_isStorageLoaded || repo.GetCount() == 0 {
       this.m_isStorageLoaded = true;
-      let storageMgr: ref<FootwearStorageManager> = FootwearStorageManager.GetInstance();
+      let storageMgr: ref<FootwearStorageManager> = this.GetStorageManager();
       storageMgr.LoadConfig(this.m_config);
       LegacyCetMigrationService.MigrateIfNeeded(storageMgr, this.m_config);
-      storageMgr.LoadMasterPresetsIntoRepo(this.GetOverrideRepository());
-      storageMgr.LoadUserOverridesIntoRepo(this.GetOverrideRepository());
+      repo.Clear();
+      storageMgr.LoadMasterPresetsIntoRepo(repo);
+      storageMgr.LoadUserOverridesIntoRepo(repo);
     };
 
     this.m_debugLogging = this.m_config.debugLogs;
@@ -1130,17 +755,14 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param platform Temporary preview platform height in meters.
    */
   public func ApplyLiveCalibration(heel: Float, platform: Float) -> Void {
-    this.m_hasCustomOverride = true;
-    this.m_customHeelHeight = FootwearClampingPolicy.ClampHeight(heel);
-    this.m_customPlatformHeight = FootwearClampingPolicy.ClampPlatformHeight(platform);
-    this.m_currentHeelHeight = this.m_customHeelHeight;
-    this.m_currentPlatformHeight = this.m_customPlatformHeight;
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    this.GetCalibrationService().ApplyLiveCalibration(state, heel, platform);
 
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
       this.RecalculateEffectiveOffset(player);
     };
-    this.NotifyFootwearChanged(this.m_equippedFootwearID, this.m_currentHeelHeight, this.m_currentPlatformHeight, "Live Calibration");
+    this.NotifyFootwearChanged(state.equippedFootwearID, state.currentHeelHeight, state.currentPlatformHeight, "Live Calibration");
   }
 
   /**
@@ -1154,39 +776,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
   }
 
-  /**
-   * Checks whether initial geometry has been applied to the diagnostics window.
-   *
-   * @return True if geometry was applied, false otherwise.
-   */
-  public func IsDiagGeoApplied() -> Bool {
-    return this.m_diagGeoApplied;
-  }
-
-  /**
-   * Sets the flag indicating whether initial geometry has been applied to the diagnostics window.
-   *
-   * @param applied True if applied, false otherwise.
-   */
-  public func SetDiagGeoApplied(applied: Bool) -> Void {
-    this.m_diagGeoApplied = applied;
-  }
-
-  /**
-   * Checks whether initial geometry has been applied to the calibrator window.
-   *
-   * @return True if geometry was applied, false otherwise.
-   */
-  public func IsCalibGeoApplied() -> Bool {
-    return this.m_calibGeoApplied;
-  }
-
-  /**
-   * Sets the flag indicating whether initial geometry has been applied to the calibrator window.
-   *
-   * @param applied True if applied, false otherwise.
-   */
-  public func SetCalibGeoApplied(applied: Bool) -> Void {
-    this.m_calibGeoApplied = applied;
-  }
+  public func IsDiagGeoApplied() -> Bool { return this.GetWindowsController().IsDiagGeoApplied(); }
+  public func SetDiagGeoApplied(applied: Bool) -> Void { this.GetWindowsController().SetDiagGeoApplied(applied); }
+  public func IsCalibGeoApplied() -> Bool { return this.GetWindowsController().IsCalibGeoApplied(); }
+  public func SetCalibGeoApplied(applied: Bool) -> Void { this.GetWindowsController().SetCalibGeoApplied(applied); }
 }

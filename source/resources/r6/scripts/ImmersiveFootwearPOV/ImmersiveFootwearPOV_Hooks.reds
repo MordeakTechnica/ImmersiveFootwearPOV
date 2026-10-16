@@ -278,8 +278,15 @@ protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
 protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsumer) -> Bool {
   let result: Bool = wrappedMethod(action, consumer);
   let actionName: CName = ListenerAction.GetName(action);
-  if FootwearHooksHelper.IsWeaponAction(actionName) && ListenerAction.IsButtonJustPressed(action) {
-    FootwearHooksHelper.NotifyWeaponAction(this, NameToString(actionName));
+  if ListenerAction.IsButtonJustPressed(action) {
+    if FootwearHooksHelper.IsWeaponAction(actionName) {
+      FootwearHooksHelper.NotifyWeaponAction(this, NameToString(actionName));
+    } else if Equals(actionName, n"ToggleCamera") || Equals(actionName, n"ToggleVehFPPCamera") || Equals(actionName, n"CameraPerspective") || Equals(actionName, n"VehicleTogglePerspective") {
+      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(this.GetGame());
+      if IsDefined(sys) {
+        sys.CheckPerspectiveDrift(this);
+      };
+    };
   };
   return result;
 }
@@ -338,10 +345,7 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
   if IsDefined(player) {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
     if IsDefined(sys) {
-      let cfg: ref<FootwearConfig> = sys.GetConfig();
-      if IsDefined(cfg) && cfg.enableHipSway {
-        sys.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
-      };
+      sys.OnLocomotionUpdate(player, timeDelta);
     };
   };
 }

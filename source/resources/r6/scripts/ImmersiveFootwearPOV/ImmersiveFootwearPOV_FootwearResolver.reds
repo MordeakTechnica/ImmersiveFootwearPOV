@@ -150,6 +150,40 @@ public class BarefootFallbackHandler extends FootwearResolutionHandler {
 // Footwear Resolver Pipeline Orchestrator (Facade)
 // -----------------------------------------------------------------------------
 public class FootwearResolver {
+  private let m_chain: ref<FootwearResolutionHandler>;
+
+  /**
+   * Factory method initializing a resolver instance with a pre-assembled handler chain.
+   * @return A newly initialized FootwearResolver instance.
+   */
+  public static func Create() -> ref<FootwearResolver> {
+    let resolver: ref<FootwearResolver> = new FootwearResolver();
+    resolver.m_chain = FootwearResolver.CreateChain();
+    return resolver;
+  }
+
+  /**
+   * Lazily initializes and returns the cached resolution handler chain.
+   * @return The head handler of the chain.
+   */
+  public func GetChain() -> ref<FootwearResolutionHandler> {
+    if !IsDefined(this.m_chain) {
+      this.m_chain = FootwearResolver.CreateChain();
+    };
+    return this.m_chain;
+  }
+
+  /**
+   * Resolves currently visible footwear using this instance's cached handler chain.
+   * @param player The local player puppet reference.
+   * @return The resolved FootwearResolutionResult.
+   */
+  public func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
+    if !IsDefined(player) {
+      return FootwearResolutionResult.Create(ItemID.None(), "None (Invalid Player)");
+    };
+    return this.GetChain().Handle(player);
+  }
 
   /**
    * Assembles and links the full resolution chain: Equipment-EX -> Wardrobe -> Gameplay Slot -> Barefoot Fallback.
@@ -170,12 +204,17 @@ public class FootwearResolver {
 
   /**
    * Resolves currently visible footwear for the player puppet using the Chain of Responsibility pipeline.
+   * Reuses the system's cached calibration resolver when available to prevent per-call object allocations.
    * @param player The local player puppet reference.
    * @return The resolved FootwearResolutionResult containing ItemID and layer name.
    */
   public static func ResolveFootwear(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
     if !IsDefined(player) {
       return FootwearResolutionResult.Create(ItemID.None(), "None (Invalid Player)");
+    };
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if IsDefined(sys) && IsDefined(sys.GetCalibrationService()) {
+      return sys.GetCalibrationService().GetResolver().Resolve(player);
     };
     return FootwearResolver.CreateChain().Handle(player);
   }

@@ -89,7 +89,7 @@ public class FootwearDiagnosticsHUD {
     if win.Changed(n"ifp_diag_pin") {
       if IsDefined(cfg) {
         cfg.hudPinned = pinned;
-        FootwearStorageManager.GetInstance().SaveConfig(cfg);
+        system.GetStorageManager().SaveConfig(cfg);
         FootwearRedLogger.LogInfo("HUD", s"Updated Show on HUD to: \(pinned)");
       };
       win.SetOverlayOnly(!pinned);

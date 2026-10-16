@@ -132,7 +132,7 @@ public class SwayEvaluator {
     };
 
     // 4. Catwalk locomotion is 3rd-person only; suppressed while in First-Person Perspective (FPP)
-    let isTPPActive: Bool = ITPController.IsTPPActive(player);
+    let isTPPActive: Bool = sys.IsTPPActive(player);
     if !isTPPActive {
       target.Set(false, 0.0, "First Person Active (ITP 3rd-Person Only)", speed);
       return target;

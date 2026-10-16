@@ -169,13 +169,13 @@ public class FootwearCalibratorWindow {
     if win.Button(n"calib_btn_save", "Save as Permanent Custom Override") {
       let activeHeel: Float = system.GetCurrentHeelHeight();
       let activePlat: Float = system.GetCurrentPlatformHeight();
-      FootwearStorageManager.GetInstance().SaveUserOverride(shoeKey, activeHeel, activePlat);
+      system.GetStorageManager().SaveUserOverride(shoeKey, activeHeel, activePlat);
       system.RegisterCustomOverride(shoeKey, activeHeel, activePlat);
       FootwearRedLogger.LogInfo("CALIBRATOR", s"Saved permanent override for \(shoeKey) via RedWindows");
     };
 
     if win.Button(n"calib_btn_revert", "Revert to Tag/Preset Default") {
-      FootwearStorageManager.GetInstance().RemoveUserOverride(shoeKey);
+      system.GetStorageManager().RemoveUserOverride(shoeKey);
       system.RevertFootwearToDefault();
       let defaultHeelCm: Float = system.GetCurrentHeelHeight() * 100.0;
       let defaultPlatCm: Float = system.GetCurrentPlatformHeight() * 100.0;

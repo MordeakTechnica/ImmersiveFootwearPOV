@@ -94,16 +94,17 @@ public class TfpCameraActuator extends IElevationActuator {
    */
   public func ApplyElevation(player: ref<PlayerPuppet>, heelMeters: Float, platformMeters: Float, isSuppressed: Bool) -> Void {
     if !IsDefined(player) { return; };
-    TFPHelper.ApplyFootwearHeight(player.GetGame());
+    let effOffset: Float = isSuppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(heelMeters);
+    TFPHelper.ApplyFootwearHeight(player.GetGame(), effOffset, true);
   }
 
   /**
-   * Resets True First Person camera elevation and realigns weapon reticle.
+   * Resets True First Person camera elevation and realigns weapon reticle explicitly to baseline (0.0m).
    * @param player The local player puppet reference.
    */
   public func ResetElevation(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
-    TFPHelper.ApplyFootwearHeight(player.GetGame());
+    TFPHelper.ApplyFootwearHeight(player.GetGame(), 0.0, true);
   }
 }
 

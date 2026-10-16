@@ -11,24 +11,36 @@ import RedFunctions.Storage.*
 public class FootwearStorageManager {
   private let m_storage: ref<ModStorage>;
 
-  private const let CONFIG_FILE: String = "config.json";
-  private const let OVERRIDES_FILE: String = "user_shoe_overrides.json";
-  private const let PRESETS_FILE: String = "presets.json";
+  private let CONFIG_FILE: String;
+  private let OVERRIDES_FILE: String;
+  private let PRESETS_FILE: String;
 
   /**
    * Factory method initializing and opening the ModStorage file interface for ImmersiveFootwearPOV.
    * @return A newly initialized FootwearStorageManager instance.
    */
-  public static func GetInstance() -> ref<FootwearStorageManager> {
+  public static func Create() -> ref<FootwearStorageManager> {
     let instance: ref<FootwearStorageManager> = new FootwearStorageManager();
     instance.Init();
     return instance;
   }
 
   /**
+   * Factory method initializing and opening the ModStorage file interface for ImmersiveFootwearPOV.
+   * Prefer using ImmersiveFootwearPOVSystem.GetStorageManager() to reuse a single open handle.
+   * @return A FootwearStorageManager instance.
+   */
+  public static func GetInstance() -> ref<FootwearStorageManager> {
+    return FootwearStorageManager.Create();
+  }
+
+  /**
    * Internal initializer opening the ModStorage partition.
    */
   private func Init() -> Void {
+    this.CONFIG_FILE = "config.json";
+    this.OVERRIDES_FILE = "user_shoe_overrides.json";
+    this.PRESETS_FILE = "presets.json";
     this.m_storage = ModStorage.Open("ImmersiveFootwearPOV");
     if !IsDefined(this.m_storage) {
       FootwearRedLogger.LogError("STORAGE", "Failed to open ModStorage for ImmersiveFootwearPOV");
@@ -107,6 +119,33 @@ public class FootwearStorageManager {
   // -----------------------------------------------------------------------------
 
   /**
+   * Safely reads a numeric JSON field as Float, supporting both JsonKind.Real and JsonKind.Int values.
+   * Prevents default 0.0 fallbacks on integer JSON values in presets and overrides.
+   * @param map Target JsonMap object.
+   * @param key Property name string.
+   * @param fallback Default value if missing or unreadable.
+   * @return Extracted numeric value as Float.
+   */
+  public static func ReadNumberAsFloat(map: ref<JsonMap>, key: String, fallback: Float) -> Float {
+    if !IsDefined(map) || !map.Contains(key) {
+      return fallback;
+    };
+    let val: ref<JsonValue> = map.Value(key);
+    if !IsDefined(val) {
+      return fallback;
+    };
+    let kind: Int32 = val.Kind();
+    // JsonKind: Null = 0, Bool = 1, Int = 2, Real = 3
+    if kind == 3 {
+      return map.Float(key, fallback);
+    };
+    if kind == 2 {
+      return Cast<Float>(map.Int(key, Cast<Int32>(fallback)));
+    };
+    return map.Float(key, fallback);
+  }
+
+  /**
    * Loads user calibrated shoe overrides from user_shoe_overrides.json into the provided repository.
    * @param repo The target FootwearOverrideRepository to populate.
    * @return Number of override entries successfully parsed and registered.
@@ -136,8 +175,8 @@ public class FootwearStorageManager {
         let entryVal: ref<JsonValue> = rootMap.Value(key);
         if IsDefined(entryVal) && entryVal.IsMap() {
           let itemMap: ref<JsonMap> = entryVal.AsMap();
-          let heelCm: Float = itemMap.Float("heel", 0.0);
-          let platCm: Float = itemMap.Float("platform", 0.0);
+          let heelCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "heel", 0.0);
+          let platCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "platform", 0.0);
           // Convert centimeters from JSON to meters for repository registration
           repo.Register(key, heelCm / 100.0, platCm / 100.0);
           registered += 1;
@@ -248,8 +287,8 @@ public class FootwearStorageManager {
         let entryVal: ref<JsonValue> = rootMap.Value(key);
         if IsDefined(entryVal) && entryVal.IsMap() {
           let itemMap: ref<JsonMap> = entryVal.AsMap();
-          let heelCm: Float = itemMap.Float("heel", 0.0);
-          let platCm: Float = itemMap.Float("platform", 0.0);
+          let heelCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "heel", 0.0);
+          let platCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "platform", 0.0);
           repo.Register(key, heelCm / 100.0, platCm / 100.0);
           registered += 1;
         };

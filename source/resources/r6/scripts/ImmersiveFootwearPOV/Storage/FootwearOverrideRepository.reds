@@ -7,11 +7,12 @@ module ImmersiveFootwearPOV
 public class ShoeOverrideEntry {
   public let key: String;
   public let lowerKey: String;
+  public let normKey: String;
   public let heelMeters: Float;
   public let platformMeters: Float;
 
   /**
-   * Factory method initializing a new shoe override entity with precomputed lowercase key.
+   * Factory method initializing a new shoe override entity with precomputed lowercase and normalized keys.
    * @param key Unique shoe identifier string.
    * @param heelMeters Heel height offset in meters.
    * @param platformMeters Platform height offset in meters.
@@ -21,6 +22,7 @@ public class ShoeOverrideEntry {
     let entry: ref<ShoeOverrideEntry> = new ShoeOverrideEntry();
     entry.key = key;
     entry.lowerKey = StrLower(key);
+    entry.normKey = FootwearOverrideRepository.NormalizeKey(key);
     entry.heelMeters = heelMeters;
     entry.platformMeters = platformMeters;
     return entry;
@@ -39,6 +41,19 @@ public class FootwearOverrideRepository {
   }
 
   /**
+   * Normalizes a shoe key by converting to lowercase and stripping the 'items.' prefix if present.
+   * @param k Raw shoe key string.
+   * @return Normalized identifier string.
+   */
+  public static func NormalizeKey(k: String) -> String {
+    let lower: String = StrLower(k);
+    if StrBeginsWith(lower, "items.") {
+      return StrReplace(lower, "items.", "");
+    };
+    return lower;
+  }
+
+  /**
    * Removes all entries from the repository.
    */
   public func Clear() -> Void {
@@ -54,7 +69,8 @@ public class FootwearOverrideRepository {
   }
 
   /**
-   * Finds the array index for an entry matching the provided key, using case-exact match followed by case-insensitive fallback.
+   * Finds the array index for an entry matching the provided key, using case-exact match,
+   * case-insensitive fallback, and normalized ('items.' prefix agnostic) fallback.
    * @param key Shoe identifier string to search for.
    * @return Zero-based index if found, -1 if not found.
    */
@@ -71,6 +87,14 @@ public class FootwearOverrideRepository {
     i = 0;
     while i < count {
       if Equals(this.m_entries[i].lowerKey, lowerKey) {
+        return i;
+      };
+      i += 1;
+    };
+    let normKey: String = FootwearOverrideRepository.NormalizeKey(key);
+    i = 0;
+    while i < count {
+      if Equals(this.m_entries[i].normKey, normKey) {
         return i;
       };
       i += 1;

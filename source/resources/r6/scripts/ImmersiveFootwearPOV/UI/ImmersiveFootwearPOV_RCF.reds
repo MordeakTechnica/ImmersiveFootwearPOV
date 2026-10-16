@@ -2,6 +2,7 @@ module ImmersiveFootwearPOV
 
 import RedscriptConfigFramework.*
 import RedFunctions.*
+import RedWindows.*
 
 // =============================================================================
 // Immersive Footwear POV - Redscript Configuration Framework (RCF) Integration
@@ -154,8 +155,8 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       return;
     };
 
-    FootwearStorageManager.GetInstance().SaveConfig(this.m_config);
     if IsDefined(this.m_system) {
+      this.m_system.GetStorageManager().SaveConfig(this.m_config);
       this.m_system.OnConfigUpdated(this.m_config);
     };
   }
@@ -197,8 +198,8 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       return;
     };
 
-    FootwearStorageManager.GetInstance().SaveConfig(this.m_config);
     if IsDefined(this.m_system) {
+      this.m_system.GetStorageManager().SaveConfig(this.m_config);
       this.m_system.OnConfigUpdated(this.m_config);
     };
   }
@@ -248,16 +249,17 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     };
     if Equals(key, "reloadStorage") {
       if IsDefined(this.m_system) {
-        FootwearStorageManager.GetInstance().LoadMasterPresetsIntoRepo(this.m_system.GetOverrideRepository());
-        FootwearStorageManager.GetInstance().LoadUserOverridesIntoRepo(this.m_system.GetOverrideRepository());
+        let storageMgr: ref<FootwearStorageManager> = this.m_system.GetStorageManager();
+        storageMgr.LoadMasterPresetsIntoRepo(this.m_system.GetOverrideRepository());
+        storageMgr.LoadUserOverridesIntoRepo(this.m_system.GetOverrideRepository());
         FootwearRedLogger.LogInfo("RCF", "Reloaded presets and user overrides from disk via RCF button");
       };
     };
     if Equals(key, "resetDefaults") {
       if IsDefined(this.m_config) {
         this.m_config.SetDefaults();
-        FootwearStorageManager.GetInstance().SaveConfig(this.m_config);
         if IsDefined(this.m_system) {
+          this.m_system.GetStorageManager().SaveConfig(this.m_config);
           this.m_system.OnConfigUpdated(this.m_config);
         };
         FootwearRedLogger.LogInfo("RCF", "Reset configuration to defaults via RCF button");

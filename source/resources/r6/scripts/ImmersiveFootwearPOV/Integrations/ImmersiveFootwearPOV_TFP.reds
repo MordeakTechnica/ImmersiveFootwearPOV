@@ -14,8 +14,10 @@ public class TFPHelper {
   /**
    * Applies additive footwear height offset to TFP camera and triggers weapon ADS alignment.
    * @param game The active GameInstance.
+   * @param effectiveOffset Footwear elevation offset in meters.
+   * @param hasExplicitOffset Flag indicating whether effectiveOffset was explicitly supplied.
    */
-  public static func ApplyFootwearHeight(game: GameInstance) -> Void {
+  public static func ApplyFootwearHeight(game: GameInstance, opt effectiveOffset: Float, opt hasExplicitOffset: Bool) -> Void {
     let sysHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
     if IsDefined(sysHandler) && sysHandler.IsPreGame() { return; };
 
@@ -30,10 +32,10 @@ public class TFPHelper {
 
     let config: ref<IFPConfig> = tfpSys.GetConfig();
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(config) && IsDefined(povSys) {
+    if IsDefined(config) {
       let baseZ: Float = Cast<Float>(config.cameraZ_i) / 1000.0;
-      let effectiveOffset: Float = povSys.GetEffectiveOffset();
-      let targetZ: Float = baseZ + effectiveOffset;
+      let offsetToApply: Float = hasExplicitOffset ? effectiveOffset : (IsDefined(povSys) ? povSys.GetEffectiveOffset() : 0.0);
+      let targetZ: Float = baseZ + offsetToApply;
 
       // Only update if target elevation has actually changed
       if AbsF(config.cameraZ - targetZ) > 0.0001 {
@@ -207,8 +209,10 @@ public class TFPHelper {
   /**
    * Fallback elevation application when TFP is not installed.
    * @param game The active GameInstance.
+   * @param effectiveOffset Footwear elevation offset in meters.
+   * @param hasExplicitOffset Flag indicating whether effectiveOffset was explicitly supplied.
    */
-  public static func ApplyFootwearHeight(game: GameInstance) -> Void {
+  public static func ApplyFootwearHeight(game: GameInstance, opt effectiveOffset: Float, opt hasExplicitOffset: Bool) -> Void {
     // No-op
   }
 
