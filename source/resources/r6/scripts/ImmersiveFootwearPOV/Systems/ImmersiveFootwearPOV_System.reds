@@ -207,18 +207,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * REDengine system attachment lifecycle callback. Initializes storage, config, and registers session callbacks.
    */
   private func OnAttach() -> Void {
-    this.InitStorageAndConfig();
+    this.InitConfigAndRCF();
     GameInstance.GetCallbackSystem()
       .RegisterCallback(n"Session/Ready", this, n"OnSessionReady")
       .SetLifetime(CallbackLifetime.Forever);
   }
 
   /**
-   * Session ready callback. Ensures storage configuration is loaded and starts RedWindows tick loop.
+   * Session ready callback. Ensures storage configuration and shoe presets are loaded and starts RedWindows tick loop.
    * @param event Game session ready event payload.
    */
   protected cb func OnSessionReady(event: ref<GameSessionEvent>) -> Void {
-    this.InitStorageAndConfig();
+    this.InitConfigAndRCF();
+    this.EnsurePresetsAndOverridesLoaded();
     let winCtrl: ref<FootwearWindowsController> = this.GetWindowsController();
     if !winCtrl.IsWindowsLoopStarted() {
       winCtrl.SetWindowsLoopStarted(true);
@@ -236,7 +237,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.m_isInitialized = false;
       this.m_hasTppInitialized = false;
       this.GetSuppressionController().Reset();
-      this.InitStorageAndConfig();
+      this.EnsurePresetsAndOverridesLoaded();
       this.UpdateEquippedFootwear(player);
       this.QueuePostRestoreTick();
     };
@@ -252,9 +253,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if IsDefined(player) {
       this.m_isInitialized = false;
       this.m_hasTppInitialized = false;
-      this.m_isStorageLoaded = false;
       this.GetSuppressionController().Reset();
-      this.InitStorageAndConfig();
+      this.EnsurePresetsAndOverridesLoaded();
       this.UpdateEquippedFootwear(player);
       this.QueuePostRestoreTick();
     };
@@ -275,12 +275,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func OnPostRestoreTick() -> Void {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
-      let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
-      if repo.GetCount() == 0 {
-        let storageMgr: ref<FootwearStorageManager> = this.GetStorageManager();
-        storageMgr.LoadMasterPresetsIntoRepo(repo);
-        storageMgr.LoadUserOverridesIntoRepo(repo);
-      };
+      this.EnsurePresetsAndOverridesLoaded();
       this.UpdateEquippedFootwear(player);
       this.CheckPerspectiveDrift(player);
       this.RecalculateEffectiveOffset(player);
@@ -335,6 +330,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       return;
     };
 
+    this.EnsurePresetsAndOverridesLoaded();
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
     let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
     this.GetCalibrationService().EvaluateEquippedFootwear(player, state, repo);
@@ -689,22 +685,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   // -----------------------------------------------------------------------------
 
   /**
-   * Initializes persistent storage, loads config and presets, and binds RCF/RedWindows providers.
+   * Initializes persistent configuration and binds RCF/RedWindows providers.
+   * Can be safely invoked during engine boot or in main menu without loading the shoe preset database.
    */
-  public func InitStorageAndConfig() -> Void {
+  public func InitConfigAndRCF() -> Void {
     if !IsDefined(this.m_config) {
       this.m_config = FootwearConfig.CreateDefault();
     };
 
-    let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
-    if !this.m_isStorageLoaded || repo.GetCount() == 0 {
+    if !this.m_isStorageLoaded {
       this.m_isStorageLoaded = true;
       let storageMgr: ref<FootwearStorageManager> = this.GetStorageManager();
       storageMgr.LoadConfig(this.m_config);
       LegacyCetMigrationService.MigrateIfNeeded(storageMgr, this.m_config);
-      repo.Clear();
-      storageMgr.LoadMasterPresetsIntoRepo(repo);
-      storageMgr.LoadUserOverridesIntoRepo(repo);
     };
 
     this.m_debugLogging = this.m_config.debugLogs;
@@ -716,6 +709,29 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
 
     FootwearWindowsController.Init(gi);
+  }
+
+  /**
+   * Ensures master shoe presets and user calibrated overrides are loaded into memory exactly once.
+   * Skips all file I/O if the repository already contains populated entries.
+   */
+  public func EnsurePresetsAndOverridesLoaded() -> Void {
+    let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
+    if repo.GetCount() > 0 {
+      return;
+    };
+
+    let storageMgr: ref<FootwearStorageManager> = this.GetStorageManager();
+    storageMgr.LoadMasterPresetsIntoRepo(repo);
+    storageMgr.LoadUserOverridesIntoRepo(repo);
+  }
+
+  /**
+   * Initializes persistent storage, loads config and presets, and binds RCF/RedWindows providers.
+   */
+  public func InitStorageAndConfig() -> Void {
+    this.InitConfigAndRCF();
+    this.EnsurePresetsAndOverridesLoaded();
   }
 
   /**

@@ -249,9 +249,11 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     };
     if Equals(key, "reloadStorage") {
       if IsDefined(this.m_system) {
+        let repo: ref<FootwearOverrideRepository> = this.m_system.GetOverrideRepository();
+        repo.Clear();
         let storageMgr: ref<FootwearStorageManager> = this.m_system.GetStorageManager();
-        storageMgr.LoadMasterPresetsIntoRepo(this.m_system.GetOverrideRepository());
-        storageMgr.LoadUserOverridesIntoRepo(this.m_system.GetOverrideRepository());
+        storageMgr.LoadMasterPresetsIntoRepo(repo);
+        storageMgr.LoadUserOverridesIntoRepo(repo);
         FootwearRedLogger.LogInfo("RCF", "Reloaded presets and user overrides from disk via RCF button");
       };
     };
