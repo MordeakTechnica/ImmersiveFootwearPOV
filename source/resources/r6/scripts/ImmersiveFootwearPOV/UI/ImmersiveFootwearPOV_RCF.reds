@@ -189,10 +189,10 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       return;
     };
     let changed: Bool = false;
-    if Equals(key, "transitionSpeed") && AbsF(this.m_config.transitionSpeed - value) > 0.001 { this.m_config.transitionSpeed = value; changed = true; };
-    if Equals(key, "swayLow") && AbsF(this.m_config.swayLow - value) > 0.001 { this.m_config.swayLow = value; changed = true; };
-    if Equals(key, "swayMid") && AbsF(this.m_config.swayMid - value) > 0.001 { this.m_config.swayMid = value; changed = true; };
-    if Equals(key, "swayHigh") && AbsF(this.m_config.swayHigh - value) > 0.001 { this.m_config.swayHigh = value; changed = true; };
+    if Equals(key, "transitionSpeed") && AbsF(this.m_config.transitionSpeed - value) > 0.04 { this.m_config.transitionSpeed = value; changed = true; };
+    if Equals(key, "swayLow") && AbsF(this.m_config.swayLow - value) > 0.08 { this.m_config.swayLow = value; changed = true; };
+    if Equals(key, "swayMid") && AbsF(this.m_config.swayMid - value) > 0.08 { this.m_config.swayMid = value; changed = true; };
+    if Equals(key, "swayHigh") && AbsF(this.m_config.swayHigh - value) > 0.08 { this.m_config.swayHigh = value; changed = true; };
 
     if !changed {
       return;
@@ -254,7 +254,11 @@ public class FootwearRCFProvider extends DVRCF_Provider {
         let storageMgr: ref<FootwearStorageManager> = this.m_system.GetStorageManager();
         storageMgr.LoadMasterPresetsIntoRepo(repo);
         storageMgr.LoadUserOverridesIntoRepo(repo);
-        FootwearRedLogger.LogInfo("RCF", "Reloaded presets and user overrides from disk via RCF button");
+        let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.m_system.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+        if IsDefined(player) {
+          this.m_system.UpdateEquippedFootwear(player);
+        };
+        FootwearRedLogger.LogInfo("RCF", s"Reloaded presets and user overrides from disk via RCF button | Current source: [\(this.m_system.GetSettingsSource())]");
       };
     };
     if Equals(key, "resetDefaults") {

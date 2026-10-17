@@ -10,12 +10,17 @@ public class FootwearHooksHelper {
    * Notifies the footwear system to re-evaluate equipped shoes and update heights.
    *
    * @param player Target player puppet entity.
+   * @param immediate If true, evaluates immediately; if false, debounces across rapid-fire bursts.
    */
-  public static func NotifyFootwearChanged(player: ref<PlayerPuppet>) -> Void {
+  public static func NotifyFootwearChanged(player: ref<PlayerPuppet>, opt immediate: Bool) -> Void {
     if IsDefined(player) {
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
       if IsDefined(sys) {
-        sys.UpdateEquippedFootwear(player);
+        if immediate {
+          sys.UpdateEquippedFootwear(player);
+        } else {
+          sys.QueueDebouncedUpdate();
+        };
       };
     };
   }
@@ -106,7 +111,7 @@ public class FootwearHooksHelper {
 private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: Bool) -> Void {
   wrappedMethod(area, force);
   if Equals(area, gamedataEquipmentArea.Feet) {
-    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
   };
 }
 
@@ -119,7 +124,7 @@ private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: B
 private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
   if Equals(area, gamedataEquipmentArea.Feet) {
-    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
   };
 }
 
@@ -132,7 +137,7 @@ private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void
 private final func ResetItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
   if Equals(area, gamedataEquipmentArea.Feet) {
-    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
   };
 }
 
@@ -142,7 +147,7 @@ private final func ResetItemAppearanceEvent(area: gamedataEquipmentArea) -> Void
 @wrapMethod(EquipmentSystemPlayerData)
 public final func OnRestored() -> Void {
   wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet);
+  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
 }
 
 /**
@@ -153,7 +158,7 @@ public final func OnRestored() -> Void {
 @wrapMethod(PlayerPuppet)
 protected cb func OnGameAttached() -> Bool {
   let result: Bool = wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this);
+  FootwearHooksHelper.NotifyFootwearChanged(this, true);
   return result;
 }
 
@@ -168,7 +173,7 @@ protected cb func OnGameAttached() -> Bool {
 @wrapMethod(gameuiInGameMenuGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet);
+  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet, true);
   return result;
 }
 
@@ -180,7 +185,19 @@ protected cb func OnUninitialize() -> Bool {
 @wrapMethod(gameuiInventoryGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet);
+  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet, true);
+  return result;
+}
+
+/**
+ * Hooks closing of wardrobe screen to re-sync footwear state immediately upon exit.
+ *
+ * @return Wrapped callback return value.
+ */
+@wrapMethod(WardrobeSetPreviewGameController)
+protected cb func OnUninitialize() -> Bool {
+  let result: Bool = wrappedMethod();
+  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet, true);
   return result;
 }
 
@@ -304,7 +321,7 @@ protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
   if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
     FootwearHooksHelper.NotifyWeaponAction(this, "WeaponEquippedToSlot");
   } else if Equals(slotID, t"AttachmentSlots.Feet") || Equals(slotID, t"OutfitSlots.Feet") {
-    FootwearHooksHelper.NotifyFootwearChanged(this);
+    FootwearHooksHelper.NotifyFootwearChanged(this, false);
   };
   return result;
 }
@@ -322,7 +339,7 @@ protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
   if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
     FootwearHooksHelper.NotifyWeaponAction(this, "WeaponRemovedFromSlot");
   } else if Equals(slotID, t"AttachmentSlots.Feet") || Equals(slotID, t"OutfitSlots.Feet") {
-    FootwearHooksHelper.NotifyFootwearChanged(this);
+    FootwearHooksHelper.NotifyFootwearChanged(this, false);
   };
   return result;
 }

@@ -77,7 +77,9 @@ public class ITPController {
     if !IsDefined(player) {
       return false;
     };
-    if !ITPDetector.IsPresent(player.GetGame()) {
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    let isITPPresent: Bool = IsDefined(sys) ? sys.IsITPPresent() : ITPDetector.IsPresent(player.GetGame());
+    if !isITPPresent {
       return false;
     };
     let camSys: ref<CameraSystem> = GameInstance.GetCameraSystem(player.GetGame());

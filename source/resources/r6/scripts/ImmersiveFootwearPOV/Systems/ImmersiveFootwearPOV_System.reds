@@ -28,6 +28,26 @@ public class FootwearPostRestoreTick extends DelayCallback {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Debounced Footwear Update Callback
+// Consolidates rapid-fire equip/unequip events and prevents transient barefoot logs
+// -----------------------------------------------------------------------------
+public class FootwearDebounceCallback extends DelayCallback {
+  public let m_system: wref<ImmersiveFootwearPOVSystem>;
+
+  public static func Create(sys: ref<ImmersiveFootwearPOVSystem>) -> ref<FootwearDebounceCallback> {
+    let cb: ref<FootwearDebounceCallback> = new FootwearDebounceCallback();
+    cb.m_system = sys;
+    return cb;
+  }
+
+  public func Call() -> Void {
+    if IsDefined(this.m_system) {
+      this.m_system.OnDebouncedFootwearTick();
+    };
+  }
+}
+
 public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   // Authoritative State Model
@@ -43,6 +63,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_lastLocoFrame: Uint64;
   private let m_isRcfRegistered: Bool;
   private let m_config: ref<FootwearConfig>;
+
+  // Debouncing & Deduplication State
+  private let m_debouncePending: Bool;
+  private let m_lastLoggedFootwearID: ItemID;
+  private let m_lastLoggedSource: String;
+  private let m_lastLoggedLayer: String;
+  private let m_lastLoggedHeel: Float;
+  private let m_lastLoggedPlatform: Float;
+  private let m_hasLoggedFootwearOnce: Bool;
 
   // Domain Collaborators (Inversion of Control & Encapsulation)
   private let m_calibrationService: ref<FootwearCalibrationService>;
@@ -271,6 +300,30 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   /**
+   * Schedules a debounced footwear evaluation tick (0.10s delay).
+   * Consolidates multi-hook bursts and transient empty slots during clothing swap transitions.
+   */
+  public func QueueDebouncedUpdate() -> Void {
+    if this.m_debouncePending {
+      return;
+    };
+    this.m_debouncePending = true;
+    let cb: ref<FootwearDebounceCallback> = FootwearDebounceCallback.Create(this);
+    GameInstance.GetDelaySystem(this.GetGameInstance()).DelayCallback(cb, 0.10, false);
+  }
+
+  /**
+   * Callback executed after debounce delay expires. Performs authoritative footwear re-evaluation.
+   */
+  public func OnDebouncedFootwearTick() -> Void {
+    this.m_debouncePending = false;
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) {
+      this.UpdateEquippedFootwear(player);
+    };
+  }
+
+  /**
    * Delayed callback executing 0.4s after load/attach to re-evaluate footwear and elevation with full assets loaded.
    */
   public func OnPostRestoreTick() -> Void {
@@ -313,13 +366,13 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_lastLocoFrame = currentFrame;
 
     this.m_driftCheckTimer += timeDelta;
-    if this.m_driftCheckTimer >= 0.25 {
+    if this.m_driftCheckTimer >= 1.50 {
       this.m_driftCheckTimer = 0.0;
       this.CheckPerspectiveDrift(player);
     };
 
     let cfg: ref<FootwearConfig> = this.GetConfig();
-    if IsDefined(cfg) && cfg.enableHipSway {
+    if IsDefined(cfg) && cfg.enableHipSway && this.m_lastTppActive {
       this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
     };
   }
@@ -343,6 +396,28 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
     this.GetCalibrationService().EvaluateEquippedFootwear(player, state, repo);
     this.m_isInitialized = true;
+
+    // Deduplicate logging: Only log when footwear identity, settings source, layer, or heights actually change!
+    let shoeChanged: Bool = !this.m_hasLoggedFootwearOnce
+      || NotEquals(state.equippedFootwearID, this.m_lastLoggedFootwearID)
+      || NotEquals(state.settingsSource, this.m_lastLoggedSource)
+      || NotEquals(state.activeSource, this.m_lastLoggedLayer)
+      || AbsF(state.currentHeelHeight - this.m_lastLoggedHeel) > 0.0005
+      || AbsF(state.currentPlatformHeight - this.m_lastLoggedPlatform) > 0.0005;
+
+    if shoeChanged {
+      this.m_hasLoggedFootwearOnce = true;
+      this.m_lastLoggedFootwearID = state.equippedFootwearID;
+      this.m_lastLoggedSource = state.settingsSource;
+      this.m_lastLoggedLayer = state.activeSource;
+      this.m_lastLoggedHeel = state.currentHeelHeight;
+      this.m_lastLoggedPlatform = state.currentPlatformHeight;
+
+      let shoeName: String = this.GetResolvedShoeDisplayName();
+      let heelCm: Float = state.currentHeelHeight * 100.0;
+      let platCm: Float = state.currentPlatformHeight * 100.0;
+      FootwearRedLogger.LogInfo("FOOTWEAR", s"Equipped footwear updated: '\(shoeName)' | Source: [\(state.settingsSource)] | Layer: [\(state.activeSource)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
+    };
 
     this.RecalculateEffectiveOffset(player);
     this.LogTFPState(player);
@@ -408,19 +483,18 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if StrLen(key) == 0 { return; };
     let clampedHeel: Float = FootwearClampingPolicy.ClampHeight(heel);
     let clampedPlat: Float = FootwearClampingPolicy.ClampPlatformHeight(platform);
-    this.GetOverrideRepository().Register(key, clampedHeel, clampedPlat);
+    this.GetOverrideRepository().RegisterUserOverride(key, clampedHeel, clampedPlat);
 
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
     if ItemID.IsValid(state.equippedFootwearID) {
       let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
       if Equals(currentKey, key) || Equals(StrLower(currentKey), StrLower(key)) {
-        if !state.hasOfficialTags {
-          state.hasCustomOverride = true;
-          state.customHeelHeight = clampedHeel;
-          state.customPlatformHeight = clampedPlat;
-          state.currentHeelHeight = clampedHeel;
-          state.currentPlatformHeight = clampedPlat;
-        };
+        state.hasCustomOverride = true;
+        state.settingsSource = "User Override";
+        state.customHeelHeight = clampedHeel;
+        state.customPlatformHeight = clampedPlat;
+        state.currentHeelHeight = clampedHeel;
+        state.currentPlatformHeight = clampedPlat;
       };
     };
   }
@@ -429,10 +503,14 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * Clears all custom shoe overrides from repository and resets active override variables if footwear lacks official tags.
    */
   public func ClearCustomOverrides() -> Void {
-    this.GetOverrideRepository().Clear();
-    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
-    if !state.hasOfficialTags {
+    this.GetOverrideRepository().ClearUserOverrides();
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) {
+      this.UpdateEquippedFootwear(player);
+    } else {
+      let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
       state.hasCustomOverride = false;
+      state.settingsSource = "Default / None";
       state.customHeelHeight = 0.0;
       state.customPlatformHeight = 0.0;
       state.currentHeelHeight = 0.0;
@@ -560,6 +638,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func HasCustomOverride() -> Bool { return this.GetEquipmentState().hasCustomOverride; }
   public func GetEquippedFootwearID() -> ItemID { return this.GetEquipmentState().equippedFootwearID; }
   public func GetActiveSource() -> String { return this.GetEquipmentState().activeSource; }
+  public func GetSettingsSource() -> String { return this.GetEquipmentState().settingsSource; }
   public func GetEffectiveHeelPitch() -> Float { return this.GetEquipmentState().GetEffectiveHeelPitch(); }
 
   // -----------------------------------------------------------------------------
@@ -620,7 +699,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param isOverlayOpen True if diagnostics HUD or calibrator window is visible.
    */
   public func UpdateStride(player: ref<PlayerPuppet>, deltaTime: Float, enabled: Bool, intensityLow: Float, intensityMid: Float, intensityHigh: Float, isOverlayOpen: Bool) -> Void {
-    if !enabled || !IsDefined(player) || deltaTime <= 0.0 {
+    if !enabled || !IsDefined(player) || deltaTime <= 0.0 || !this.m_lastTppActive {
       return;
     };
     let currentFrame: Uint64 = GameInstance.GetFrameNumber(player.GetGame());

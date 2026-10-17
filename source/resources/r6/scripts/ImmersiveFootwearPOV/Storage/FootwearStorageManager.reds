@@ -178,7 +178,7 @@ public class FootwearStorageManager {
           let heelCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "heel", 0.0);
           let platCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "platform", 0.0);
           // Convert centimeters from JSON to meters for repository registration
-          repo.Register(key, heelCm / 100.0, platCm / 100.0);
+          repo.RegisterUserOverride(key, heelCm / 100.0, platCm / 100.0);
           registered += 1;
         };
       };
@@ -289,7 +289,7 @@ public class FootwearStorageManager {
           let itemMap: ref<JsonMap> = entryVal.AsMap();
           let heelCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "heel", 0.0);
           let platCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "platform", 0.0);
-          repo.Register(key, heelCm / 100.0, platCm / 100.0);
+          repo.RegisterPreset(key, heelCm / 100.0, platCm / 100.0);
           registered += 1;
         };
       };

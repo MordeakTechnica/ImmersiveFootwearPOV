@@ -10,27 +10,31 @@ public class ShoeOverrideEntry {
   public let normKey: String;
   public let heelMeters: Float;
   public let platformMeters: Float;
+  public let isUserOverride: Bool;
 
   /**
    * Factory method initializing a new shoe override entity with precomputed lowercase and normalized keys.
    * @param key Unique shoe identifier string.
    * @param heelMeters Heel height offset in meters.
    * @param platformMeters Platform height offset in meters.
+   * @param isUserOverride True if this entry was calibrated and saved by the user, false if from presets.
    * @return A newly initialized ShoeOverrideEntry instance.
    */
-  public static func Create(key: String, heelMeters: Float, platformMeters: Float) -> ref<ShoeOverrideEntry> {
+  public static func Create(key: String, heelMeters: Float, platformMeters: Float, opt isUserOverride: Bool) -> ref<ShoeOverrideEntry> {
     let entry: ref<ShoeOverrideEntry> = new ShoeOverrideEntry();
     entry.key = key;
     entry.lowerKey = StrLower(key);
     entry.normKey = FootwearOverrideRepository.NormalizeKey(key);
     entry.heelMeters = heelMeters;
     entry.platformMeters = platformMeters;
+    entry.isUserOverride = isUserOverride;
     return entry;
   }
 }
 
 public class FootwearOverrideRepository {
-  private let m_entries: array<ref<ShoeOverrideEntry>>;
+  private let m_userOverrides: array<ref<ShoeOverrideEntry>>;
+  private let m_presets: array<ref<ShoeOverrideEntry>>;
 
   /**
    * Factory method creating a new empty FootwearOverrideRepository.
@@ -54,31 +58,13 @@ public class FootwearOverrideRepository {
   }
 
   /**
-   * Removes all entries from the repository.
+   * Helper searching for a shoe key index within a specific entry array.
    */
-  public func Clear() -> Void {
-    ArrayClear(this.m_entries);
-  }
-
-  /**
-   * Retrieves the current count of registered overrides.
-   * @return Number of override entries stored.
-   */
-  public func GetCount() -> Int32 {
-    return ArraySize(this.m_entries);
-  }
-
-  /**
-   * Finds the array index for an entry matching the provided key, using case-exact match,
-   * case-insensitive fallback, and normalized ('items.' prefix agnostic) fallback.
-   * @param key Shoe identifier string to search for.
-   * @return Zero-based index if found, -1 if not found.
-   */
-  public func FindIndex(key: String) -> Int32 {
-    let count: Int32 = ArraySize(this.m_entries);
+  private func FindIndexIn(entries: array<ref<ShoeOverrideEntry>>, key: String) -> Int32 {
+    let count: Int32 = ArraySize(entries);
     let i: Int32 = 0;
     while i < count {
-      if Equals(this.m_entries[i].key, key) {
+      if Equals(entries[i].key, key) {
         return i;
       };
       i += 1;
@@ -86,7 +72,7 @@ public class FootwearOverrideRepository {
     let lowerKey: String = StrLower(key);
     i = 0;
     while i < count {
-      if Equals(this.m_entries[i].lowerKey, lowerKey) {
+      if Equals(entries[i].lowerKey, lowerKey) {
         return i;
       };
       i += 1;
@@ -94,7 +80,7 @@ public class FootwearOverrideRepository {
     let normKey: String = FootwearOverrideRepository.NormalizeKey(key);
     i = 0;
     while i < count {
-      if Equals(this.m_entries[i].normKey, normKey) {
+      if Equals(entries[i].normKey, normKey) {
         return i;
       };
       i += 1;
@@ -103,25 +89,70 @@ public class FootwearOverrideRepository {
   }
 
   /**
-   * Checks whether an override exists for the specified shoe identifier key.
-   * @param key Shoe identifier string.
-   * @return True if an override exists, false otherwise.
+   * Finds index in user overrides array.
    */
-  public func Has(key: String) -> Bool {
-    return this.FindIndex(key) >= 0;
+  public func FindUserOverrideIndex(key: String) -> Int32 {
+    return this.FindIndexIn(this.m_userOverrides, key);
   }
 
   /**
-   * Retrieves the override entry for a given shoe identifier key.
+   * Finds index in presets array.
+   */
+  public func FindPresetIndex(key: String) -> Int32 {
+    return this.FindIndexIn(this.m_presets, key);
+  }
+
+  /**
+   * Checks whether a user-calibrated override exists for the key.
+   */
+  public func HasUserOverride(key: String) -> Bool {
+    return this.FindUserOverrideIndex(key) >= 0;
+  }
+
+  /**
+   * Checks whether a master preset exists for the key.
+   */
+  public func HasPreset(key: String) -> Bool {
+    return this.FindPresetIndex(key) >= 0;
+  }
+
+  /**
+   * Checks whether any override or preset exists for the specified shoe identifier key.
+   * @param key Shoe identifier string.
+   * @return True if user override or preset exists, false otherwise.
+   */
+  public func Has(key: String) -> Bool {
+    return this.HasUserOverride(key) || this.HasPreset(key);
+  }
+
+  /**
+   * Retrieves the override entry for a given shoe identifier key (User override prioritized over preset).
    * @param key Shoe identifier string.
    * @return The matching ShoeOverrideEntry, or null if not found.
    */
   public func Get(key: String) -> ref<ShoeOverrideEntry> {
-    let idx: Int32 = this.FindIndex(key);
-    if idx >= 0 {
-      return this.m_entries[idx];
+    let userIdx: Int32 = this.FindUserOverrideIndex(key);
+    if userIdx >= 0 {
+      return this.m_userOverrides[userIdx];
+    };
+    let presetIdx: Int32 = this.FindPresetIndex(key);
+    if presetIdx >= 0 {
+      return this.m_presets[presetIdx];
     };
     return null;
+  }
+
+  /**
+   * Queries the source name ("User Override" or "Preset") for a given shoe key.
+   */
+  public func GetSettingsSource(key: String) -> String {
+    if this.HasUserOverride(key) {
+      return "User Override";
+    };
+    if this.HasPreset(key) {
+      return "Preset";
+    };
+    return "";
   }
 
   /**
@@ -151,38 +182,110 @@ public class FootwearOverrideRepository {
   }
 
   /**
-   * Adds or updates a shoe override entry with safety-clamped height bounds.
-   * @param key Shoe identifier string.
-   * @param heelMeters Raw heel height offset in meters.
-   * @param platformMeters Raw platform height offset in meters.
+   * Adds or updates a user-calibrated override entry.
    */
-  public func Register(key: String, heelMeters: Float, platformMeters: Float) -> Void {
+  public func RegisterUserOverride(key: String, heelMeters: Float, platformMeters: Float) -> Void {
     if StrLen(key) == 0 {
       return;
     };
     let clampedHeel: Float = FootwearClampingPolicy.ClampHeight(heelMeters);
     let clampedPlat: Float = FootwearClampingPolicy.ClampPlatformHeight(platformMeters);
 
-    let idx: Int32 = this.FindIndex(key);
+    let idx: Int32 = this.FindUserOverrideIndex(key);
     if idx >= 0 {
-      this.m_entries[idx].heelMeters = clampedHeel;
-      this.m_entries[idx].platformMeters = clampedPlat;
+      this.m_userOverrides[idx].heelMeters = clampedHeel;
+      this.m_userOverrides[idx].platformMeters = clampedPlat;
+      this.m_userOverrides[idx].isUserOverride = true;
     } else {
-      ArrayPush(this.m_entries, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat));
+      ArrayPush(this.m_userOverrides, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat, true));
     };
   }
 
   /**
-   * Deletes a shoe override entry from the repository.
+   * Adds or updates a master preset entry from presets.json.
+   */
+  public func RegisterPreset(key: String, heelMeters: Float, platformMeters: Float) -> Void {
+    if StrLen(key) == 0 {
+      return;
+    };
+    let clampedHeel: Float = FootwearClampingPolicy.ClampHeight(heelMeters);
+    let clampedPlat: Float = FootwearClampingPolicy.ClampPlatformHeight(platformMeters);
+
+    let idx: Int32 = this.FindPresetIndex(key);
+    if idx >= 0 {
+      this.m_presets[idx].heelMeters = clampedHeel;
+      this.m_presets[idx].platformMeters = clampedPlat;
+      this.m_presets[idx].isUserOverride = false;
+    } else {
+      ArrayPush(this.m_presets, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat, false));
+    };
+  }
+
+  /**
+   * Backward-compatible default registration: forwards to RegisterUserOverride.
+   * @param key Shoe identifier string.
+   * @param heelMeters Raw heel height offset in meters.
+   * @param platformMeters Raw platform height offset in meters.
+   */
+  public func Register(key: String, heelMeters: Float, platformMeters: Float) -> Void {
+    this.RegisterUserOverride(key, heelMeters, platformMeters);
+  }
+
+  /**
+   * Removes a user override entry from memory.
+   */
+  public func RemoveUserOverride(key: String) -> Bool {
+    let idx: Int32 = this.FindUserOverrideIndex(key);
+    if idx >= 0 {
+      ArrayErase(this.m_userOverrides, idx);
+      return true;
+    };
+    return false;
+  }
+
+  /**
+   * Backward-compatible delete: removes entry from user overrides.
    * @param key Shoe identifier string.
    * @return True if the entry was found and removed, false otherwise.
    */
   public func Remove(key: String) -> Bool {
-    let idx: Int32 = this.FindIndex(key);
-    if idx >= 0 {
-      ArrayErase(this.m_entries, idx);
-      return true;
-    };
-    return false;
+    return this.RemoveUserOverride(key);
+  }
+
+  /**
+   * Clears both user overrides and presets from the repository.
+   */
+  public func Clear() -> Void {
+    ArrayClear(this.m_userOverrides);
+    ArrayClear(this.m_presets);
+  }
+
+  /**
+   * Clears only user overrides from memory, preserving presets.
+   */
+  public func ClearUserOverrides() -> Void {
+    ArrayClear(this.m_userOverrides);
+  }
+
+  /**
+   * Retrieves the total count of registered entries (user overrides + presets).
+   * @return Total number of entries stored.
+   */
+  public func GetCount() -> Int32 {
+    return ArraySize(this.m_userOverrides) + ArraySize(this.m_presets);
+  }
+
+  /**
+   * Retrieves the count of user overrides.
+   */
+  public func GetUserOverrideCount() -> Int32 {
+    return ArraySize(this.m_userOverrides);
+  }
+
+  /**
+   * Retrieves the count of presets.
+   */
+  public func GetPresetCount() -> Int32 {
+    return ArraySize(this.m_presets);
   }
 }

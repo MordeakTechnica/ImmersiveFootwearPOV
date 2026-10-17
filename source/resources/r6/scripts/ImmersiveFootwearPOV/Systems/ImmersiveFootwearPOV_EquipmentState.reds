@@ -11,6 +11,7 @@ module ImmersiveFootwearPOV
 public class FootwearEquipmentState {
   public let equippedFootwearID: ItemID;
   public let activeSource: String;
+  public let settingsSource: String;
   public let currentHeelHeight: Float;
   public let currentPlatformHeight: Float;
   public let effectiveOffset: Float;
@@ -35,6 +36,7 @@ public class FootwearEquipmentState {
   public func ResetToZero() -> Void {
     this.equippedFootwearID = ItemID.None();
     this.activeSource = "None";
+    this.settingsSource = "None (Barefoot)";
     this.currentHeelHeight = 0.0;
     this.currentPlatformHeight = 0.0;
     this.effectiveOffset = 0.0;

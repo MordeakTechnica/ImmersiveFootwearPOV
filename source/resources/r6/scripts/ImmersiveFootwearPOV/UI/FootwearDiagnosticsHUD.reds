@@ -49,7 +49,9 @@ public class FootwearDiagnosticsHUD {
     } else {
       win.Text(n"txt_item", "Item: None (Barefoot / Unequipped)");
     };
-    win.BulletText(n"txt_src", s"Source: \(source)");
+    let settingsSrc: String = system.GetSettingsSource();
+    win.BulletText(n"txt_settings_src", s"Settings Source: \(settingsSrc)");
+    win.BulletText(n"txt_src", s"Equipment Layer: \(source)");
     win.BulletText(n"txt_heel", s"Heel Elevation: \(FloatToStringPrec(heelCm, 2)) cm");
     win.BulletText(n"txt_plat", s"Platform Sole: \(FloatToStringPrec(platCm, 2)) cm");
     win.BulletText(n"txt_eff", s"Effective Lift: \(FloatToStringPrec(effOffsetCm, 2)) cm");
@@ -86,7 +88,7 @@ public class FootwearDiagnosticsHUD {
     let cfg: ref<FootwearConfig> = system.GetConfig();
     let initialPinned: Bool = IsDefined(cfg) ? cfg.hudPinned : false;
     let pinned: Bool = win.Checkbox(n"ifp_diag_pin", "Show on HUD (when overlay is closed)", initialPinned);
-    if win.Changed(n"ifp_diag_pin") {
+    if win.Changed(n"ifp_diag_pin") && NotEquals(initialPinned, pinned) {
       if IsDefined(cfg) {
         cfg.hudPinned = pinned;
         system.GetStorageManager().SaveConfig(cfg);

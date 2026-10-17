@@ -91,7 +91,7 @@ public class FootwearCalibratorWindow {
 
     // Unified Header & Subtitle (avoids duplicate retained rows in RedWindows)
     win.Header(n"calib_hdr", hasFootwear ? s"Calibrating: \(shoeKey)" : "No Footwear Equipped");
-    win.Text(n"calib_sub", hasFootwear ? "Adjust sliders or type exact values below for instant live preview on V." : "Equip a pair of shoes or boots in inventory to calibrate.");
+    win.Text(n"calib_sub", hasFootwear ? s"Source: [\(system.GetSettingsSource())] | Adjust sliders or type values for live preview on V." : "Equip a pair of shoes or boots in inventory to calibrate.");
 
     if !hasFootwear {
       win.Spacer(n"calib_spc_none");

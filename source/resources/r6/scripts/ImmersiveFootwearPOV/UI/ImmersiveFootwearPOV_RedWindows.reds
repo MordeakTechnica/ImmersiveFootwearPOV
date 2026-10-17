@@ -191,20 +191,31 @@ public class FootwearWindowsController {
       return;
     };
 
+    let hasChanged: Bool = false;
     let diagWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
     if IsDefined(diagWin) && diagWin.x > 0.0 {
-      cfg.diagWinX = diagWin.x;
-      cfg.diagWinY = diagWin.y;
-      cfg.diagWinW = diagWin.w;
-      cfg.diagWinH = diagWin.userH;
+      if AbsF(cfg.diagWinX - diagWin.x) > 1.0 || AbsF(cfg.diagWinY - diagWin.y) > 1.0 || AbsF(cfg.diagWinW - diagWin.w) > 1.0 {
+        cfg.diagWinX = diagWin.x;
+        cfg.diagWinY = diagWin.y;
+        cfg.diagWinW = diagWin.w;
+        cfg.diagWinH = diagWin.userH;
+        hasChanged = true;
+      };
     };
 
     let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
     if IsDefined(calibWin) && calibWin.x > 0.0 {
-      cfg.calibWinX = calibWin.x;
-      cfg.calibWinY = calibWin.y;
-      cfg.calibWinW = calibWin.w;
-      cfg.calibWinH = calibWin.userH;
+      if AbsF(cfg.calibWinX - calibWin.x) > 1.0 || AbsF(cfg.calibWinY - calibWin.y) > 1.0 || AbsF(cfg.calibWinW - calibWin.w) > 1.0 {
+        cfg.calibWinX = calibWin.x;
+        cfg.calibWinY = calibWin.y;
+        cfg.calibWinW = calibWin.w;
+        cfg.calibWinH = calibWin.userH;
+        hasChanged = true;
+      };
+    };
+
+    if !hasChanged {
+      return;
     };
 
     system.GetStorageManager().SaveConfig(cfg);
@@ -304,7 +315,7 @@ public class FootwearWindowsController {
 
     // Fast-path: When RedWindows overlay is closed and HUD is unpinned, skip all window rendering & sync
     if !isOverlay && !isHudPinned {
-      return 3.0;
+      return 5.0;
     };
 
     let diagWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
@@ -376,9 +387,9 @@ public class FootwearWindowsController {
       return 0.25;
     };
     if isDiagActive {
-      return 1.5;
+      return 2.5;
     };
-    return 3.0;
+    return 5.0;
   }
 
   /**

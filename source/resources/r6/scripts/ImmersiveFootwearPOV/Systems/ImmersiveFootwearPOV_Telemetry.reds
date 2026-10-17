@@ -33,7 +33,8 @@ public class FootwearTelemetryLogger {
     let shoeName: String = sys.GetResolvedShoeDisplayName();
     let suppressed: Bool = sys.IsSuppressed();
     let reason: String = sys.GetSuppressionReason();
-    FootwearRedLogger.LogDebug(tag, s"Event: \(eventName) | Footwear: '\(shoeName)' (+\(liftCm) cm) | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+    let settingsSrc: String = sys.GetSettingsSource();
+    FootwearRedLogger.LogDebug(tag, s"Event: \(eventName) | Footwear: '\(shoeName)' [\(settingsSrc)] (+\(liftCm) cm) | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
   }
 
   /**
@@ -64,7 +65,8 @@ public class FootwearTelemetryLogger {
       let tag: String = sys.GetActiveModTag(null);
       let shoeName: String = sys.GetResolvedShoeDisplayName();
       let reason: String = sys.GetSuppressionReason();
-      FootwearRedLogger.LogDebug(tag, s"Camera State Transition -> Footwear: '\(shoeName)' | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+      let settingsSrc: String = sys.GetSettingsSource();
+      FootwearRedLogger.LogDebug(tag, s"Camera State Transition -> Footwear: '\(shoeName)' [\(settingsSrc)] | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
     };
   }
 
@@ -78,10 +80,11 @@ public class FootwearTelemetryLogger {
     let shoeName: String = sys.GetResolvedShoeDisplayName();
     let heelCm: Float = sys.GetCurrentHeelHeight() * 100.0;
     let platCm: Float = sys.GetCurrentPlatformHeight() * 100.0;
+    let settingsSrc: String = sys.GetSettingsSource();
     let actionDesc: String = inVehicle
       ? "Suppression ENFORCED (Vehicle Occupancy: resetting effective offset to 0.0m, neutralizing stance)"
       : "Suppression CLEARED (Restoring footwear elevation)";
-    FootwearRedLogger.LogInfo("VEHICLE", s"Vehicle state updated: inVehicle=\(inVehicle) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Heel: \(heelCm) cm | Platform: \(platCm) cm");
+    FootwearRedLogger.LogInfo("VEHICLE", s"Vehicle state updated: inVehicle=\(inVehicle) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Source: [\(settingsSrc)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
   }
 
   /**
@@ -90,7 +93,8 @@ public class FootwearTelemetryLogger {
    */
   public static func LogVehicleAutoRecovered(sys: ref<ImmersiveFootwearPOVSystem>) -> Void {
     if !IsDefined(sys) { return; };
-    FootwearRedLogger.LogWarn("VEHICLE", s"Vehicle state auto-recovered (Exited) | Action: Clearing Vehicle Occupancy suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())'");
+    let settingsSrc: String = sys.GetSettingsSource();
+    FootwearRedLogger.LogWarn("VEHICLE", s"Vehicle state auto-recovered (Exited) | Action: Clearing Vehicle Occupancy suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())' | Source: [\(settingsSrc)]");
   }
 
   /**
@@ -103,10 +107,11 @@ public class FootwearTelemetryLogger {
     let shoeName: String = sys.GetResolvedShoeDisplayName();
     let heelCm: Float = sys.GetCurrentHeelHeight() * 100.0;
     let platCm: Float = sys.GetCurrentPlatformHeight() * 100.0;
+    let settingsSrc: String = sys.GetSettingsSource();
     let actionDesc: String = inWorkspot
       ? "Suppression ENFORCED (Authored Workspot: chair/vending machine/furniture: resetting effective offset to 0.0m, neutralizing stance)"
       : "Suppression CLEARED (Restoring footwear elevation)";
-    FootwearRedLogger.LogInfo("WORKSPOT", s"Workspot state updated: inWorkspot=\(inWorkspot) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Heel: \(heelCm) cm | Platform: \(platCm) cm");
+    FootwearRedLogger.LogInfo("WORKSPOT", s"Workspot state updated: inWorkspot=\(inWorkspot) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Source: [\(settingsSrc)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
   }
 
   /**
@@ -115,6 +120,7 @@ public class FootwearTelemetryLogger {
    */
   public static func LogWorkspotAutoRecovered(sys: ref<ImmersiveFootwearPOVSystem>) -> Void {
     if !IsDefined(sys) { return; };
-    FootwearRedLogger.LogWarn("WORKSPOT", s"Workspot state auto-recovered (Standing/Exited) | Action: Clearing Authored Workspot suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())'");
+    let settingsSrc: String = sys.GetSettingsSource();
+    FootwearRedLogger.LogWarn("WORKSPOT", s"Workspot state auto-recovered (Standing/Exited) | Action: Clearing Authored Workspot suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())' | Source: [\(settingsSrc)]");
   }
 }

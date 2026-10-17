@@ -30,7 +30,11 @@ public class EquipmentExHelper {
       return ItemID.None();
     };
 
-    // 1. Check primary OutfitSlots.Feet slot
+    // 1. Check primary extra OutfitSlots.Feet slot
+    let feetItem: ItemID = outfitSys.GetEquippedItemInSlot(t"OutfitSlots.Feet");
+    if ItemID.IsValid(feetItem) {
+      return feetItem;
+    };
     let feetObject: ref<ItemObject> = transactionSystem.GetItemInSlot(player, t"OutfitSlots.Feet");
     if IsDefined(feetObject) {
       let feetID: ItemID = feetObject.GetItemID();
@@ -39,7 +43,20 @@ public class EquipmentExHelper {
       };
     };
 
-    // 2. Scan all occupied outfit slots in case footwear was assigned to a custom/alternate slot
+    // 2. Check base AttachmentSlots.Feet slot (where Equipment-EX equips standard shoes)
+    let baseFeetItem: ItemID = outfitSys.GetEquippedItemInSlot(t"AttachmentSlots.Feet");
+    if ItemID.IsValid(baseFeetItem) {
+      return baseFeetItem;
+    };
+    let baseFeetObject: ref<ItemObject> = transactionSystem.GetItemInSlot(player, t"AttachmentSlots.Feet");
+    if IsDefined(baseFeetObject) {
+      let baseFeetID: ItemID = baseFeetObject.GetItemID();
+      if ItemID.IsValid(baseFeetID) {
+        return baseFeetID;
+      };
+    };
+
+    // 3. Scan all occupied outfit slots in case footwear was assigned to a custom/alternate slot
     let usedSlots: array<TweakDBID> = outfitSys.GetUsedSlots();
     let count: Int32 = ArraySize(usedSlots);
     let i: Int32 = 0;
@@ -47,17 +64,44 @@ public class EquipmentExHelper {
     let slotItem: ItemID;
 
     while i < count {
-      slotObj = transactionSystem.GetItemInSlot(player, usedSlots[i]);
-      if IsDefined(slotObj) {
-        slotItem = slotObj.GetItemID();
-        if ItemID.IsValid(slotItem) && ShoeHeightParser.ReadHeelHeight(slotItem) > 0.0 {
-          return slotItem;
+      let slotID: TweakDBID = usedSlots[i];
+      if NotEquals(slotID, t"OutfitSlots.Feet") && NotEquals(slotID, t"AttachmentSlots.Feet") {
+        slotItem = outfitSys.GetEquippedItemInSlot(slotID);
+        if !ItemID.IsValid(slotItem) {
+          slotObj = transactionSystem.GetItemInSlot(player, slotID);
+          if IsDefined(slotObj) {
+            slotItem = slotObj.GetItemID();
+          };
+        };
+
+        if ItemID.IsValid(slotItem) {
+          if EquipmentExHelper.IsFootwearItem(slotItem)
+            || ShoeHeightParser.ReadHeelHeight(slotItem) > 0.0
+            || ShoeHeightParser.ReadPlatformHeight(slotItem) > 0.0 {
+            return slotItem;
+          };
         };
       };
       i += 1;
     };
 
     return ItemID.None();
+  }
+
+  /**
+   * Helper to verify if an item belongs to the Feet equipment area in TweakDB.
+   * @param itemID The ItemID to inspect.
+   * @return True if the item is classified as footwear, false otherwise.
+   */
+  public static func IsFootwearItem(itemID: ItemID) -> Bool {
+    if !ItemID.IsValid(itemID) {
+      return false;
+    };
+    let rec: ref<Item_Record> = TweakDBInterface.GetItemRecord(ItemID.GetTDBID(itemID));
+    if IsDefined(rec) && IsDefined(rec.EquipArea()) {
+      return Equals(rec.EquipArea().Type(), gamedataEquipmentArea.Feet);
+    };
+    return false;
   }
 
   /**
@@ -127,6 +171,15 @@ public class EquipmentExHelper {
    * @return Always returns false.
    */
   public static func IsEquipmentExActive(player: ref<PlayerPuppet>) -> Bool {
+    return false;
+  }
+
+  /**
+   * Fallback footwear item check when Equipment-EX is not installed.
+   * @param itemID The ItemID to inspect.
+   * @return Always returns false.
+   */
+  public static func IsFootwearItem(itemID: ItemID) -> Bool {
     return false;
   }
 }

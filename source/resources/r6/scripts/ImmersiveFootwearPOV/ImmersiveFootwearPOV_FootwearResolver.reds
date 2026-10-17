@@ -83,8 +83,8 @@ public class EquipmentExResolutionHandler extends FootwearResolutionHandler {
         return FootwearResolutionResult.Create(exItem, "Equipment-EX");
       };
       // If Equipment-EX is active but has no footwear slotted, V is wearing bare feet / flat in the outfit.
-      // Do NOT fall through to underlying gameplay equipment.
-      return FootwearResolutionResult.Create(ItemID.None(), "Equipment-EX (Bare Feet / Flat)");
+      // Under the strict hierarchy (Equipment-EX -> Wardrobe -> Gameplay Slots), do NOT fall through.
+      return FootwearResolutionResult.Create(ItemID.None(), "Equipment-EX");
     };
     return null;
   }
@@ -105,6 +105,11 @@ public class WardrobeResolutionHandler extends FootwearResolutionHandler {
       let visualItem: ItemID = equipSystem.GetActiveVisualItem(player, gamedataEquipmentArea.Feet);
       if ItemID.IsValid(visualItem) {
         return FootwearResolutionResult.Create(visualItem, "Vanilla Wardrobe");
+      };
+
+      let equipData: ref<EquipmentSystemPlayerData> = EquipmentSystem.GetData(player);
+      if IsDefined(equipData) && equipData.IsVisualSetActive() && equipData.IsSlotOverriden(gamedataEquipmentArea.Feet) {
+        return FootwearResolutionResult.Create(ItemID.None(), "Vanilla Wardrobe");
       };
     };
     return null;
@@ -142,7 +147,7 @@ public class BarefootFallbackHandler extends FootwearResolutionHandler {
    * @return Barefoot resolution result.
    */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
-    return FootwearResolutionResult.Create(ItemID.None(), "None (Unequipped)");
+    return FootwearResolutionResult.Create(ItemID.None(), "None");
   }
 }
 

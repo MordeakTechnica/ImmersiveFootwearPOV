@@ -49,42 +49,57 @@ public class FootwearCalibrationService {
     let result: ref<FootwearResolutionResult> = this.GetResolver().Resolve(player);
     let itemChanged: Bool = NotEquals(result.itemID, state.equippedFootwearID);
 
+    state.activeSource = result.sourceName;
+
     if itemChanged {
       state.equippedFootwearID = result.itemID;
-      state.activeSource = result.sourceName;
       state.hasCustomOverride = false;
       state.customHeelHeight = 0.0;
       state.customPlatformHeight = 0.0;
     };
 
     if ItemID.IsValid(state.equippedFootwearID) {
+      let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
       let heightData: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(state.equippedFootwearID);
+      let hasTags: Bool = heightData.heelHeight > 0.0 || heightData.platformHeight > 0.0;
 
-      if heightData.heelHeight > 0.0 || heightData.platformHeight > 0.0 {
+      // 1. User Override (highest precedence - user customized calibration)
+      if IsDefined(repo) && repo.HasUserOverride(shoeKey) {
+        state.hasOfficialTags = hasTags;
+        state.hasCustomOverride = true;
+        state.settingsSource = "User Override";
+        state.customHeelHeight = repo.GetHeel(shoeKey);
+        state.customPlatformHeight = repo.GetPlatform(shoeKey);
+        state.currentHeelHeight = state.customHeelHeight;
+        state.currentPlatformHeight = state.customPlatformHeight;
+      // 2. Tweak File (official TweakDB tags from mod/DLC item record)
+      } else if hasTags {
         state.hasOfficialTags = true;
         state.hasCustomOverride = false;
+        state.settingsSource = "Tweak File";
         state.currentHeelHeight = heightData.heelHeight;
         state.currentPlatformHeight = heightData.platformHeight;
+      // 3. Preset (presets.json master catalog)
+      } else if IsDefined(repo) && repo.HasPreset(shoeKey) {
+        state.hasOfficialTags = false;
+        state.hasCustomOverride = false;
+        state.settingsSource = "Preset";
+        state.currentHeelHeight = repo.GetHeel(shoeKey);
+        state.currentPlatformHeight = repo.GetPlatform(shoeKey);
+      // 4. Default / uncalibrated vanilla shoe
       } else {
         state.hasOfficialTags = false;
-        let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
-        if IsDefined(repo) && repo.Has(shoeKey) {
-          state.hasCustomOverride = true;
-          state.customHeelHeight = repo.GetHeel(shoeKey);
-          state.customPlatformHeight = repo.GetPlatform(shoeKey);
-          state.currentHeelHeight = state.customHeelHeight;
-          state.currentPlatformHeight = state.customPlatformHeight;
-        } else {
-          state.hasCustomOverride = false;
-          state.customHeelHeight = 0.0;
-          state.customPlatformHeight = 0.0;
-          state.currentHeelHeight = 0.0;
-          state.currentPlatformHeight = 0.0;
-        };
+        state.hasCustomOverride = false;
+        state.settingsSource = "Default / None";
+        state.customHeelHeight = 0.0;
+        state.customPlatformHeight = 0.0;
+        state.currentHeelHeight = 0.0;
+        state.currentPlatformHeight = 0.0;
       };
     } else {
       state.hasOfficialTags = false;
       state.hasCustomOverride = false;
+      state.settingsSource = "None (Barefoot)";
       state.currentHeelHeight = 0.0;
       state.currentPlatformHeight = 0.0;
     };
@@ -103,6 +118,7 @@ public class FootwearCalibrationService {
       return;
     };
     state.hasCustomOverride = true;
+    state.settingsSource = "Live Calibration";
     state.customHeelHeight = FootwearClampingPolicy.ClampHeight(heel);
     state.customPlatformHeight = FootwearClampingPolicy.ClampPlatformHeight(platform);
     state.currentHeelHeight = state.customHeelHeight;
@@ -126,6 +142,7 @@ public class FootwearCalibrationService {
     };
 
     state.hasCustomOverride = true;
+    state.settingsSource = "User Override";
     state.customHeelHeight = FootwearClampingPolicy.ClampHeight(heel);
     state.customPlatformHeight = FootwearClampingPolicy.ClampPlatformHeight(platform);
     state.currentHeelHeight = state.customHeelHeight;
@@ -133,7 +150,7 @@ public class FootwearCalibrationService {
 
     if ItemID.IsValid(state.equippedFootwearID) && IsDefined(repo) {
       let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
-      repo.Register(shoeKey, state.customHeelHeight, state.customPlatformHeight);
+      repo.RegisterUserOverride(shoeKey, state.customHeelHeight, state.customPlatformHeight);
     };
   }
 
@@ -153,15 +170,32 @@ public class FootwearCalibrationService {
       state.customPlatformHeight = 0.0;
       if ItemID.IsValid(state.equippedFootwearID) && IsDefined(repo) {
         let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
-        repo.Remove(shoeKey);
+        repo.RemoveUserOverride(shoeKey);
       };
-      if !state.hasOfficialTags {
+      if ItemID.IsValid(state.equippedFootwearID) {
+        let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
+        let data: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(state.equippedFootwearID);
+        if data.heelHeight > 0.0 || data.platformHeight > 0.0 {
+          state.hasOfficialTags = true;
+          state.settingsSource = "Tweak File";
+          state.currentHeelHeight = data.heelHeight;
+          state.currentPlatformHeight = data.platformHeight;
+        } else if IsDefined(repo) && repo.HasPreset(shoeKey) {
+          state.hasOfficialTags = false;
+          state.settingsSource = "Preset";
+          state.currentHeelHeight = repo.GetHeel(shoeKey);
+          state.currentPlatformHeight = repo.GetPlatform(shoeKey);
+        } else {
+          state.hasOfficialTags = false;
+          state.settingsSource = "Default / None";
+          state.currentHeelHeight = 0.0;
+          state.currentPlatformHeight = 0.0;
+        };
+      } else {
+        state.hasOfficialTags = false;
+        state.settingsSource = "None (Barefoot)";
         state.currentHeelHeight = 0.0;
         state.currentPlatformHeight = 0.0;
-      } else {
-        let data: ref<ShoeHeightData> = ShoeHeightParser.ReadShoeHeightData(state.equippedFootwearID);
-        state.currentHeelHeight = data.heelHeight;
-        state.currentPlatformHeight = data.platformHeight;
       };
     };
   }
