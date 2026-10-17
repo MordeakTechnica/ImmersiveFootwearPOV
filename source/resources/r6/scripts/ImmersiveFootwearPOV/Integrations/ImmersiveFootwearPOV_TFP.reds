@@ -32,45 +32,54 @@ public class TFPHelper {
 
     let config: ref<IFPConfig> = tfpSys.GetConfig();
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(config) {
-      let baseZ: Float = Cast<Float>(config.cameraZ_i) / 1000.0;
-      let offsetToApply: Float = hasExplicitOffset ? effectiveOffset : (IsDefined(povSys) ? povSys.GetEffectiveOffset() : 0.0);
-      let targetZ: Float = baseZ + offsetToApply;
-
-      // Only update if target elevation has actually changed
-      if AbsF(config.cameraZ - targetZ) > 0.0001 {
-        let oldCamZ: Float = config.cameraZ;
-        // Update TFP config cameraZ with additive footwear lift
-        config.cameraZ = targetZ;
-
-        cam.ResetToBase(true);
-
-        // Sync weapon height with active footwear lift
-        TFPHelper.SyncWeaponForCurrentFootwear(game);
-
-        let shoeName: String = povSys.GetResolvedShoeDisplayName();
-        let shoeSource: String = povSys.GetActiveSource();
-        let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
-        let baseZCm: Float = Cast<Float>(RoundF(baseZ * 1000.0)) / 10.0;
-        let targetZCm: Float = Cast<Float>(RoundF(targetZ * 1000.0)) / 10.0;
-        let oldCamZCm: Float = Cast<Float>(RoundF(oldCamZ * 1000.0)) / 10.0;
-        let isSuppressed: Bool = povSys.IsSuppressed();
-        let suppReason: String = povSys.GetSuppressionReason();
-
-        let tag: String = povSys.GetActiveModTag(player);
-        let msg: String;
-        if isSuppressed {
-          msg = s"Footwear Height Suppressed (\(suppReason)) -> Shoe: '\(shoeName)' [\(shoeSource)] | Active Lift: +0.0cm | Base CameraZ: \(baseZCm)cm (was \(oldCamZCm)cm)";
-        } else {
-          msg = s"Footwear Height Applied -> Shoe: '\(shoeName)' [\(shoeSource)] | Lift: +\(liftCm)cm | TFP Base: \(baseZCm)cm -> Total CameraZ: \(targetZCm)cm (was \(oldCamZCm)cm)";
-        };
-
-        let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
-        if povSys.IsDebugLogging() && (isModuloZero || isSuppressed) {
-          FootwearRedLogger.LogDebug(tag, msg);
-        };
-      };
+    if !IsDefined(config) || !IsDefined(povSys) {
+      return;
     };
+
+    let baseZ: Float = Cast<Float>(config.cameraZ_i) / 1000.0;
+    let offsetToApply: Float = hasExplicitOffset ? effectiveOffset : povSys.GetEffectiveOffset();
+    let targetZ: Float = baseZ + offsetToApply;
+
+    // Fail-first: only update if target elevation has actually changed
+    if AbsF(config.cameraZ - targetZ) <= 0.0001 {
+      return;
+    };
+
+    let oldCamZ: Float = config.cameraZ;
+    // Update TFP config cameraZ with additive footwear lift
+    config.cameraZ = targetZ;
+
+    cam.ResetToBase(true);
+
+    // Sync weapon height with active footwear lift
+    TFPHelper.SyncWeaponForCurrentFootwear(game);
+
+    if !povSys.IsDebugLogging() {
+      return;
+    };
+
+    let shoeName: String = povSys.GetResolvedShoeDisplayName();
+    let shoeSource: String = povSys.GetActiveSource();
+    let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
+    let baseZCm: Float = Cast<Float>(RoundF(baseZ * 1000.0)) / 10.0;
+    let targetZCm: Float = Cast<Float>(RoundF(targetZ * 1000.0)) / 10.0;
+    let oldCamZCm: Float = Cast<Float>(RoundF(oldCamZ * 1000.0)) / 10.0;
+    let isSuppressed: Bool = povSys.IsSuppressed();
+    let suppReason: String = povSys.GetSuppressionReason();
+
+    let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
+    if !isModuloZero && !isSuppressed {
+      return;
+    };
+
+    let tag: String = povSys.GetActiveModTag(player);
+    let msg: String;
+    if isSuppressed {
+      msg = s"Footwear Height Suppressed (\(suppReason)) -> Shoe: '\(shoeName)' [\(shoeSource)] | Active Lift: +0.0cm | Base CameraZ: \(baseZCm)cm (was \(oldCamZCm)cm)";
+    } else {
+      msg = s"Footwear Height Applied -> Shoe: '\(shoeName)' [\(shoeSource)] | Lift: +\(liftCm)cm | TFP Base: \(baseZCm)cm -> Total CameraZ: \(targetZCm)cm (was \(oldCamZCm)cm)";
+    };
+    FootwearRedLogger.LogDebug(tag, msg);
   }
 
   /**
@@ -90,25 +99,30 @@ public class TFPHelper {
     let povSys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
     let weapon: ref<IFPWeapon> = tfpSys.GetWeapon();
     let config: ref<IFPConfig> = tfpSys.GetConfig();
-
-    if IsDefined(weapon) && IsDefined(povSys) && IsDefined(config) {
-      let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
-      if IsDefined(curWeapon) && curWeapon.IsAttached() {
-        let effectiveOffset: Float = povSys.GetEffectiveOffset();
-        let key: String = weapon.GetTuningKeyForCurrent();
-
-        // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
-        weapon.RefreshCurrentWeapon(config.cameraZ, config);
-
-        let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
-        let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
-        let tag: String = povSys.GetActiveModTag(player);
-        let msg: String = s"Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
-        if povSys.IsDebugLogging() && isModuloZero {
-          FootwearRedLogger.LogDebug(tag, msg);
-        };
-      };
+    if !IsDefined(weapon) || !IsDefined(povSys) || !IsDefined(config) {
+      return;
     };
+
+    let curWeapon: wref<WeaponObject> = weapon.GetCurrentWeapon();
+    if !IsDefined(curWeapon) || !curWeapon.IsAttached() {
+      return;
+    };
+
+    // Refresh TFP weapon ADS stat modifiers and TweakDB alignment with elevated cameraZ
+    weapon.RefreshCurrentWeapon(config.cameraZ, config);
+
+    if !povSys.IsDebugLogging() {
+      return;
+    };
+    let effectiveOffset: Float = povSys.GetEffectiveOffset();
+    let liftCm: Float = Cast<Float>(RoundF(effectiveOffset * 1000.0)) / 10.0;
+    let isModuloZero: Bool = (RoundF(liftCm * 10.0) % 5) == 0;
+    if !isModuloZero {
+      return;
+    };
+    let tag: String = povSys.GetActiveModTag(player);
+    let msg: String = s"Weapon ADS Reticle Aligned -> Shoe Lift: +\(liftCm)cm | CameraZ: \(config.cameraZ)m";
+    FootwearRedLogger.LogDebug(tag, msg);
   }
 
   /**
@@ -118,10 +132,10 @@ public class TFPHelper {
    */
   public static func GetFootwearHeightOffset(game: GameInstance) -> Float {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(sys) {
-      return sys.GetEffectiveOffset();
+    if !IsDefined(sys) {
+      return 0.0;
     };
-    return 0.0;
+    return sys.GetEffectiveOffset();
   }
 
   /**
@@ -131,10 +145,10 @@ public class TFPHelper {
    */
   public static func GetCurrentHeelHeight(game: GameInstance) -> Float {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(sys) {
-      return sys.GetCurrentHeelHeight();
+    if !IsDefined(sys) {
+      return 0.0;
     };
-    return 0.0;
+    return sys.GetCurrentHeelHeight();
   }
 
   /**
@@ -144,10 +158,10 @@ public class TFPHelper {
    */
   public static func IsSuppressed(game: GameInstance) -> Bool {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(sys) {
-      return sys.IsSuppressed();
+    if !IsDefined(sys) {
+      return false;
     };
-    return false;
+    return sys.IsSuppressed();
   }
 
   /**
@@ -159,9 +173,10 @@ public class TFPHelper {
    */
   public static func LogEvent(game: GameInstance, eventName: String, baseZ: Float, curZ: Float) -> Void {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(sys) {
-      sys.LogTFPEvent(eventName, baseZ, curZ);
+    if !IsDefined(sys) {
+      return;
     };
+    sys.LogTFPEvent(eventName, baseZ, curZ);
   }
 
   /**
@@ -172,9 +187,10 @@ public class TFPHelper {
    */
   public static func LogPolling(game: GameInstance, baseZ: Float, curZ: Float) -> Void {
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(game);
-    if IsDefined(sys) {
-      sys.LogTFPPolling(baseZ, curZ);
+    if !IsDefined(sys) {
+      return;
     };
+    sys.LogTFPPolling(baseZ, curZ);
   }
 
   /**
@@ -188,15 +204,15 @@ public class TFPHelper {
     if !IsDefined(sys) || !sys.IsDebugLogging() { return; };
 
     let tfpSys: ref<IFPSystem> = IFPSystem.Get(gi);
-    if IsDefined(tfpSys) && tfpSys.IsSessionActive() {
-      let cam: ref<IFPCamera> = tfpSys.GetCamera();
-      let cfg: ref<IFPConfig> = tfpSys.GetConfig();
-      if IsDefined(cam) && IsDefined(cfg) {
-        let baseZ: Float = cam.GetBaseZ(cfg);
-        let curZ: Float = cam.GetCurrentZ();
-        sys.LogTFPPolling(baseZ, curZ);
-      };
-    };
+    if !IsDefined(tfpSys) || !tfpSys.IsSessionActive() { return; };
+
+    let cam: ref<IFPCamera> = tfpSys.GetCamera();
+    let cfg: ref<IFPConfig> = tfpSys.GetConfig();
+    if !IsDefined(cam) || !IsDefined(cfg) { return; };
+
+    let baseZ: Float = cam.GetBaseZ(cfg);
+    let curZ: Float = cam.GetCurrentZ();
+    sys.LogTFPPolling(baseZ, curZ);
   }
 }
 

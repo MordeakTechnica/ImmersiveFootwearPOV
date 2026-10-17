@@ -73,9 +73,10 @@ public class FootwearEventDispatcher {
    * @param listener The composite listener to register.
    */
   public func RegisterListener(listener: ref<IFootwearStateListener>) -> Void {
-    if IsDefined(listener) {
-      ArrayPush(this.m_compositeListeners, listener);
+    if !IsDefined(listener) {
+      return;
     };
+    ArrayPush(this.m_compositeListeners, listener);
   }
 
   /**
@@ -83,6 +84,9 @@ public class FootwearEventDispatcher {
    * @param listener The composite listener to remove.
    */
   public func UnregisterListener(listener: ref<IFootwearStateListener>) -> Void {
+    if !IsDefined(listener) {
+      return;
+    };
     let count: Int32 = ArraySize(this.m_compositeListeners);
     let i: Int32 = 0;
     while i < count {
@@ -99,9 +103,10 @@ public class FootwearEventDispatcher {
    * @param l The footwear change listener to add.
    */
   public func RegisterFootwearListener(l: ref<IFootwearChangeListener>) -> Void {
-    if IsDefined(l) {
-      ArrayPush(this.m_footwearListeners, l);
+    if !IsDefined(l) {
+      return;
     };
+    ArrayPush(this.m_footwearListeners, l);
   }
 
   /**
@@ -109,6 +114,9 @@ public class FootwearEventDispatcher {
    * @param l The footwear change listener to remove.
    */
   public func UnregisterFootwearListener(l: ref<IFootwearChangeListener>) -> Void {
+    if !IsDefined(l) {
+      return;
+    };
     let count: Int32 = ArraySize(this.m_footwearListeners);
     let i: Int32 = 0;
     while i < count {
@@ -125,9 +133,10 @@ public class FootwearEventDispatcher {
    * @param l The suppression change listener to add.
    */
   public func RegisterSuppressionListener(l: ref<ISuppressionChangeListener>) -> Void {
-    if IsDefined(l) {
-      ArrayPush(this.m_suppressionListeners, l);
+    if !IsDefined(l) {
+      return;
     };
+    ArrayPush(this.m_suppressionListeners, l);
   }
 
   /**
@@ -135,6 +144,9 @@ public class FootwearEventDispatcher {
    * @param l The suppression change listener to remove.
    */
   public func UnregisterSuppressionListener(l: ref<ISuppressionChangeListener>) -> Void {
+    if !IsDefined(l) {
+      return;
+    };
     let count: Int32 = ArraySize(this.m_suppressionListeners);
     let i: Int32 = 0;
     while i < count {
@@ -151,9 +163,10 @@ public class FootwearEventDispatcher {
    * @param l The configuration change listener to add.
    */
   public func RegisterConfigListener(l: ref<IConfigChangeListener>) -> Void {
-    if IsDefined(l) {
-      ArrayPush(this.m_configListeners, l);
+    if !IsDefined(l) {
+      return;
     };
+    ArrayPush(this.m_configListeners, l);
   }
 
   /**
@@ -161,6 +174,9 @@ public class FootwearEventDispatcher {
    * @param l The configuration change listener to remove.
    */
   public func UnregisterConfigListener(l: ref<IConfigChangeListener>) -> Void {
+    if !IsDefined(l) {
+      return;
+    };
     let count: Int32 = ArraySize(this.m_configListeners);
     let i: Int32 = 0;
     while i < count {
@@ -229,6 +245,9 @@ public class FootwearEventDispatcher {
    * @param config The updated FootwearConfig instance.
    */
   public func NotifyConfigChanged(config: ref<FootwearConfig>) -> Void {
+    if !IsDefined(config) {
+      return;
+    };
     let count: Int32 = ArraySize(this.m_configListeners);
     let i: Int32 = 0;
     while i < count {

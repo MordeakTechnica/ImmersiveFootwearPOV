@@ -83,14 +83,14 @@ public class FootwearStorageManager {
     };
 
     let val: ref<JsonValue> = this.m_storage.ReadJson(this.CONFIG_FILE);
-    if IsDefined(val) && val.IsMap() {
-      config.ReadFromJson(val.AsMap());
-      FootwearRedLogger.LogInfo("STORAGE", "Loaded mod configuration from config.json");
-      return true;
+    if !IsDefined(val) || !val.IsMap() {
+      FootwearRedLogger.LogWarn("STORAGE", "config.json was invalid or unreadable, using defaults");
+      return false;
     };
 
-    FootwearRedLogger.LogWarn("STORAGE", "config.json was invalid or unreadable, using defaults");
-    return false;
+    config.ReadFromJson(val.AsMap());
+    FootwearRedLogger.LogInfo("STORAGE", "Loaded mod configuration from config.json");
+    return true;
   }
 
   /**
@@ -106,12 +106,12 @@ public class FootwearStorageManager {
     let map: ref<JsonMap> = JsonMap.Make();
     config.WriteToJson(map);
     let success: Bool = this.m_storage.WriteJson(this.CONFIG_FILE, map, false, true);
-    if success {
-      FootwearRedLogger.LogInfo("STORAGE", "Saved mod configuration to config.json");
-    } else {
+    if !success {
       FootwearRedLogger.LogError("STORAGE", "Failed to write config.json");
+      return false;
     };
-    return success;
+    FootwearRedLogger.LogInfo("STORAGE", "Saved mod configuration to config.json");
+    return true;
   }
 
   // -----------------------------------------------------------------------------
@@ -219,12 +219,12 @@ public class FootwearStorageManager {
     rootMap.Put(key, itemMap);
 
     let success: Bool = this.m_storage.WriteJson(this.OVERRIDES_FILE, rootMap, false, false);
-    if success {
-      FootwearRedLogger.LogInfo("STORAGE", s"Saved user shoe override for '\(key)' (Heel: \(heelMeters * 100.0)cm, Plat: \(platMeters * 100.0)cm)");
-    } else {
+    if !success {
       FootwearRedLogger.LogError("STORAGE", s"Failed to write user override for '\(key)'");
+      return false;
     };
-    return success;
+    FootwearRedLogger.LogInfo("STORAGE", s"Saved user shoe override for '\(key)' (Heel: \(heelMeters * 100.0)cm, Plat: \(platMeters * 100.0)cm)");
+    return true;
   }
 
   /**
@@ -246,11 +246,11 @@ public class FootwearStorageManager {
     };
 
     let rootMap: ref<JsonMap> = existing.AsMap();
-    if rootMap.Contains(key) {
-      rootMap.Drop(key);
-      return this.m_storage.WriteJson(this.OVERRIDES_FILE, rootMap, false, false);
+    if !rootMap.Contains(key) {
+      return false;
     };
-    return false;
+    rootMap.Drop(key);
+    return this.m_storage.WriteJson(this.OVERRIDES_FILE, rootMap, false, false);
   }
 
   // -----------------------------------------------------------------------------
@@ -306,10 +306,10 @@ public class FootwearStorageManager {
    * @return Number of entries registered.
    */
   public func LoadUserOverrides(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
-    if IsDefined(system) {
-      return this.LoadUserOverridesIntoRepo(system.GetOverrideRepository());
+    if !IsDefined(system) {
+      return 0;
     };
-    return 0;
+    return this.LoadUserOverridesIntoRepo(system.GetOverrideRepository());
   }
 
   /**
@@ -318,10 +318,10 @@ public class FootwearStorageManager {
    * @return Number of entries registered.
    */
   public func LoadMasterPresets(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
-    if IsDefined(system) {
-      return this.LoadMasterPresetsIntoRepo(system.GetOverrideRepository());
+    if !IsDefined(system) {
+      return 0;
     };
-    return 0;
+    return this.LoadMasterPresetsIntoRepo(system.GetOverrideRepository());
   }
 
   /**

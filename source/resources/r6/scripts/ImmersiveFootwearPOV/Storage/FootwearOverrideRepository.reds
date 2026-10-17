@@ -50,6 +50,9 @@ public class FootwearOverrideRepository {
    * @return Normalized identifier string.
    */
   public static func NormalizeKey(k: String) -> String {
+    if StrLen(k) == 0 {
+      return "";
+    };
     let lower: String = StrLower(k);
     if StrBeginsWith(lower, "items.") {
       return StrReplace(lower, "items.", "");
@@ -62,6 +65,9 @@ public class FootwearOverrideRepository {
    */
   private func FindIndexIn(entries: array<ref<ShoeOverrideEntry>>, key: String) -> Int32 {
     let count: Int32 = ArraySize(entries);
+    if StrLen(key) == 0 || count == 0 {
+      return -1;
+    };
     let i: Int32 = 0;
     while i < count {
       if Equals(entries[i].key, key) {
@@ -92,6 +98,9 @@ public class FootwearOverrideRepository {
    * Finds index in user overrides array.
    */
   public func FindUserOverrideIndex(key: String) -> Int32 {
+    if StrLen(key) == 0 {
+      return -1;
+    };
     return this.FindIndexIn(this.m_userOverrides, key);
   }
 
@@ -99,6 +108,9 @@ public class FootwearOverrideRepository {
    * Finds index in presets array.
    */
   public func FindPresetIndex(key: String) -> Int32 {
+    if StrLen(key) == 0 {
+      return -1;
+    };
     return this.FindIndexIn(this.m_presets, key);
   }
 
@@ -106,6 +118,9 @@ public class FootwearOverrideRepository {
    * Checks whether a user-calibrated override exists for the key.
    */
   public func HasUserOverride(key: String) -> Bool {
+    if StrLen(key) == 0 {
+      return false;
+    };
     return this.FindUserOverrideIndex(key) >= 0;
   }
 
@@ -113,6 +128,9 @@ public class FootwearOverrideRepository {
    * Checks whether a master preset exists for the key.
    */
   public func HasPreset(key: String) -> Bool {
+    if StrLen(key) == 0 {
+      return false;
+    };
     return this.FindPresetIndex(key) >= 0;
   }
 
@@ -122,6 +140,9 @@ public class FootwearOverrideRepository {
    * @return True if user override or preset exists, false otherwise.
    */
   public func Has(key: String) -> Bool {
+    if StrLen(key) == 0 {
+      return false;
+    };
     return this.HasUserOverride(key) || this.HasPreset(key);
   }
 
@@ -131,6 +152,9 @@ public class FootwearOverrideRepository {
    * @return The matching ShoeOverrideEntry, or null if not found.
    */
   public func Get(key: String) -> ref<ShoeOverrideEntry> {
+    if StrLen(key) == 0 {
+      return null;
+    };
     let userIdx: Int32 = this.FindUserOverrideIndex(key);
     if userIdx >= 0 {
       return this.m_userOverrides[userIdx];
@@ -146,6 +170,9 @@ public class FootwearOverrideRepository {
    * Queries the source name ("User Override" or "Preset") for a given shoe key.
    */
   public func GetSettingsSource(key: String) -> String {
+    if StrLen(key) == 0 {
+      return "";
+    };
     if this.HasUserOverride(key) {
       return "User Override";
     };
@@ -162,10 +189,10 @@ public class FootwearOverrideRepository {
    */
   public func GetHeel(key: String) -> Float {
     let entry: ref<ShoeOverrideEntry> = this.Get(key);
-    if IsDefined(entry) {
-      return entry.heelMeters;
+    if !IsDefined(entry) {
+      return 0.0;
     };
-    return 0.0;
+    return entry.heelMeters;
   }
 
   /**
@@ -175,10 +202,10 @@ public class FootwearOverrideRepository {
    */
   public func GetPlatform(key: String) -> Float {
     let entry: ref<ShoeOverrideEntry> = this.Get(key);
-    if IsDefined(entry) {
-      return entry.platformMeters;
+    if !IsDefined(entry) {
+      return 0.0;
     };
-    return 0.0;
+    return entry.platformMeters;
   }
 
   /**
@@ -196,9 +223,9 @@ public class FootwearOverrideRepository {
       this.m_userOverrides[idx].heelMeters = clampedHeel;
       this.m_userOverrides[idx].platformMeters = clampedPlat;
       this.m_userOverrides[idx].isUserOverride = true;
-    } else {
-      ArrayPush(this.m_userOverrides, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat, true));
+      return;
     };
+    ArrayPush(this.m_userOverrides, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat, true));
   }
 
   /**
@@ -216,9 +243,9 @@ public class FootwearOverrideRepository {
       this.m_presets[idx].heelMeters = clampedHeel;
       this.m_presets[idx].platformMeters = clampedPlat;
       this.m_presets[idx].isUserOverride = false;
-    } else {
-      ArrayPush(this.m_presets, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat, false));
+      return;
     };
+    ArrayPush(this.m_presets, ShoeOverrideEntry.Create(key, clampedHeel, clampedPlat, false));
   }
 
   /**
@@ -235,12 +262,15 @@ public class FootwearOverrideRepository {
    * Removes a user override entry from memory.
    */
   public func RemoveUserOverride(key: String) -> Bool {
-    let idx: Int32 = this.FindUserOverrideIndex(key);
-    if idx >= 0 {
-      ArrayErase(this.m_userOverrides, idx);
-      return true;
+    if StrLen(key) == 0 {
+      return false;
     };
-    return false;
+    let idx: Int32 = this.FindUserOverrideIndex(key);
+    if idx < 0 {
+      return false;
+    };
+    ArrayErase(this.m_userOverrides, idx);
+    return true;
   }
 
   /**

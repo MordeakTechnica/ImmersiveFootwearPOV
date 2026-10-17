@@ -12,10 +12,10 @@ public class FootwearDisplayHelper {
    * @return Formatted TweakDB ID string, or empty string if invalid.
    */
   public static func GetResolvedShoeTDBIDString(itemID: ItemID) -> String {
-    if ItemID.IsValid(itemID) {
-      return TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID));
+    if !ItemID.IsValid(itemID) {
+      return "";
     };
-    return "";
+    return TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID));
   }
 
   /**
@@ -25,19 +25,21 @@ public class FootwearDisplayHelper {
    * @return Localized shoe name or fallback identifier.
    */
   public static func GetResolvedShoeDisplayName(itemID: ItemID) -> String {
-    if ItemID.IsValid(itemID) {
-      let record: ref<Item_Record> = TweakDBInterface.GetItemRecord(ItemID.GetTDBID(itemID));
-      if IsDefined(record) {
-        let locKey: CName = record.DisplayName();
-        if IsNameValid(locKey) {
-          let locName: String = GetLocalizedTextByKey(locKey);
-          if StrLen(locName) > 0 {
-            return locName;
-          };
-        };
-        return TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID));
-      };
+    if !ItemID.IsValid(itemID) {
+      return "None";
     };
-    return "None";
+    let record: ref<Item_Record> = TweakDBInterface.GetItemRecord(ItemID.GetTDBID(itemID));
+    if !IsDefined(record) {
+      return "None";
+    };
+    let locKey: CName = record.DisplayName();
+    if !IsNameValid(locKey) {
+      return TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID));
+    };
+    let locName: String = GetLocalizedTextByKey(locKey);
+    if StrLen(locName) == 0 {
+      return TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID));
+    };
+    return locName;
   }
 }

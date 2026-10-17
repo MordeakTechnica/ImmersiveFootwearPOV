@@ -11,19 +11,23 @@ module ImmersiveFootwearPOV
 @addMethod(gameuiPhotoModeMenuController)
 public func ApplyFootwearElevation() -> Void {
   let obj: ref<GameObject> = this.GetPlayerControlledObject();
-  if IsDefined(obj) {
-    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        let platMeters: Float = sys.GetCurrentPlatformHeight();
-        if platMeters > 0.0 {
-          let clampedElevation: Float = ShoeHeightParser.ClampPlatformHeight(platMeters);
-          this.OnForceAttributeVaulue(37u, clampedElevation, true);
-        };
-      };
-    };
+  if !IsDefined(obj) {
+    return;
   };
+  let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+  if !IsDefined(player) {
+    return;
+  };
+  let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+  if !IsDefined(sys) {
+    return;
+  };
+  let platMeters: Float = sys.GetCurrentPlatformHeight();
+  if platMeters <= 0.0 {
+    return;
+  };
+  let clampedElevation: Float = ShoeHeightParser.ClampPlatformHeight(platMeters);
+  this.OnForceAttributeVaulue(37u, clampedElevation, true);
 }
 
 /**
@@ -35,17 +39,20 @@ public func ApplyFootwearElevation() -> Void {
 protected cb func OnShow(reversedUI: Bool) -> Bool {
   let result: Bool = wrappedMethod(reversedUI);
   let obj: ref<GameObject> = this.GetPlayerControlledObject();
-  if IsDefined(obj) {
-    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        sys.SetPhotoModeActive(true);
-        sys.UpdateEquippedFootwear(player);
-        this.ApplyFootwearElevation();
-      };
-    };
+  if !IsDefined(obj) {
+    return result;
   };
+  let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+  if !IsDefined(player) {
+    return result;
+  };
+  let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+  if !IsDefined(sys) {
+    return result;
+  };
+  sys.SetPhotoModeActive(true);
+  sys.UpdateEquippedFootwear(player);
+  this.ApplyFootwearElevation();
   return result;
 }
 
@@ -57,16 +64,19 @@ protected cb func OnShow(reversedUI: Bool) -> Bool {
 protected cb func OnHide() -> Bool {
   let result: Bool = wrappedMethod();
   let obj: ref<GameObject> = this.GetPlayerControlledObject();
-  if IsDefined(obj) {
-    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        sys.SetPhotoModeActive(false);
-        sys.RecalculateEffectiveOffset(player);
-      };
-    };
+  if !IsDefined(obj) {
+    return result;
   };
+  let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(obj.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+  if !IsDefined(player) {
+    return result;
+  };
+  let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+  if !IsDefined(sys) {
+    return result;
+  };
+  sys.SetPhotoModeActive(false);
+  sys.RecalculateEffectiveOffset(player);
   return result;
 }
 

@@ -31,9 +31,10 @@ public class FootwearCalibratorWindow {
    */
   public static func Render(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
-    if IsDefined(system) {
-      system.GetCalibratorWindow().RenderInternal(gi, targetWin);
+    if !IsDefined(system) {
+      return;
     };
+    system.GetCalibratorWindow().RenderInternal(gi, targetWin);
   }
 
   /**

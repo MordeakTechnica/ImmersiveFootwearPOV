@@ -174,9 +174,10 @@ public class StrideController {
     this.ResetValues();
     this.m_statusText = "Reset";
     this.m_hasZeroPublished = false;
-    if IsDefined(player) {
-      this.Publish(player);
+    if !IsDefined(player) {
+      return;
     };
+    this.Publish(player);
   }
 
   /**

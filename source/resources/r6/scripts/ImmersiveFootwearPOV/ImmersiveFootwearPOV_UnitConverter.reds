@@ -15,7 +15,7 @@ public class FootwearUnitConverter {
    * @return Converted measurement in meters, or 0.0 if invalid.
    */
   public static func ConvertTagValueToMeters(valueStr: String, maxAllowedCm: Float) -> Float {
-    if StrLen(valueStr) == 0 {
+    if StrLen(valueStr) == 0 || maxAllowedCm <= 0.0 {
       return 0.0;
     };
 

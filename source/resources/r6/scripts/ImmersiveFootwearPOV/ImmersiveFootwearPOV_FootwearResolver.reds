@@ -47,14 +47,17 @@ public abstract class FootwearResolutionHandler {
    * @return The resolved FootwearResolutionResult.
    */
   public func Handle(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
+    if !IsDefined(player) {
+      return FootwearResolutionResult.Create(ItemID.None(), "None (Invalid Player)");
+    };
     let result: ref<FootwearResolutionResult> = this.Resolve(player);
     if IsDefined(result) {
       return result;
     };
-    if IsDefined(this.m_nextHandler) {
-      return this.m_nextHandler.Handle(player);
+    if !IsDefined(this.m_nextHandler) {
+      return FootwearResolutionResult.Create(ItemID.None(), "None (End of Chain)");
     };
-    return FootwearResolutionResult.Create(ItemID.None(), "None (End of Chain)");
+    return this.m_nextHandler.Handle(player);
   }
 
   /**
@@ -77,16 +80,16 @@ public class EquipmentExResolutionHandler extends FootwearResolutionHandler {
    * @return Equipment-EX resolution result, or null if Equipment-EX is not active.
    */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
-    if EquipmentExHelper.IsEquipmentExActive(player) {
-      let exItem: ItemID = EquipmentExHelper.GetActiveFootwear(player);
-      if ItemID.IsValid(exItem) {
-        return FootwearResolutionResult.Create(exItem, "Equipment-EX");
-      };
-      // If Equipment-EX is active but has no footwear slotted, V is wearing bare feet / flat in the outfit.
-      // Under the strict hierarchy (Equipment-EX -> Wardrobe -> Gameplay Slots), do NOT fall through.
-      return FootwearResolutionResult.Create(ItemID.None(), "Equipment-EX");
+    if !IsDefined(player) || !EquipmentExHelper.IsEquipmentExActive(player) {
+      return null;
     };
-    return null;
+    let exItem: ItemID = EquipmentExHelper.GetActiveFootwear(player);
+    if ItemID.IsValid(exItem) {
+      return FootwearResolutionResult.Create(exItem, "Equipment-EX");
+    };
+    // If Equipment-EX is active but has no footwear slotted, V is wearing bare feet / flat in the outfit.
+    // Under the strict hierarchy (Equipment-EX -> Wardrobe -> Gameplay Slots), do NOT fall through.
+    return FootwearResolutionResult.Create(ItemID.None(), "Equipment-EX");
   }
 }
 
@@ -100,19 +103,23 @@ public class WardrobeResolutionHandler extends FootwearResolutionHandler {
    * @return Wardrobe visual item result, or null if no wardrobe footwear equipped.
    */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
-    let equipSystem: ref<EquipmentSystem> = EquipmentSystem.GetInstance(player);
-    if IsDefined(equipSystem) {
-      let visualItem: ItemID = equipSystem.GetActiveVisualItem(player, gamedataEquipmentArea.Feet);
-      if ItemID.IsValid(visualItem) {
-        return FootwearResolutionResult.Create(visualItem, "Vanilla Wardrobe");
-      };
-
-      let equipData: ref<EquipmentSystemPlayerData> = EquipmentSystem.GetData(player);
-      if IsDefined(equipData) && equipData.IsVisualSetActive() && equipData.IsSlotOverriden(gamedataEquipmentArea.Feet) {
-        return FootwearResolutionResult.Create(ItemID.None(), "Vanilla Wardrobe");
-      };
+    if !IsDefined(player) {
+      return null;
     };
-    return null;
+    let equipSystem: ref<EquipmentSystem> = EquipmentSystem.GetInstance(player);
+    if !IsDefined(equipSystem) {
+      return null;
+    };
+    let visualItem: ItemID = equipSystem.GetActiveVisualItem(player, gamedataEquipmentArea.Feet);
+    if ItemID.IsValid(visualItem) {
+      return FootwearResolutionResult.Create(visualItem, "Vanilla Wardrobe");
+    };
+
+    let equipData: ref<EquipmentSystemPlayerData> = EquipmentSystem.GetData(player);
+    if !IsDefined(equipData) || !equipData.IsVisualSetActive() || !equipData.IsSlotOverriden(gamedataEquipmentArea.Feet) {
+      return null;
+    };
+    return FootwearResolutionResult.Create(ItemID.None(), "Vanilla Wardrobe");
   }
 }
 
@@ -126,14 +133,18 @@ public class GameplaySlotResolutionHandler extends FootwearResolutionHandler {
    * @return Gameplay equipment slot item result, or null if empty.
    */
   protected func Resolve(player: ref<PlayerPuppet>) -> ref<FootwearResolutionResult> {
-    let equipSystem: ref<EquipmentSystem> = EquipmentSystem.GetInstance(player);
-    if IsDefined(equipSystem) {
-      let gameplayItem: ItemID = equipSystem.GetActiveItem(player, gamedataEquipmentArea.Feet);
-      if ItemID.IsValid(gameplayItem) {
-        return FootwearResolutionResult.Create(gameplayItem, "Gameplay Equipment Slot");
-      };
+    if !IsDefined(player) {
+      return null;
     };
-    return null;
+    let equipSystem: ref<EquipmentSystem> = EquipmentSystem.GetInstance(player);
+    if !IsDefined(equipSystem) {
+      return null;
+    };
+    let gameplayItem: ItemID = equipSystem.GetActiveItem(player, gamedataEquipmentArea.Feet);
+    if !ItemID.IsValid(gameplayItem) {
+      return null;
+    };
+    return FootwearResolutionResult.Create(gameplayItem, "Gameplay Equipment Slot");
   }
 }
 

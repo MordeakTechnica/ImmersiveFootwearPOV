@@ -105,6 +105,9 @@ public class ShoeHeightParser {
 
     let tags: array<CName> = itemRecord.Tags();
     let count: Int32 = ArraySize(tags);
+    if count == 0 {
+      return ShoeHeightData.Create(0.0, 0.0);
+    };
     let i: Int32 = 0;
     let tagStr: String;
 

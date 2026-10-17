@@ -80,18 +80,21 @@ public class PlayerSuppressionSnapshot {
     snap.isActorInWorkspot = GameInstance.GetWorkspotSystem(player.GetGame()).IsActorInWorkspot(player);
 
     let psmBlackboard: ref<IBlackboard> = player.GetPlayerStateMachineBlackboard();
-    if IsDefined(psmBlackboard) {
-      let psmDefs: ref<PlayerStateMachineDef> = GetAllBlackboardDefs().PlayerStateMachine;
-      if IsDefined(psmDefs) {
-        snap.sceneTier = psmBlackboard.GetInt(psmDefs.SceneTier);
-        snap.locomotionState = psmBlackboard.GetInt(psmDefs.Locomotion);
-        snap.detailedLocomotionState = psmBlackboard.GetInt(psmDefs.LocomotionDetailed);
-        snap.highLevelState = psmBlackboard.GetInt(psmDefs.HighLevel);
-        snap.swimmingState = psmBlackboard.GetInt(psmDefs.Swimming);
-        snap.takedownState = psmBlackboard.GetInt(psmDefs.Takedown);
-        snap.bodyCarryingState = psmBlackboard.GetInt(psmDefs.BodyCarrying);
-      };
+    if !IsDefined(psmBlackboard) {
+      return snap;
     };
+    let psmDefs: ref<PlayerStateMachineDef> = GetAllBlackboardDefs().PlayerStateMachine;
+    if !IsDefined(psmDefs) {
+      return snap;
+    };
+
+    snap.sceneTier = psmBlackboard.GetInt(psmDefs.SceneTier);
+    snap.locomotionState = psmBlackboard.GetInt(psmDefs.Locomotion);
+    snap.detailedLocomotionState = psmBlackboard.GetInt(psmDefs.LocomotionDetailed);
+    snap.highLevelState = psmBlackboard.GetInt(psmDefs.HighLevel);
+    snap.swimmingState = psmBlackboard.GetInt(psmDefs.Swimming);
+    snap.takedownState = psmBlackboard.GetInt(psmDefs.Takedown);
+    snap.bodyCarryingState = psmBlackboard.GetInt(psmDefs.BodyCarrying);
 
     return snap;
   }
@@ -123,7 +126,7 @@ public class VehicleSuppressionRule extends ISuppressionRule {
    * @return Result containing suppression status and reason.
    */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
-    if IsDefined(cfg) && !cfg.suppressVehicles {
+    if !IsDefined(snap) || (IsDefined(cfg) && !cfg.suppressVehicles) {
       return SuppressionRuleResult.Pass();
     };
     if snap.isMountedToVehicle {
@@ -144,7 +147,7 @@ public class WorkspotSuppressionRule extends ISuppressionRule {
    * @return Result containing suppression status and reason.
    */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
-    if IsDefined(cfg) && !cfg.suppressWorkspots {
+    if !IsDefined(snap) || (IsDefined(cfg) && !cfg.suppressWorkspots) {
       return SuppressionRuleResult.Pass();
     };
     if snap.isActorInWorkspot {
@@ -166,7 +169,7 @@ public class SceneTierSuppressionRule extends ISuppressionRule {
    * @return Result containing suppression status and reason.
    */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
-    if IsDefined(cfg) && !cfg.suppressScenes {
+    if !IsDefined(snap) || (IsDefined(cfg) && !cfg.suppressScenes) {
       return SuppressionRuleResult.Pass();
     };
     // SceneTier: 1 = Tier1_FullGameplay, 2 = Tier2_StagedGameplay, 3 = Tier3_LimitedGameplay, 4 = Tier4_FPPCutscene, 5 = Tier5_Cinematic
@@ -188,6 +191,9 @@ public class LocomotionTraversalRule extends ISuppressionRule {
    * @return Result containing suppression status and reason.
    */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
+    if !IsDefined(snap) {
+      return SuppressionRuleResult.Pass();
+    };
     // Locomotion detailed: 8..13 correspond to climbing, vaulting, and ladder climbing
     if snap.detailedLocomotionState >= 8 && snap.detailedLocomotionState <= 13 {
       return SuppressionRuleResult.Suppress(FootwearSuppressionReasons.Traversal());
@@ -211,6 +217,9 @@ public class SwimmingSuppressionRule extends ISuppressionRule {
    * @return Result containing suppression status and reason.
    */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
+    if !IsDefined(snap) {
+      return SuppressionRuleResult.Pass();
+    };
     if snap.highLevelState == 6 || snap.swimmingState > 0 {
       return SuppressionRuleResult.Suppress(FootwearSuppressionReasons.Swimming());
     };
@@ -229,6 +238,9 @@ public class CombatActionLockRule extends ISuppressionRule {
    * @return Result containing suppression status and reason.
    */
   public func Evaluate(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
+    if !IsDefined(snap) {
+      return SuppressionRuleResult.Pass();
+    };
     if snap.takedownState > 0 {
       return SuppressionRuleResult.Suppress(FootwearSuppressionReasons.CombatLock());
     };
@@ -267,7 +279,13 @@ public class SuppressionRuleEngine {
    * @return First active suppression result, or Pass() if all rules permit elevation.
    */
   public func EvaluateAll(snap: ref<PlayerSuppressionSnapshot>, cfg: ref<FootwearConfig>) -> ref<SuppressionRuleResult> {
+    if !IsDefined(snap) {
+      return SuppressionRuleResult.Pass();
+    };
     let count: Int32 = ArraySize(this.m_rules);
+    if count == 0 {
+      return SuppressionRuleResult.Pass();
+    };
     let i: Int32 = 0;
     while i < count {
       let res: ref<SuppressionRuleResult> = this.m_rules[i].Evaluate(snap, cfg);

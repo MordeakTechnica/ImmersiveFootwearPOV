@@ -151,14 +151,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       };
     };
 
-    if !changed {
+    if !changed || !IsDefined(this.m_system) {
       return;
     };
 
-    if IsDefined(this.m_system) {
-      this.m_system.GetStorageManager().SaveConfig(this.m_config);
-      this.m_system.OnConfigUpdated(this.m_config);
-    };
+    this.m_system.GetStorageManager().SaveConfig(this.m_config);
+    this.m_system.OnConfigUpdated(this.m_config);
   }
 
   /**
@@ -194,14 +192,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "swayMid") && AbsF(this.m_config.swayMid - value) > 0.08 { this.m_config.swayMid = value; changed = true; };
     if Equals(key, "swayHigh") && AbsF(this.m_config.swayHigh - value) > 0.08 { this.m_config.swayHigh = value; changed = true; };
 
-    if !changed {
+    if !changed || !IsDefined(this.m_system) {
       return;
     };
 
-    if IsDefined(this.m_system) {
-      this.m_system.GetStorageManager().SaveConfig(this.m_config);
-      this.m_system.OnConfigUpdated(this.m_config);
-    };
+    this.m_system.GetStorageManager().SaveConfig(this.m_config);
+    this.m_system.OnConfigUpdated(this.m_config);
   }
 
   /**
@@ -226,9 +222,10 @@ public class FootwearRCFProvider extends DVRCF_Provider {
    * Callback invoked by RCF when user settings are restored or reloaded.
    */
   public func OnSettingsRestored() -> Void {
-    if IsDefined(this.m_system) && IsDefined(this.m_config) {
-      this.m_system.OnConfigUpdated(this.m_config);
+    if !IsDefined(this.m_system) || !IsDefined(this.m_config) {
+      return;
     };
+    this.m_system.OnConfigUpdated(this.m_config);
   }
 
   /**
@@ -237,39 +234,38 @@ public class FootwearRCFProvider extends DVRCF_Provider {
    * @param key Action button identifier key.
    */
   public func OnButton(key: String) -> Void {
+    if StrLen(key) == 0 || !IsDefined(this.m_system) {
+      return;
+    };
     if Equals(key, "openDiagnostics") {
-      if IsDefined(this.m_system) {
-        FootwearWindowsController.ToggleDiagnostics(this.m_system.GetGameInstance());
-      };
+      FootwearWindowsController.ToggleDiagnostics(this.m_system.GetGameInstance());
+      return;
     };
     if Equals(key, "openCalibrator") {
-      if IsDefined(this.m_system) {
-        FootwearWindowsController.ToggleCalibrator(this.m_system.GetGameInstance());
-      };
+      FootwearWindowsController.ToggleCalibrator(this.m_system.GetGameInstance());
+      return;
     };
     if Equals(key, "reloadStorage") {
-      if IsDefined(this.m_system) {
-        let repo: ref<FootwearOverrideRepository> = this.m_system.GetOverrideRepository();
-        repo.Clear();
-        let storageMgr: ref<FootwearStorageManager> = this.m_system.GetStorageManager();
-        storageMgr.LoadMasterPresetsIntoRepo(repo);
-        storageMgr.LoadUserOverridesIntoRepo(repo);
-        let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.m_system.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-        if IsDefined(player) {
-          this.m_system.UpdateEquippedFootwear(player);
-        };
-        FootwearRedLogger.LogInfo("RCF", s"Reloaded presets and user overrides from disk via RCF button | Current source: [\(this.m_system.GetSettingsSource())]");
+      let repo: ref<FootwearOverrideRepository> = this.m_system.GetOverrideRepository();
+      repo.Clear();
+      let storageMgr: ref<FootwearStorageManager> = this.m_system.GetStorageManager();
+      storageMgr.LoadMasterPresetsIntoRepo(repo);
+      storageMgr.LoadUserOverridesIntoRepo(repo);
+      let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.m_system.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+      if IsDefined(player) {
+        this.m_system.UpdateEquippedFootwear(player);
       };
+      FootwearRedLogger.LogInfo("RCF", s"Reloaded presets and user overrides from disk via RCF button | Current source: [\(this.m_system.GetSettingsSource())]");
+      return;
     };
     if Equals(key, "resetDefaults") {
-      if IsDefined(this.m_config) {
-        this.m_config.SetDefaults();
-        if IsDefined(this.m_system) {
-          this.m_system.GetStorageManager().SaveConfig(this.m_config);
-          this.m_system.OnConfigUpdated(this.m_config);
-        };
-        FootwearRedLogger.LogInfo("RCF", "Reset configuration to defaults via RCF button");
+      if !IsDefined(this.m_config) {
+        return;
       };
+      this.m_config.SetDefaults();
+      this.m_system.GetStorageManager().SaveConfig(this.m_config);
+      this.m_system.OnConfigUpdated(this.m_config);
+      FootwearRedLogger.LogInfo("RCF", "Reset configuration to defaults via RCF button");
     };
   }
 

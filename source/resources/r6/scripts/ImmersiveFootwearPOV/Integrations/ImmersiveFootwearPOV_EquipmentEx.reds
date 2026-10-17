@@ -98,10 +98,10 @@ public class EquipmentExHelper {
       return false;
     };
     let rec: ref<Item_Record> = TweakDBInterface.GetItemRecord(ItemID.GetTDBID(itemID));
-    if IsDefined(rec) && IsDefined(rec.EquipArea()) {
-      return Equals(rec.EquipArea().Type(), gamedataEquipmentArea.Feet);
+    if !IsDefined(rec) || !IsDefined(rec.EquipArea()) {
+      return false;
     };
-    return false;
+    return Equals(rec.EquipArea().Type(), gamedataEquipmentArea.Feet);
   }
 
   /**
@@ -111,19 +111,19 @@ public class EquipmentExHelper {
    * @return The active footwear ItemID from the outfit, or ItemID.None() if unequipped.
    */
   public static func GetFootwearFromOutfit(game: GameInstance, outfitName: CName) -> ItemID {
+    if !IsNameValid(outfitName) {
+      return ItemID.None();
+    };
     let outfitSys: ref<OutfitSystem> = OutfitSystem.GetInstance(game);
-    if !IsDefined(outfitSys) {
+    if !IsDefined(outfitSys) || !outfitSys.IsEquipped(outfitName) {
       return ItemID.None();
     };
 
-    if outfitSys.IsEquipped(outfitName) {
-      let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(game).GetLocalPlayerMainGameObject() as PlayerPuppet;
-      if IsDefined(player) {
-        return EquipmentExHelper.GetActiveFootwear(player);
-      };
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(game).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if !IsDefined(player) {
+      return ItemID.None();
     };
-
-    return ItemID.None();
+    return EquipmentExHelper.GetActiveFootwear(player);
   }
 
   /**

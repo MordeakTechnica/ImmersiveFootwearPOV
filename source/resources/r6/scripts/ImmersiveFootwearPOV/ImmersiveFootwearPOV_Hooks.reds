@@ -13,15 +13,17 @@ public class FootwearHooksHelper {
    * @param immediate If true, evaluates immediately; if false, debounces across rapid-fire bursts.
    */
   public static func NotifyFootwearChanged(player: ref<PlayerPuppet>, opt immediate: Bool) -> Void {
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        if immediate {
-          sys.UpdateEquippedFootwear(player);
-        } else {
-          sys.QueueDebouncedUpdate();
-        };
-      };
+    if !IsDefined(player) {
+      return;
+    };
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if !IsDefined(sys) {
+      return;
+    };
+    if immediate {
+      sys.UpdateEquippedFootwear(player);
+    } else {
+      sys.QueueDebouncedUpdate();
     };
   }
 
@@ -37,11 +39,11 @@ public class FootwearHooksHelper {
       return;
     };
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-    if IsDefined(sys) {
-      sys.SetWorkspotState(player, inWorkspot);
-    } else {
+    if !IsDefined(sys) {
       FootwearRedLogger.LogWarn("WORKSPOT", "NotifyWorkspotState: ImmersiveFootwearPOVSystem instance not found");
+      return;
     };
+    sys.SetWorkspotState(player, inWorkspot);
   }
 
   /**
@@ -56,11 +58,11 @@ public class FootwearHooksHelper {
       return;
     };
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-    if IsDefined(sys) {
-      sys.SetVehicleState(player, inVehicle);
-    } else {
+    if !IsDefined(sys) {
       FootwearRedLogger.LogWarn("VEHICLE", "NotifyVehicleState: ImmersiveFootwearPOVSystem instance not found");
+      return;
     };
+    sys.SetVehicleState(player, inVehicle);
   }
 
   /**
@@ -70,12 +72,14 @@ public class FootwearHooksHelper {
    * @param actionName Descriptive name of the weapon action.
    */
   public static func NotifyWeaponAction(player: ref<PlayerPuppet>, actionName: String) -> Void {
-    if IsDefined(player) {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-      if IsDefined(sys) {
-        sys.OnWeaponAction(player, actionName);
-      };
+    if !IsDefined(player) {
+      return;
     };
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if !IsDefined(sys) {
+      return;
+    };
+    sys.OnWeaponAction(player, actionName);
   }
 
 
@@ -110,9 +114,10 @@ public class FootwearHooksHelper {
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: Bool) -> Void {
   wrappedMethod(area, force);
-  if Equals(area, gamedataEquipmentArea.Feet) {
-    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
+  if !Equals(area, gamedataEquipmentArea.Feet) {
+    return;
   };
+  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
 }
 
 /**
@@ -123,9 +128,10 @@ private final func ResetItemAppearance(area: gamedataEquipmentArea, opt force: B
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
-  if Equals(area, gamedataEquipmentArea.Feet) {
-    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
+  if !Equals(area, gamedataEquipmentArea.Feet) {
+    return;
   };
+  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
 }
 
 /**
@@ -136,9 +142,10 @@ private final func ClearItemAppearanceEvent(area: gamedataEquipmentArea) -> Void
 @wrapMethod(EquipmentSystemPlayerData)
 private final func ResetItemAppearanceEvent(area: gamedataEquipmentArea) -> Void {
   wrappedMethod(area);
-  if Equals(area, gamedataEquipmentArea.Feet) {
-    FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
+  if !Equals(area, gamedataEquipmentArea.Feet) {
+    return;
   };
+  FootwearHooksHelper.NotifyFootwearChanged(this.m_owner as PlayerPuppet, false);
 }
 
 /**
@@ -217,10 +224,10 @@ protected cb func OnWorkspotStartedEvent(evt: ref<WorkspotStartedEvent>) -> Bool
   let result: Bool = wrappedMethod(evt);
   if !IsDefined(this) {
     FootwearRedLogger.LogError("WORKSPOT", "OnWorkspotStartedEvent called with undefined player entity");
-  } else {
-    FootwearRedLogger.LogInfo("WORKSPOT", "OnWorkspotStartedEvent: Workspot activated (chair/vending machine/furniture) | Action: Setting workspot state to TRUE and evaluating elevation suppression");
-    FootwearHooksHelper.NotifyWorkspotState(this, true);
+    return result;
   };
+  FootwearRedLogger.LogInfo("WORKSPOT", "OnWorkspotStartedEvent: Workspot activated (chair/vending machine/furniture) | Action: Setting workspot state to TRUE and evaluating elevation suppression");
+  FootwearHooksHelper.NotifyWorkspotState(this, true);
   return result;
 }
 
@@ -235,10 +242,10 @@ protected cb func OnWorkspotFinishedEvent(evt: ref<WorkspotFinishedEvent>) -> Bo
   let result: Bool = wrappedMethod(evt);
   if !IsDefined(this) {
     FootwearRedLogger.LogError("WORKSPOT", "OnWorkspotFinishedEvent called with undefined player entity");
-  } else {
-    FootwearRedLogger.LogInfo("WORKSPOT", "OnWorkspotFinishedEvent: Workspot finished (standing/exited) | Action: Setting workspot state to FALSE and restoring footwear elevation");
-    FootwearHooksHelper.NotifyWorkspotState(this, false);
+    return result;
   };
+  FootwearRedLogger.LogInfo("WORKSPOT", "OnWorkspotFinishedEvent: Workspot finished (standing/exited) | Action: Setting workspot state to FALSE and restoring footwear elevation");
+  FootwearHooksHelper.NotifyWorkspotState(this, false);
   return result;
 }
 
@@ -256,10 +263,10 @@ protected cb func OnMountingEvent(evt: ref<MountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
   if !IsDefined(this) {
     FootwearRedLogger.LogError("VEHICLE", "OnMountingEvent called with undefined player entity");
-  } else {
-    FootwearRedLogger.LogInfo("VEHICLE", "OnMountingEvent: Vehicle mounted | Action: Setting vehicle state to TRUE and evaluating elevation suppression");
-    FootwearHooksHelper.NotifyVehicleState(this, true);
+    return result;
   };
+  FootwearRedLogger.LogInfo("VEHICLE", "OnMountingEvent: Vehicle mounted | Action: Setting vehicle state to TRUE and evaluating elevation suppression");
+  FootwearHooksHelper.NotifyVehicleState(this, true);
   return result;
 }
 
@@ -274,10 +281,10 @@ protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
   if !IsDefined(this) {
     FootwearRedLogger.LogError("VEHICLE", "OnUnmountingEvent called with undefined player entity");
-  } else {
-    FootwearRedLogger.LogInfo("VEHICLE", "OnUnmountingEvent: Vehicle unmounted | Action: Setting vehicle state to FALSE and restoring footwear elevation");
-    FootwearHooksHelper.NotifyVehicleState(this, false);
+    return result;
   };
+  FootwearRedLogger.LogInfo("VEHICLE", "OnUnmountingEvent: Vehicle unmounted | Action: Setting vehicle state to FALSE and restoring footwear elevation");
+  FootwearHooksHelper.NotifyVehicleState(this, false);
   return result;
 }
 
@@ -294,16 +301,20 @@ protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
 @wrapMethod(PlayerPuppet)
 protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsumer) -> Bool {
   let result: Bool = wrappedMethod(action, consumer);
+  if !ListenerAction.IsButtonJustPressed(action) {
+    return result;
+  };
   let actionName: CName = ListenerAction.GetName(action);
-  if ListenerAction.IsButtonJustPressed(action) {
-    if FootwearHooksHelper.IsWeaponAction(actionName) {
-      FootwearHooksHelper.NotifyWeaponAction(this, NameToString(actionName));
-    } else if Equals(actionName, n"ToggleCamera") || Equals(actionName, n"ToggleVehFPPCamera") || Equals(actionName, n"CameraPerspective") || Equals(actionName, n"VehicleTogglePerspective") {
-      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(this.GetGame());
-      if IsDefined(sys) {
-        sys.CheckPerspectiveDrift(this);
-      };
+  if FootwearHooksHelper.IsWeaponAction(actionName) {
+    FootwearHooksHelper.NotifyWeaponAction(this, NameToString(actionName));
+    return result;
+  };
+  if Equals(actionName, n"ToggleCamera") || Equals(actionName, n"ToggleVehFPPCamera") || Equals(actionName, n"CameraPerspective") || Equals(actionName, n"VehicleTogglePerspective") {
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(this.GetGame());
+    if !IsDefined(sys) {
+      return result;
     };
+    sys.CheckPerspectiveDrift(this);
   };
   return result;
 }
@@ -317,6 +328,9 @@ protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsu
 @wrapMethod(PlayerPuppet)
 protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
   let result: Bool = wrappedMethod(evt);
+  if !IsDefined(evt) {
+    return result;
+  };
   let slotID: TweakDBID = evt.GetSlotID();
   if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
     FootwearHooksHelper.NotifyWeaponAction(this, "WeaponEquippedToSlot");
@@ -335,6 +349,9 @@ protected cb func OnItemAddedToSlot(evt: ref<ItemAddedToSlot>) -> Bool {
 @wrapMethod(PlayerPuppet)
 protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
   let result: Bool = wrappedMethod(evt);
+  if !IsDefined(evt) {
+    return result;
+  };
   let slotID: TweakDBID = evt.GetSlotID();
   if Equals(slotID, t"AttachmentSlots.WeaponRight") || Equals(slotID, t"AttachmentSlots.WeaponLeft") {
     FootwearHooksHelper.NotifyWeaponAction(this, "WeaponRemovedFromSlot");
@@ -358,11 +375,16 @@ protected cb func OnItemRemovedFromSlot(evt: ref<ItemRemovedFromSlot>) -> Bool {
 @wrapMethod(LocomotionEventsTransition)
 protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scriptInterface: ref<StateGameScriptInterface>) -> Void {
   wrappedMethod(timeDelta, stateContext, scriptInterface);
-  let player: ref<PlayerPuppet> = scriptInterface.executionOwner as PlayerPuppet;
-  if IsDefined(player) {
-    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
-    if IsDefined(sys) {
-      sys.OnLocomotionUpdate(player, timeDelta);
-    };
+  if !IsDefined(scriptInterface) {
+    return;
   };
+  let player: ref<PlayerPuppet> = scriptInterface.executionOwner as PlayerPuppet;
+  if !IsDefined(player) {
+    return;
+  };
+  let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+  if !IsDefined(sys) {
+    return;
+  };
+  sys.OnLocomotionUpdate(player, timeDelta);
 }

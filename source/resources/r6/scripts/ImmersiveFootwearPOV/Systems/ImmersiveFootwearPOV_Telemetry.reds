@@ -57,17 +57,19 @@ public class FootwearTelemetryLogger {
     let suppChanged: Bool = NotEquals(suppressed, this.m_lastLoggedSuppressed);
     let offsetChanged: Bool = AbsF(offset - this.m_lastLoggedOffset) > 0.0001;
 
-    if itemChanged || suppChanged || (offsetChanged && isModuloZero) {
-      this.m_lastLoggedFootwear = item;
-      this.m_lastLoggedOffset = offset;
-      this.m_lastLoggedSuppressed = suppressed;
-
-      let tag: String = sys.GetActiveModTag(null);
-      let shoeName: String = sys.GetResolvedShoeDisplayName();
-      let reason: String = sys.GetSuppressionReason();
-      let settingsSrc: String = sys.GetSettingsSource();
-      FootwearRedLogger.LogDebug(tag, s"Camera State Transition -> Footwear: '\(shoeName)' [\(settingsSrc)] | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
+    if !itemChanged && !suppChanged && !(offsetChanged && isModuloZero) {
+      return;
     };
+
+    this.m_lastLoggedFootwear = item;
+    this.m_lastLoggedOffset = offset;
+    this.m_lastLoggedSuppressed = suppressed;
+
+    let tag: String = sys.GetActiveModTag(null);
+    let shoeName: String = sys.GetResolvedShoeDisplayName();
+    let reason: String = sys.GetSuppressionReason();
+    let settingsSrc: String = sys.GetSettingsSource();
+    FootwearRedLogger.LogDebug(tag, s"Camera State Transition -> Footwear: '\(shoeName)' [\(settingsSrc)] | Lift: +\(liftCm) cm | TFP BaseZ: \(baseZ) | CamZ: \(curZ) | Suppressed: \(suppressed) (\(reason))");
   }
 
   /**

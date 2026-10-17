@@ -22,9 +22,10 @@ public class FootwearPostRestoreTick extends DelayCallback {
   }
 
   public func Call() -> Void {
-    if IsDefined(this.m_system) {
-      this.m_system.OnPostRestoreTick();
+    if !IsDefined(this.m_system) {
+      return;
     };
+    this.m_system.OnPostRestoreTick();
   }
 }
 
@@ -42,9 +43,10 @@ public class FootwearDebounceCallback extends DelayCallback {
   }
 
   public func Call() -> Void {
-    if IsDefined(this.m_system) {
-      this.m_system.OnDebouncedFootwearTick();
+    if !IsDefined(this.m_system) {
+      return;
     };
+    this.m_system.OnDebouncedFootwearTick();
   }
 }
 
@@ -251,10 +253,11 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.InitConfigAndRCF();
     this.EnsurePresetsAndOverridesLoaded();
     let winCtrl: ref<FootwearWindowsController> = this.GetWindowsController();
-    if !winCtrl.IsWindowsLoopStarted() {
-      winCtrl.SetWindowsLoopStarted(true);
-      FootwearWindowsController.StartTick(this.GetGameInstance());
+    if winCtrl.IsWindowsLoopStarted() {
+      return;
     };
+    winCtrl.SetWindowsLoopStarted(true);
+    FootwearWindowsController.StartTick(this.GetGameInstance());
   }
 
   /**
@@ -262,15 +265,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param request Player attach request object containing owner game.
    */
   private final func OnPlayerAttach(request: ref<PlayerAttachRequest>) -> Void {
-    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(request.owner.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      this.m_isInitialized = false;
-      this.m_hasTppInitialized = false;
-      this.GetSuppressionController().Reset();
-      this.EnsurePresetsAndOverridesLoaded();
-      this.UpdateEquippedFootwear(player);
-      this.QueuePostRestoreTick();
+    if !IsDefined(request) || !IsDefined(request.owner) {
+      return;
     };
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(request.owner.GetGame()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if !IsDefined(player) {
+      return;
+    };
+    this.m_isInitialized = false;
+    this.m_hasTppInitialized = false;
+    this.GetSuppressionController().Reset();
+    this.EnsurePresetsAndOverridesLoaded();
+    this.UpdateEquippedFootwear(player);
+    this.QueuePostRestoreTick();
   }
 
   /**
@@ -280,14 +287,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    */
   public final func OnRestored(saveVersion: Int32, gameVersion: Int32) -> Void {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      this.m_isInitialized = false;
-      this.m_hasTppInitialized = false;
-      this.GetSuppressionController().Reset();
-      this.EnsurePresetsAndOverridesLoaded();
-      this.UpdateEquippedFootwear(player);
-      this.QueuePostRestoreTick();
+    if !IsDefined(player) {
+      return;
     };
+    this.m_isInitialized = false;
+    this.m_hasTppInitialized = false;
+    this.GetSuppressionController().Reset();
+    this.EnsurePresetsAndOverridesLoaded();
+    this.UpdateEquippedFootwear(player);
+    this.QueuePostRestoreTick();
   }
 
   /**
@@ -318,9 +326,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func OnDebouncedFootwearTick() -> Void {
     this.m_debouncePending = false;
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      this.UpdateEquippedFootwear(player);
+    if !IsDefined(player) {
+      return;
     };
+    this.UpdateEquippedFootwear(player);
   }
 
   /**
@@ -328,12 +337,13 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    */
   public func OnPostRestoreTick() -> Void {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      this.EnsurePresetsAndOverridesLoaded();
-      this.UpdateEquippedFootwear(player);
-      this.CheckPerspectiveDrift(player);
-      this.RecalculateEffectiveOffset(player);
+    if !IsDefined(player) {
+      return;
     };
+    this.EnsurePresetsAndOverridesLoaded();
+    this.UpdateEquippedFootwear(player);
+    this.CheckPerspectiveDrift(player);
+    this.RecalculateEffectiveOffset(player);
   }
 
   /**
@@ -343,11 +353,12 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func CheckPerspectiveDrift(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) { return; };
     let isTPP: Bool = ITPController.IsTPPActive(player, this.m_lastTppActive);
-    if !this.m_hasTppInitialized || NotEquals(isTPP, this.m_lastTppActive) {
-      this.m_hasTppInitialized = true;
-      this.m_lastTppActive = isTPP;
-      this.RecalculateEffectiveOffset(player);
+    if this.m_hasTppInitialized && Equals(isTPP, this.m_lastTppActive) {
+      return;
     };
+    this.m_hasTppInitialized = true;
+    this.m_lastTppActive = isTPP;
+    this.RecalculateEffectiveOffset(player);
   }
 
   /**
@@ -372,9 +383,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
 
     let cfg: ref<FootwearConfig> = this.GetConfig();
-    if IsDefined(cfg) && cfg.enableHipSway && this.m_lastTppActive {
-      this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
+    if !IsDefined(cfg) || !cfg.enableHipSway || !this.m_lastTppActive {
+      return;
     };
+    this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
   }
 
   // -----------------------------------------------------------------------------
@@ -486,17 +498,20 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.GetOverrideRepository().RegisterUserOverride(key, clampedHeel, clampedPlat);
 
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
-    if ItemID.IsValid(state.equippedFootwearID) {
-      let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
-      if Equals(currentKey, key) || Equals(StrLower(currentKey), StrLower(key)) {
-        state.hasCustomOverride = true;
-        state.settingsSource = "User Override";
-        state.customHeelHeight = clampedHeel;
-        state.customPlatformHeight = clampedPlat;
-        state.currentHeelHeight = clampedHeel;
-        state.currentPlatformHeight = clampedPlat;
-      };
+    if !ItemID.IsValid(state.equippedFootwearID) {
+      return;
     };
+    let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
+    if !Equals(currentKey, key) && !Equals(StrLower(currentKey), StrLower(key)) {
+      return;
+    };
+
+    state.hasCustomOverride = true;
+    state.settingsSource = "User Override";
+    state.customHeelHeight = clampedHeel;
+    state.customPlatformHeight = clampedPlat;
+    state.currentHeelHeight = clampedHeel;
+    state.currentPlatformHeight = clampedPlat;
   }
 
   /**
@@ -505,9 +520,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func ClearCustomOverrides() -> Void {
     this.GetOverrideRepository().ClearUserOverrides();
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      this.UpdateEquippedFootwear(player);
-    } else {
+    if !IsDefined(player) {
       let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
       state.hasCustomOverride = false;
       state.settingsSource = "Default / None";
@@ -515,7 +528,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       state.customPlatformHeight = 0.0;
       state.currentHeelHeight = 0.0;
       state.currentPlatformHeight = 0.0;
+      return;
     };
+    this.UpdateEquippedFootwear(player);
   }
 
   /**
@@ -556,14 +571,16 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param inVehicle True if player entered vehicle, false if exited.
    */
   public func SetVehicleState(player: ref<PlayerPuppet>, inVehicle: Bool) -> Void {
-    if this.GetSuppressionController().SetVehicleState(inVehicle, this.GetEventDispatcher(), this.GetTelemetry(), this) {
-      this.RecalculateEffectiveOffset(player);
-      if IsDefined(player) {
-        let eventName: String = inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)";
-        this.LogTFPEvent(eventName, 0.0, 0.0);
-        this.LogTFPState(player);
-      };
+    if !this.GetSuppressionController().SetVehicleState(inVehicle, this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      return;
     };
+    this.RecalculateEffectiveOffset(player);
+    if !IsDefined(player) {
+      return;
+    };
+    let eventName: String = inVehicle ? "VehicleEntered (Vehicle Occupancy)" : "VehicleExited (Restored)";
+    this.LogTFPEvent(eventName, 0.0, 0.0);
+    this.LogTFPState(player);
   }
 
   /**
@@ -571,13 +588,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param player The local player puppet reference.
    */
   public func ClearVehicleState(player: ref<PlayerPuppet>) -> Void {
-    if this.GetSuppressionController().ClearVehicleState(this.GetEventDispatcher(), this.GetTelemetry(), this) {
-      this.RecalculateEffectiveOffset(player);
-      if IsDefined(player) {
-        this.LogTFPEvent("VehicleAutoRecovered (Exited)", 0.0, 0.0);
-        this.LogTFPState(player);
-      };
+    if !this.GetSuppressionController().ClearVehicleState(this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      return;
     };
+    this.RecalculateEffectiveOffset(player);
+    if !IsDefined(player) {
+      return;
+    };
+    this.LogTFPEvent("VehicleAutoRecovered (Exited)", 0.0, 0.0);
+    this.LogTFPState(player);
   }
 
   /**
@@ -586,14 +605,16 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param inWorkspot True if player entered workspot, false if exited.
    */
   public func SetWorkspotState(player: ref<PlayerPuppet>, inWorkspot: Bool) -> Void {
-    if this.GetSuppressionController().SetWorkspotState(inWorkspot, this.GetEventDispatcher(), this.GetTelemetry(), this) {
-      this.RecalculateEffectiveOffset(player);
-      if IsDefined(player) {
-        let eventName: String = inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)";
-        this.LogTFPEvent(eventName, 0.0, 0.0);
-        this.LogTFPState(player);
-      };
+    if !this.GetSuppressionController().SetWorkspotState(inWorkspot, this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      return;
     };
+    this.RecalculateEffectiveOffset(player);
+    if !IsDefined(player) {
+      return;
+    };
+    let eventName: String = inWorkspot ? "WorkspotStarted (Sitting/Furniture)" : "WorkspotFinished (Standing/Exited)";
+    this.LogTFPEvent(eventName, 0.0, 0.0);
+    this.LogTFPState(player);
   }
 
   /**
@@ -601,13 +622,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param player The local player puppet reference.
    */
   public func ClearWorkspotState(player: ref<PlayerPuppet>) -> Void {
-    if this.GetSuppressionController().ClearWorkspotState(this.GetEventDispatcher(), this.GetTelemetry(), this) {
-      this.RecalculateEffectiveOffset(player);
-      if IsDefined(player) {
-        this.LogTFPEvent("WorkspotAutoRecovered (Standing/Exited)", 0.0, 0.0);
-        this.LogTFPState(player);
-      };
+    if !this.GetSuppressionController().ClearWorkspotState(this.GetEventDispatcher(), this.GetTelemetry(), this) {
+      return;
     };
+    this.RecalculateEffectiveOffset(player);
+    if !IsDefined(player) {
+      return;
+    };
+    this.LogTFPEvent("WorkspotAutoRecovered (Standing/Exited)", 0.0, 0.0);
+    this.LogTFPState(player);
   }
 
   /**
@@ -715,9 +738,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param player The local player puppet reference.
    */
   public func ResetStride(player: ref<PlayerPuppet>) -> Void {
-    if IsDefined(this.m_strideController) {
-      this.m_strideController.Reset(player);
+    if !IsDefined(this.m_strideController) || !IsDefined(player) {
+      return;
     };
+    this.m_strideController.Reset(player);
   }
 
   /**
@@ -839,15 +863,17 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param config Updated FootwearConfig instance.
    */
   public func OnConfigUpdated(config: ref<FootwearConfig>) -> Void {
-    if IsDefined(config) {
-      this.m_config = config;
-      this.m_debugLogging = config.debugLogs;
-      this.NotifyConfigChanged(config);
-      let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-      if IsDefined(player) {
-        this.RecalculateEffectiveOffset(player);
-      };
+    if !IsDefined(config) {
+      return;
     };
+    this.m_config = config;
+    this.m_debugLogging = config.debugLogs;
+    this.NotifyConfigChanged(config);
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if !IsDefined(player) {
+      return;
+    };
+    this.RecalculateEffectiveOffset(player);
   }
 
   // -----------------------------------------------------------------------------
@@ -875,10 +901,11 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    */
   public func RevertFootwearToDefault() -> Void {
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) {
-      this.ClearCustomHeightOverride(player, true);
-      this.UpdateEquippedFootwear(player);
+    if !IsDefined(player) {
+      return;
     };
+    this.ClearCustomHeightOverride(player, true);
+    this.UpdateEquippedFootwear(player);
   }
 
   public func IsDiagGeoApplied() -> Bool { return this.GetWindowsController().IsDiagGeoApplied(); }

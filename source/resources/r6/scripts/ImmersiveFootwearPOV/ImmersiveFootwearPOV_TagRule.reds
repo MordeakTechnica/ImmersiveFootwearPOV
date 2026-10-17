@@ -14,17 +14,18 @@ public class ShoeTagRule {
    * @return The extracted value string following the matched prefix, or empty string if no match.
    */
   public static func ExtractTagValue(tagStr: String, prefixes: array<String>) -> String {
-    let count: Int32 = ArraySize(prefixes);
-    let i: Int32 = 0;
     let tagLen: Int32 = StrLen(tagStr);
+    let count: Int32 = ArraySize(prefixes);
+    if tagLen == 0 || count == 0 {
+      return "";
+    };
 
+    let i: Int32 = 0;
     while i < count {
       let prefix: String = prefixes[i];
       let prefixLen: Int32 = StrLen(prefix);
-      if tagLen > prefixLen {
-        if StrBeginsWith(tagStr, prefix) {
-          return StrMid(tagStr, prefixLen, tagLen - prefixLen);
-        };
+      if tagLen > prefixLen && StrBeginsWith(tagStr, prefix) {
+        return StrMid(tagStr, prefixLen, tagLen - prefixLen);
       };
       i += 1;
     };
@@ -38,6 +39,9 @@ public class ShoeTagRule {
    * @return Clamped heel height in meters, or 0.0 if not a matching heel tag.
    */
   public static func ParseHeelTag(tagStr: String) -> Float {
+    if StrLen(tagStr) == 0 {
+      return 0.0;
+    };
     let prefixes: array<String>;
     ArrayPush(prefixes, "HeelHeight_");
     ArrayPush(prefixes, "heelheight_");
@@ -65,6 +69,9 @@ public class ShoeTagRule {
    * @return Clamped platform height in meters, or 0.0 if not a matching platform tag.
    */
   public static func ParsePlatformTag(tagStr: String) -> Float {
+    if StrLen(tagStr) == 0 {
+      return 0.0;
+    };
     let prefixes: array<String>;
     ArrayPush(prefixes, "PlatformHeight_");
     ArrayPush(prefixes, "platformheight_");
