@@ -31,10 +31,6 @@ public class EquipmentExHelper {
     };
 
     // 1. Check primary extra OutfitSlots.Feet slot
-    let feetItem: ItemID = outfitSys.GetEquippedItemInSlot(t"OutfitSlots.Feet");
-    if ItemID.IsValid(feetItem) {
-      return feetItem;
-    };
     let feetObject: ref<ItemObject> = transactionSystem.GetItemInSlot(player, t"OutfitSlots.Feet");
     if IsDefined(feetObject) {
       let feetID: ItemID = feetObject.GetItemID();
@@ -44,10 +40,6 @@ public class EquipmentExHelper {
     };
 
     // 2. Check base AttachmentSlots.Feet slot (where Equipment-EX equips standard shoes)
-    let baseFeetItem: ItemID = outfitSys.GetEquippedItemInSlot(t"AttachmentSlots.Feet");
-    if ItemID.IsValid(baseFeetItem) {
-      return baseFeetItem;
-    };
     let baseFeetObject: ref<ItemObject> = transactionSystem.GetItemInSlot(player, t"AttachmentSlots.Feet");
     if IsDefined(baseFeetObject) {
       let baseFeetID: ItemID = baseFeetObject.GetItemID();
@@ -59,6 +51,10 @@ public class EquipmentExHelper {
     // 3. Scan all occupied outfit slots in case footwear was assigned to a custom/alternate slot
     let usedSlots: array<TweakDBID> = outfitSys.GetUsedSlots();
     let count: Int32 = ArraySize(usedSlots);
+    if count == 0 {
+      return ItemID.None();
+    };
+
     let i: Int32 = 0;
     let slotObj: ref<ItemObject>;
     let slotItem: ItemID;
@@ -66,19 +62,15 @@ public class EquipmentExHelper {
     while i < count {
       let slotID: TweakDBID = usedSlots[i];
       if NotEquals(slotID, t"OutfitSlots.Feet") && NotEquals(slotID, t"AttachmentSlots.Feet") {
-        slotItem = outfitSys.GetEquippedItemInSlot(slotID);
-        if !ItemID.IsValid(slotItem) {
-          slotObj = transactionSystem.GetItemInSlot(player, slotID);
-          if IsDefined(slotObj) {
-            slotItem = slotObj.GetItemID();
-          };
-        };
-
-        if ItemID.IsValid(slotItem) {
-          if EquipmentExHelper.IsFootwearItem(slotItem)
-            || ShoeHeightParser.ReadHeelHeight(slotItem) > 0.0
-            || ShoeHeightParser.ReadPlatformHeight(slotItem) > 0.0 {
-            return slotItem;
+        slotObj = transactionSystem.GetItemInSlot(player, slotID);
+        if IsDefined(slotObj) {
+          slotItem = slotObj.GetItemID();
+          if ItemID.IsValid(slotItem) {
+            if EquipmentExHelper.IsFootwearItem(slotItem)
+              || ShoeHeightParser.ReadHeelHeight(slotItem) > 0.0
+              || ShoeHeightParser.ReadPlatformHeight(slotItem) > 0.0 {
+              return slotItem;
+            };
           };
         };
       };
