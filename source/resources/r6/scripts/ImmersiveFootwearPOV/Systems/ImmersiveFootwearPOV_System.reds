@@ -944,6 +944,14 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   /**
+   * Checks whether there is an uncommitted live calibration override awaiting persistence.
+   * @return True if a dirty override is pending save.
+   */
+  public func HasDirtyOverride() -> Bool {
+    return this.m_hasDirtyOverride;
+  }
+
+  /**
    * Clears the dirty override tracking flag after an explicit save or revert action.
    */
   public func ClearPendingOverrideSave() -> Void {

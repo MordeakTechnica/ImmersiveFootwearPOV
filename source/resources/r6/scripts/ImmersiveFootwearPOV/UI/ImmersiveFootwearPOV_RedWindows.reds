@@ -36,7 +36,6 @@ public class FootwearWindowsController {
   private let m_calibGeoApplied: Bool;
   private let m_wasOverlayActive: Bool;
   private let m_tickGeneration: Int32;
-  private let m_rwTickCounter: Int32;
 
   /**
    * Factory method creating a new FootwearWindowsController instance.
@@ -100,14 +99,6 @@ public class FootwearWindowsController {
   public func NextTickGeneration() -> Int32 {
     this.m_tickGeneration += 1;
     return this.m_tickGeneration;
-  }
-
-  /**
-   * Increments and returns the RedWindows overlay tick throttle counter.
-   */
-  public func StepRWTickCounter() -> Int32 {
-    this.m_rwTickCounter += 1;
-    return this.m_rwTickCounter;
   }
 
   /**
@@ -367,11 +358,7 @@ public class FootwearWindowsController {
     // Detect overlay closing: when transitioning from open to closed, persist pending overrides and window geometry ONCE to disk.
     if IsDefined(winCtrl) {
       if winCtrl.WasOverlayActive() && !isOverlay {
-        winCtrl.SetWasOverlayActive(false);
-        if IsDefined(system) {
-          system.FlushPendingOverrideSave();
-        };
-        FootwearWindowsController.SaveGeometryImmediate(gi);
+        FootwearWindowsController.OnOverlayExited(gi);
       } else if isOverlay && !winCtrl.WasOverlayActive() {
         winCtrl.SetWasOverlayActive(true);
       };
@@ -532,29 +519,4 @@ public class FootwearWindowsController {
       RedWindowsAPI.OpenFor(gi, win);
     };
   }
-}
-
-// -----------------------------------------------------------------------------
-// RedWindows Manager Hooks (Responsive Overlay Tick & Immediate Exit Flush)
-// -----------------------------------------------------------------------------
-
-@wrapMethod(RWManager)
-public func OnTick() -> Void {
-  wrappedMethod();
-  if this.IsOverlay() {
-    let gi: GameInstance = this.GetGameInstance();
-    let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(gi);
-    if IsDefined(winCtrl) && (winCtrl.StepRWTickCounter() % 3 == 0) {
-      FootwearWindowsController.Update(gi);
-    };
-  };
-}
-
-@wrapMethod(RWManager)
-private func ExitOverlay() -> Void {
-  let wasOverlay: Bool = this.IsOverlay();
-  wrappedMethod();
-  if wasOverlay {
-    FootwearWindowsController.OnOverlayExited(this.GetGameInstance());
-  };
 }
