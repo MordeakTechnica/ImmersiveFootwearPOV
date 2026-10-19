@@ -1,12 +1,67 @@
 module ImmersiveFootwearPOV
 
 // =============================================================================
-// Immersive Footwear POV - DigitalVixen Environment Probe
+// Immersive Footwear POV - DigitalVixen Environment Probes & Detectors
 // Single Responsibility: Evaluates the presence of required DigitalVixen mods
-// (RedWindows, RedscriptConfigFramework, RedFunctions) to decide whether the
-// CET fallback interface should be activated.
-// (RedLogger is exempted as it has its own built-in REDscript fallback).
+// (RedWindows, RedscriptConfigFramework, RedFunctions) using compile-time
+// class-level conditional compilation (@if / @if(!ModuleExists(...))).
 // =============================================================================
+
+@if(ModuleExists("RedWindows"))
+public class RedWindowsDetector {
+  public static func IsPresent() -> Bool {
+    return true;
+  }
+}
+
+@if(!ModuleExists("RedWindows"))
+public class RedWindowsDetector {
+  public static func IsPresent() -> Bool {
+    return false;
+  }
+}
+
+@if(ModuleExists("RedscriptConfigFramework"))
+public class RCFDetector {
+  public static func IsPresent() -> Bool {
+    return true;
+  }
+}
+
+@if(!ModuleExists("RedscriptConfigFramework"))
+public class RCFDetector {
+  public static func IsPresent() -> Bool {
+    return false;
+  }
+}
+
+@if(ModuleExists("RedFunctions"))
+public class RedFunctionsDetector {
+  public static func IsPresent() -> Bool {
+    return true;
+  }
+}
+
+@if(!ModuleExists("RedFunctions"))
+public class RedFunctionsDetector {
+  public static func IsPresent() -> Bool {
+    return false;
+  }
+}
+
+@if(ModuleExists("RedLogger"))
+public class RedLoggerDetector {
+  public static func IsPresent() -> Bool {
+    return true;
+  }
+}
+
+@if(!ModuleExists("RedLogger"))
+public class RedLoggerDetector {
+  public static func IsPresent() -> Bool {
+    return false;
+  }
+}
 
 public class FootwearDVEnvironment {
 
@@ -15,10 +70,7 @@ public class FootwearDVEnvironment {
    * @return True if RedWindows module is present.
    */
   public static func HasRedWindows() -> Bool {
-    @if(ModuleExists("RedWindows"))
-    return true;
-    @if(!ModuleExists("RedWindows"))
-    return false;
+    return RedWindowsDetector.IsPresent();
   }
 
   /**
@@ -26,10 +78,7 @@ public class FootwearDVEnvironment {
    * @return True if RedscriptConfigFramework module is present.
    */
   public static func HasRCF() -> Bool {
-    @if(ModuleExists("RedscriptConfigFramework"))
-    return true;
-    @if(!ModuleExists("RedscriptConfigFramework"))
-    return false;
+    return RCFDetector.IsPresent();
   }
 
   /**
@@ -37,10 +86,7 @@ public class FootwearDVEnvironment {
    * @return True if RedFunctions module is present.
    */
   public static func HasRedFunctions() -> Bool {
-    @if(ModuleExists("RedFunctions"))
-    return true;
-    @if(!ModuleExists("RedFunctions"))
-    return false;
+    return RedFunctionsDetector.IsPresent();
   }
 
   /**
@@ -48,10 +94,7 @@ public class FootwearDVEnvironment {
    * @return True if RedLogger module is present.
    */
   public static func HasRedLogger() -> Bool {
-    @if(ModuleExists("RedLogger"))
-    return true;
-    @if(!ModuleExists("RedLogger"))
-    return false;
+    return RedLoggerDetector.IsPresent();
   }
 
   /**
