@@ -11,14 +11,20 @@ import RedFunctions.*
 
 public class FootwearWindowsTick extends DelayCallback {
   public let m_gi: GameInstance;
+  public let m_generation: Int32;
 
   /**
    * Periodic callback invoked by DelaySystem to tick and render active RedWindows windows.
    */
   public func Call() -> Void {
+    let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(this.m_gi);
+    if IsDefined(winCtrl) && this.m_generation != winCtrl.GetTickGeneration() {
+      return;
+    };
     let nextDelay: Float = FootwearWindowsController.Update(this.m_gi);
     let cb: ref<FootwearWindowsTick> = new FootwearWindowsTick();
     cb.m_gi = this.m_gi;
+    cb.m_generation = this.m_generation;
     GameInstance.GetDelaySystem(this.m_gi).DelayCallback(cb, nextDelay, false);
   }
 }
@@ -29,6 +35,8 @@ public class FootwearWindowsController {
   private let m_diagGeoApplied: Bool;
   private let m_calibGeoApplied: Bool;
   private let m_wasOverlayActive: Bool;
+  private let m_tickGeneration: Int32;
+  private let m_rwTickCounter: Int32;
 
   /**
    * Factory method creating a new FootwearWindowsController instance.
@@ -77,6 +85,29 @@ public class FootwearWindowsController {
    */
   public func SetWindowsLoopStarted(started: Bool) -> Void {
     this.m_windowsLoopStarted = started;
+  }
+
+  /**
+   * Returns the current tick generation token used to invalidate stale DelaySystem loops across session loads.
+   */
+  public func GetTickGeneration() -> Int32 {
+    return this.m_tickGeneration;
+  }
+
+  /**
+   * Increments and returns the tick generation token.
+   */
+  public func NextTickGeneration() -> Int32 {
+    this.m_tickGeneration += 1;
+    return this.m_tickGeneration;
+  }
+
+  /**
+   * Increments and returns the RedWindows overlay tick throttle counter.
+   */
+  public func StepRWTickCounter() -> Int32 {
+    this.m_rwTickCounter += 1;
+    return this.m_rwTickCounter;
   }
 
   /**
@@ -272,14 +303,44 @@ public class FootwearWindowsController {
   }
 
   /**
-   * Initiates the persistent periodic UI update loop via DelaySystem.
+   * Initiates or restarts the persistent periodic UI update loop via DelaySystem.
+   * Uses a generation counter so stale callbacks from pre-game or previous sessions exit cleanly.
    *
    * @param gi Game instance context.
    */
   public static func StartTick(gi: GameInstance) -> Void {
+    let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(gi);
+    let gen: Int32 = 1;
+    if IsDefined(winCtrl) {
+      winCtrl.SetWindowsLoopStarted(true);
+      gen = winCtrl.NextTickGeneration();
+    };
     let cb: ref<FootwearWindowsTick> = new FootwearWindowsTick();
     cb.m_gi = gi;
+    cb.m_generation = gen;
     GameInstance.GetDelaySystem(gi).DelayCallback(cb, 1.0, false);
+  }
+
+  /**
+   * Synchronously commits any pending Calibrator inputs and flushes dirty overrides when the RedWindows overlay exits.
+   *
+   * @param gi Game instance context.
+   */
+  public static func OnOverlayExited(gi: GameInstance) -> Void {
+    let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+    if !IsDefined(system) {
+      return;
+    };
+    let winCtrl: ref<FootwearWindowsController> = system.GetWindowsController();
+    if IsDefined(winCtrl) {
+      winCtrl.SetWasOverlayActive(false);
+    };
+    let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
+    if IsDefined(calibWin) && calibWin.IsVisible() {
+      FootwearCalibratorWindow.Render(gi, calibWin);
+    };
+    system.FlushPendingOverrideSave();
+    FootwearWindowsController.SaveGeometryImmediate(gi);
   }
 
   /**
@@ -303,10 +364,13 @@ public class FootwearWindowsController {
     let isOverlay: Bool = RedWindowsAPI.IsOverlay(gi);
     let isHudPinned: Bool = IsDefined(cfg) && cfg.hudPinned;
 
-    // Detect overlay closing: when transitioning from open to closed, persist window geometry ONCE to disk.
+    // Detect overlay closing: when transitioning from open to closed, persist pending overrides and window geometry ONCE to disk.
     if IsDefined(winCtrl) {
       if winCtrl.WasOverlayActive() && !isOverlay {
         winCtrl.SetWasOverlayActive(false);
+        if IsDefined(system) {
+          system.FlushPendingOverrideSave();
+        };
         FootwearWindowsController.SaveGeometryImmediate(gi);
       } else if isOverlay && !winCtrl.WasOverlayActive() {
         winCtrl.SetWasOverlayActive(true);
@@ -452,6 +516,10 @@ public class FootwearWindowsController {
     };
     win.SetOverlayOnly(true);
     if win.IsVisible() && RedWindowsAPI.IsOverlay(gi) {
+      let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+      if IsDefined(system) {
+        system.FlushPendingOverrideSave();
+      };
       FootwearWindowsController.SaveGeometryImmediate(gi);
       win.Hide();
       return;
@@ -464,4 +532,29 @@ public class FootwearWindowsController {
       RedWindowsAPI.OpenFor(gi, win);
     };
   }
+}
+
+// -----------------------------------------------------------------------------
+// RedWindows Manager Hooks (Responsive Overlay Tick & Immediate Exit Flush)
+// -----------------------------------------------------------------------------
+
+@wrapMethod(RWManager)
+public func OnTick() -> Void {
+  wrappedMethod();
+  if this.IsOverlay() {
+    let gi: GameInstance = this.GetGameInstance();
+    let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(gi);
+    if IsDefined(winCtrl) && (winCtrl.StepRWTickCounter() % 3 == 0) {
+      FootwearWindowsController.Update(gi);
+    };
+  };
+}
+
+@wrapMethod(RWManager)
+private func ExitOverlay() -> Void {
+  let wasOverlay: Bool = this.IsOverlay();
+  wrappedMethod();
+  if wasOverlay {
+    FootwearWindowsController.OnOverlayExited(this.GetGameInstance());
+  };
 }

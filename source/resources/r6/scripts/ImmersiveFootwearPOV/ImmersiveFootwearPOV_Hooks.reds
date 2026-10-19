@@ -28,6 +28,26 @@ public class FootwearHooksHelper {
   }
 
   /**
+   * Notifies the footwear system when an in-game inventory, wardrobe, or character menu closes.
+   * Performs an immediate update and schedules a delayed post-restore tick so third-person
+   * animgraph elevation and perspective drift are re-asserted after menu teardown and mesh swaps.
+   *
+   * @param player Target player puppet entity.
+   */
+  public static func NotifyMenuClosed(player: ref<PlayerPuppet>) -> Void {
+    if !IsDefined(player) {
+      return;
+    };
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
+    if !IsDefined(sys) {
+      return;
+    };
+    sys.CheckPerspectiveDrift(player);
+    sys.UpdateEquippedFootwear(player);
+    sys.QueuePostRestoreTick();
+  }
+
+  /**
    * Notifies the footwear system of entering or leaving a workspot (sitting/furniture).
    *
    * @param player Target player puppet entity.
@@ -180,7 +200,7 @@ protected cb func OnGameAttached() -> Bool {
 @wrapMethod(gameuiInGameMenuGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet, true);
+  FootwearHooksHelper.NotifyMenuClosed(this.GetPlayerControlledObject() as PlayerPuppet);
   return result;
 }
 
@@ -192,7 +212,7 @@ protected cb func OnUninitialize() -> Bool {
 @wrapMethod(gameuiInventoryGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet, true);
+  FootwearHooksHelper.NotifyMenuClosed(this.GetPlayerControlledObject() as PlayerPuppet);
   return result;
 }
 
@@ -204,7 +224,7 @@ protected cb func OnUninitialize() -> Bool {
 @wrapMethod(WardrobeSetPreviewGameController)
 protected cb func OnUninitialize() -> Bool {
   let result: Bool = wrappedMethod();
-  FootwearHooksHelper.NotifyFootwearChanged(this.GetPlayerControlledObject() as PlayerPuppet, true);
+  FootwearHooksHelper.NotifyMenuClosed(this.GetPlayerControlledObject() as PlayerPuppet);
   return result;
 }
 

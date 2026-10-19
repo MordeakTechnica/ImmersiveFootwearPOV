@@ -68,6 +68,11 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   // Debouncing & Deduplication State
   private let m_debouncePending: Bool;
+  private let m_postRestorePending: Bool;
+  private let m_hasDirtyOverride: Bool;
+  private let m_dirtyOverrideKey: String;
+  private let m_dirtyOverrideHeel: Float;
+  private let m_dirtyOverridePlat: Float;
   private let m_lastLoggedFootwearID: ItemID;
   private let m_lastLoggedSource: String;
   private let m_lastLoggedLayer: String;
@@ -252,11 +257,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   protected cb func OnSessionReady(event: ref<GameSessionEvent>) -> Void {
     this.InitConfigAndRCF();
     this.EnsurePresetsAndOverridesLoaded();
-    let winCtrl: ref<FootwearWindowsController> = this.GetWindowsController();
-    if winCtrl.IsWindowsLoopStarted() {
-      return;
-    };
-    winCtrl.SetWindowsLoopStarted(true);
     FootwearWindowsController.StartTick(this.GetGameInstance());
   }
 
@@ -278,6 +278,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.EnsurePresetsAndOverridesLoaded();
     this.UpdateEquippedFootwear(player);
     this.QueuePostRestoreTick();
+    FootwearWindowsController.StartTick(this.GetGameInstance());
   }
 
   /**
@@ -296,6 +297,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.EnsurePresetsAndOverridesLoaded();
     this.UpdateEquippedFootwear(player);
     this.QueuePostRestoreTick();
+    FootwearWindowsController.StartTick(this.GetGameInstance());
   }
 
   /**
@@ -303,6 +305,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * after streaming systems, Equipment-EX, and wardrobe appearances have finished instantiating.
    */
   public func QueuePostRestoreTick() -> Void {
+    if this.m_postRestorePending {
+      return;
+    };
+    this.m_postRestorePending = true;
     let cb: ref<FootwearPostRestoreTick> = FootwearPostRestoreTick.Create(this);
     GameInstance.GetDelaySystem(this.GetGameInstance()).DelayCallback(cb, 0.40, false);
   }
@@ -329,13 +335,15 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if !IsDefined(player) {
       return;
     };
+    this.CheckPerspectiveDrift(player);
     this.UpdateEquippedFootwear(player);
   }
 
   /**
-   * Delayed callback executing 0.4s after load/attach to re-evaluate footwear and elevation with full assets loaded.
+   * Delayed callback executing 0.4s after load/attach/menu exit to re-evaluate footwear and elevation with full assets loaded.
    */
   public func OnPostRestoreTick() -> Void {
+    this.m_postRestorePending = false;
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if !IsDefined(player) {
       return;
@@ -403,6 +411,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       return;
     };
 
+    this.FlushPendingOverrideSave();
     this.EnsurePresetsAndOverridesLoaded();
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
     let repo: ref<FootwearOverrideRepository> = this.GetOverrideRepository();
@@ -882,12 +891,31 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   /**
    * Applies live preview elevation adjustments during calibration window slider manipulation.
+   * Immediately registers updated heights in the in-memory repository and marks override dirty for deferred disk persistence.
    * @param heel Temporary preview heel height in meters.
    * @param platform Temporary preview platform height in meters.
    */
   public func ApplyLiveCalibration(heel: Float, platform: Float) -> Void {
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
     this.GetCalibrationService().ApplyLiveCalibration(state, heel, platform);
+
+    if ItemID.IsValid(state.equippedFootwearID) {
+      let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
+      if StrLen(shoeKey) > 0 {
+        if this.m_hasDirtyOverride && NotEquals(this.m_dirtyOverrideKey, shoeKey) {
+          this.FlushPendingOverrideSave();
+        };
+        this.GetOverrideRepository().RegisterUserOverride(shoeKey, state.currentHeelHeight, state.currentPlatformHeight);
+        this.m_hasDirtyOverride = true;
+        this.m_dirtyOverrideKey = shoeKey;
+        this.m_dirtyOverrideHeel = state.currentHeelHeight;
+        this.m_dirtyOverridePlat = state.currentPlatformHeight;
+      };
+    };
+
+    this.m_lastLoggedSource = state.settingsSource;
+    this.m_lastLoggedHeel = state.currentHeelHeight;
+    this.m_lastLoggedPlatform = state.currentPlatformHeight;
 
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
@@ -897,9 +925,37 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   /**
+   * Persists any uncommitted live calibration override to user_shoe_overrides.json once.
+   * Invoked automatically when closing the RedWindows overlay, switching shoes, or exiting menus.
+   */
+  public func FlushPendingOverrideSave() -> Void {
+    if !this.m_hasDirtyOverride || StrLen(this.m_dirtyOverrideKey) == 0 {
+      return;
+    };
+    let key: String = this.m_dirtyOverrideKey;
+    let heel: Float = this.m_dirtyOverrideHeel;
+    let plat: Float = this.m_dirtyOverridePlat;
+    this.m_hasDirtyOverride = false;
+    this.m_dirtyOverrideKey = "";
+
+    this.GetStorageManager().SaveUserOverride(key, heel, plat);
+    this.RegisterCustomOverride(key, heel, plat);
+    FootwearRedLogger.LogInfo("CALIBRATOR", s"Auto-saved permanent override for \(key)");
+  }
+
+  /**
+   * Clears the dirty override tracking flag after an explicit save or revert action.
+   */
+  public func ClearPendingOverrideSave() -> Void {
+    this.m_hasDirtyOverride = false;
+    this.m_dirtyOverrideKey = "";
+  }
+
+  /**
    * Clears custom height override and reverts currently equipped footwear to tag or zero baseline.
    */
   public func RevertFootwearToDefault() -> Void {
+    this.ClearPendingOverrideSave();
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if !IsDefined(player) {
       return;
