@@ -976,4 +976,59 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func SetDiagGeoApplied(applied: Bool) -> Void { this.GetWindowsController().SetDiagGeoApplied(applied); }
   public func IsCalibGeoApplied() -> Bool { return this.GetWindowsController().IsCalibGeoApplied(); }
   public func SetCalibGeoApplied(applied: Bool) -> Void { this.GetWindowsController().SetCalibGeoApplied(applied); }
+
+  // -----------------------------------------------------------------------------
+  // DigitalVixen Environment & CET Fallback Status API
+  // -----------------------------------------------------------------------------
+
+  /**
+   * Checks whether the native DigitalVixen suite (RedWindows, RCF, RedFunctions) is complete.
+   * When true, native in-game menus and floating windows are fully functional.
+   * @return True if all required DigitalVixen mods are installed.
+   */
+  public func IsDigitalVixenComplete() -> Bool {
+    return FootwearDVEnvironment.IsDigitalVixenComplete();
+  }
+
+  /**
+   * Checks whether the CET fallback interface should be active.
+   * Active only when at least 1 required DigitalVixen mod is missing.
+   * @return True if CET fallback is active.
+   */
+  public func IsCetFallbackActive() -> Bool {
+    return FootwearDVEnvironment.IsCetFallbackActive();
+  }
+
+  /**
+   * Checks whether RedWindows is available.
+   * @return True if RedWindows is installed.
+   */
+  public func HasRedWindows() -> Bool {
+    return FootwearDVEnvironment.HasRedWindows();
+  }
+
+  /**
+   * Checks whether RedscriptConfigFramework (RCF) is available.
+   * @return True if RCF is installed.
+   */
+  public func HasRCF() -> Bool {
+    return FootwearDVEnvironment.HasRCF();
+  }
+
+  /**
+   * Checks whether RedFunctions is available.
+   * @return True if RedFunctions is installed.
+   */
+  public func HasRedFunctions() -> Bool {
+    return FootwearDVEnvironment.HasRedFunctions();
+  }
+
+  /**
+   * Returns a human-readable list of missing DigitalVixen mods.
+   * @return Formatted summary string.
+   */
+  public func GetMissingDigitalVixenSummary() -> String {
+    return FootwearDVEnvironment.GetMissingSummary();
+  }
 }
+

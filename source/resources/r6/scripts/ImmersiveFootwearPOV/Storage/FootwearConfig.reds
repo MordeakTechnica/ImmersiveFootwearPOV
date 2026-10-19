@@ -1,6 +1,8 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.Json.*
 
 // =============================================================================
@@ -72,6 +74,7 @@ public class FootwearConfig {
    * Handles backwards compatibility migration from legacy 'hipSwayIntensity' if present.
    * @param map The source JsonMap to read from.
    */
+  @if(ModuleExists("RedFunctions"))
   public func ReadFromJson(map: ref<JsonMap>) -> Void {
     if !IsDefined(map) {
       return;
@@ -110,6 +113,7 @@ public class FootwearConfig {
    * Serializes current configuration attributes into a JSON map object for persistent disk storage.
    * @param map The destination JsonMap to write to.
    */
+  @if(ModuleExists("RedFunctions"))
   public func WriteToJson(map: ref<JsonMap>) -> Void {
     if !IsDefined(map) {
       return;

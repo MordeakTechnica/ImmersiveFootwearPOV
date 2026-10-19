@@ -1,7 +1,10 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedscriptConfigFramework"))
 import RedscriptConfigFramework.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
+@if(ModuleExists("RedWindows"))
 import RedWindows.*
 
 // =============================================================================
@@ -9,6 +12,7 @@ import RedWindows.*
 // Single Responsibility: Presents mod configuration cleanly in native Cyberpunk menus
 // Open/Closed Principle: Extends DVRCF_Provider without modifying framework internals
 // =============================================================================
+@if(ModuleExists("RedscriptConfigFramework"))
 public class FootwearRCFProvider extends DVRCF_Provider {
   private let m_config: ref<FootwearConfig>;
   private let m_system: wref<ImmersiveFootwearPOVSystem>;
@@ -289,5 +293,15 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       provider
     );
     FootwearRedLogger.LogInfo("RCF", "Registered Immersive Footwear POV with Redscript Configuration Framework (RCF)");
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Fallback Stub (when RedscriptConfigFramework is NOT installed)
+// -----------------------------------------------------------------------------
+@if(!ModuleExists("RedscriptConfigFramework"))
+public class FootwearRCFProvider {
+  public static func Register(gi: GameInstance, config: ref<FootwearConfig>, system: ref<ImmersiveFootwearPOVSystem>) -> Void {
+    // No-op: RCF is not installed; configuration will be handled via CET fallback
   }
 }

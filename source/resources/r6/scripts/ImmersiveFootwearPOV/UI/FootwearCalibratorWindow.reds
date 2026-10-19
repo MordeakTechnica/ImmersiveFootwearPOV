@@ -1,6 +1,8 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedWindows"))
 import RedWindows.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
 
 // =============================================================================
@@ -8,6 +10,7 @@ import RedFunctions.*
 // Single Responsibility: Real-time slider adjustments & manual numerical inputs
 // with instant character preview, matching CET calibration capabilities.
 // =============================================================================
+@if(ModuleExists("RedWindows"))
 public class FootwearCalibratorWindow {
   private let m_lastShoeKey: String;
   private let m_lastHasFootwear: Int32;
@@ -290,4 +293,15 @@ public class FootwearCalibratorWindow {
       win.Hide();
     };
   }
+}
+
+// -----------------------------------------------------------------------------
+// Fallback Stub (when RedWindows is NOT installed)
+// -----------------------------------------------------------------------------
+@if(!ModuleExists("RedWindows"))
+public class FootwearCalibratorWindow {
+  public static func Create() -> ref<FootwearCalibratorWindow> {
+    return new FootwearCalibratorWindow();
+  }
+  public func Reset() -> Void {}
 }

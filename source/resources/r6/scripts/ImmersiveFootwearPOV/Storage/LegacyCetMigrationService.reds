@@ -1,12 +1,16 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.Json.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.Storage.*
 
 // =============================================================================
 // One-Time Legacy CET Migration Service (Isolated Single Responsibility)
 // =============================================================================
+@if(ModuleExists("RedFunctions"))
 public class LegacyCetMigrationService {
 
   /**
@@ -111,3 +115,12 @@ public class LegacyCetMigrationService {
     FootwearRedLogger.LogInfo("STORAGE", "Successfully migrated legacy CET user overrides into ModStorage!");
   }
 }
+
+// -----------------------------------------------------------------------------
+// Fallback Stub (when RedFunctions is NOT installed)
+// -----------------------------------------------------------------------------
+@if(!ModuleExists("RedFunctions"))
+public class LegacyCetMigrationService {
+  public static func MigrateIfNeeded(storageMgr: ref<FootwearStorageManager>, config: ref<FootwearConfig>) -> Void {}
+}
+

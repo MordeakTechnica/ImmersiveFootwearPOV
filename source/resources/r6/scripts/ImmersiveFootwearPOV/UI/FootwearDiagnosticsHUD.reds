@@ -1,11 +1,14 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedWindows"))
 import RedWindows.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
 
 // =============================================================================
 // Immersive Footwear POV - Live Diagnostics HUD Window
 // Single Responsibility: Floating inkWidget HUD displaying live telemetry
+@if(ModuleExists("RedWindows"))
 public class FootwearDiagnosticsHUD {
 
   /**
@@ -106,3 +109,12 @@ public class FootwearDiagnosticsHUD {
     };
   }
 }
+
+// -----------------------------------------------------------------------------
+// Fallback Stub (when RedWindows is NOT installed)
+// -----------------------------------------------------------------------------
+@if(!ModuleExists("RedWindows"))
+public class FootwearDiagnosticsHUD {
+  public static func Render(gi: GameInstance) -> Void {}
+}
+

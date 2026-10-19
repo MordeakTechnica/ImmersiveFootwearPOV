@@ -1,13 +1,17 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.Json.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.Storage.*
 
 // =============================================================================
 // Immersive Footwear POV - Native Storage Manager (Repository Pattern)
 // Single Responsibility: Low-level file persistence of config, presets, and overrides via RedFunctions
 // =============================================================================
+@if(ModuleExists("RedFunctions"))
 public class FootwearStorageManager {
   private let m_storage: ref<ModStorage>;
 
@@ -333,3 +337,58 @@ public class FootwearStorageManager {
     LegacyCetMigrationService.MigrateIfNeeded(this, config);
   }
 }
+
+// -----------------------------------------------------------------------------
+// Fallback Stub (when RedFunctions is NOT installed)
+// Single Responsibility: In-memory fallback ensuring system executes safely;
+// disk configuration and user overrides are handled via CET fallback.
+// -----------------------------------------------------------------------------
+@if(!ModuleExists("RedFunctions"))
+public class FootwearStorageManager {
+  public static func Create() -> ref<FootwearStorageManager> {
+    return new FootwearStorageManager();
+  }
+
+  public static func GetInstance() -> ref<FootwearStorageManager> {
+    return FootwearStorageManager.Create();
+  }
+
+  public func IsReady() -> Bool {
+    return false;
+  }
+
+  public func LoadConfig(config: ref<FootwearConfig>) -> Bool {
+    return false;
+  }
+
+  public func SaveConfig(config: ref<FootwearConfig>) -> Bool {
+    return false;
+  }
+
+  public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Bool {
+    return false;
+  }
+
+  public func SaveUserOverridesFromRepo(repo: ref<FootwearOverrideRepository>) -> Bool {
+    return false;
+  }
+
+  public func SaveUserOverride(key: String, heel: Float, plat: Float) -> Bool {
+    return false;
+  }
+
+  public func RemoveUserOverride(key: String) -> Bool {
+    return false;
+  }
+
+  public func LoadMasterPresetsIntoRepo(repo: ref<FootwearOverrideRepository>) -> Bool {
+    return false;
+  }
+
+  public func LoadMasterPresets(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
+    return 0;
+  }
+
+  public func MigrateLegacyCet(system: ref<ImmersiveFootwearPOVSystem>, config: ref<FootwearConfig>) -> Void {}
+}
+

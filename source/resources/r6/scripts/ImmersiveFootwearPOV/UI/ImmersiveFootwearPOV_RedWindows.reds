@@ -1,6 +1,8 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("RedWindows"))
 import RedWindows.*
+@if(ModuleExists("RedFunctions"))
 import RedFunctions.*
 
 // =============================================================================
@@ -9,6 +11,7 @@ import RedFunctions.*
 // Coordinates opening, closing, ticking, and layout geometry of native RedWindows.
 // =============================================================================
 
+@if(ModuleExists("RedWindows"))
 public class FootwearWindowsTick extends DelayCallback {
   public let m_gi: GameInstance;
   public let m_generation: Int32;
@@ -29,6 +32,7 @@ public class FootwearWindowsTick extends DelayCallback {
   }
 }
 
+@if(ModuleExists("RedWindows"))
 public class FootwearWindowsController {
   private let m_calibratorWindow: ref<FootwearCalibratorWindow>;
   private let m_windowsLoopStarted: Bool;
@@ -520,3 +524,58 @@ public class FootwearWindowsController {
     };
   }
 }
+
+// -----------------------------------------------------------------------------
+// Fallback Stub (when RedWindows is NOT installed)
+// Single Responsibility: Provides safe no-op implementation so system logic
+// and session initialization execute without null pointer or unresolved symbol errors.
+// -----------------------------------------------------------------------------
+@if(!ModuleExists("RedWindows"))
+public class FootwearWindowsController {
+  private let m_calibratorWindow: ref<FootwearCalibratorWindow>;
+  private let m_windowsLoopStarted: Bool;
+  private let m_diagGeoApplied: Bool;
+  private let m_calibGeoApplied: Bool;
+  private let m_wasOverlayActive: Bool;
+  private let m_tickGeneration: Int32;
+
+  public static func Create() -> ref<FootwearWindowsController> {
+    let controller: ref<FootwearWindowsController> = new FootwearWindowsController();
+    controller.m_calibratorWindow = FootwearCalibratorWindow.Create();
+    controller.m_windowsLoopStarted = false;
+    controller.m_diagGeoApplied = false;
+    controller.m_calibGeoApplied = false;
+    controller.m_wasOverlayActive = false;
+    controller.m_tickGeneration = 1;
+    return controller;
+  }
+
+  public static func GetInstance(gi: GameInstance) -> ref<FootwearWindowsController> {
+    let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+    if IsDefined(system) {
+      return system.GetWindowsController();
+    };
+    return null;
+  }
+
+  public static func Init(gi: GameInstance) -> Void {}
+  public static func StartTick(gi: GameInstance) -> Void {}
+  public static func Update(gi: GameInstance) -> Float { return 5.0; }
+  public static func OnOverlayExited(gi: GameInstance) -> Void {}
+  public static func ToggleDiagnostics(gi: GameInstance) -> Void {}
+  public static func ToggleCalibrator(gi: GameInstance) -> Void {}
+  public static func SaveGeometryImmediate(gi: GameInstance) -> Void {}
+
+  public func GetCalibratorWindow() -> ref<FootwearCalibratorWindow> { return this.m_calibratorWindow; }
+  public func IsWindowsLoopStarted() -> Bool { return this.m_windowsLoopStarted; }
+  public func SetWindowsLoopStarted(started: Bool) -> Void { this.m_windowsLoopStarted = started; }
+  public func GetTickGeneration() -> Int32 { return this.m_tickGeneration; }
+  public func NextTickGeneration() -> Int32 { this.m_tickGeneration += 1; return this.m_tickGeneration; }
+  public func IsDiagGeoApplied() -> Bool { return this.m_diagGeoApplied; }
+  public func SetDiagGeoApplied(applied: Bool) -> Void { this.m_diagGeoApplied = applied; }
+  public func IsCalibGeoApplied() -> Bool { return this.m_calibGeoApplied; }
+  public func SetCalibGeoApplied(applied: Bool) -> Void { this.m_calibGeoApplied = applied; }
+  public func WasOverlayActive() -> Bool { return this.m_wasOverlayActive; }
+  public func SetWasOverlayActive(active: Bool) -> Void { this.m_wasOverlayActive = active; }
+}
+

@@ -2,6 +2,25 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.4.0-beta`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.0-beta) — 2026-10-20
+### `feat(cet): add conditional configuration-only fallback for missing DigitalVixen mods & fix compile errors`
+* **Compile-Time Resilience & Module Probing (`FootwearDVEnvironment`):**
+  * Fixed boot compile errors when DigitalVixen mods (`RedWindows`, `RedscriptConfigFramework`, `RedFunctions`) are not present or partially installed.
+  * Implemented `@if(ModuleExists(...))` probing and compile-time Null Object / Stub implementations (`FootwearWindowsController`, `FootwearRCFProvider`, `FootwearStorageManager`, `LegacyCetMigrationService`).
+  * Ensured complete type-safe no-op fallbacks with matching static and instance signatures to prevent linking and compilation crashes.
+* **Lightweight Conditional CET Configuration Fallback (Presenter / Facade Pattern):**
+  * Re-instated Cyber Engine Tweaks (CET) purely as a fallback configuration interface when native UI mods are missing.
+  * **Strict Dormancy**: When all required DigitalVixen mods (`RedWindows`, `RedscriptConfigFramework`, `RedFunctions`) are detected, CET remains 100% dormant (`onDraw` renders nothing; hotkeys suppressed).
+  * **Exemption for RedLogger**: `RedLogger` does not trigger the fallback interface, as REDscript already provides native REDengine console logging.
+  * **Pure Configuration View**: Zero gameplay, stride, animgraph, or elevation computation in CET. All logic remains 100% native REDscript.
+  * **Shoe Calibrator Tab**: Live heel and platform sole sliders with instantaneous character model preview on V via `sys:ApplyLiveCalibration(heel, plat)`.
+  * **Mod Settings Tab**: Full configuration sliders and toggles bound directly to REDscript's `FootwearConfig`.
+  * **Diagnostics & Status Tab**: Live visual indicators of installed vs missing DigitalVixen mods, authoritative elevation stats, and suppression locks.
+  * **Local JSON Fallback**: Transparently saves and loads `config.json` and `user_shoe_overrides.json` when `RedFunctions.ModStorage` is absent.
+* **Release & Build Pipeline Updates:**
+  * Updated `tools/pack_and_deploy.ps1` to deploy CET fallback files into game plugins.
+  * Updated `tools/create_release_zips.ps1` to include `bin/` in Main Mod and All-in-One release archives.
+
 ## [**`v2.4.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.0) — 2026-10-15
 ### `refactor(redscript): comprehensive SOLID principles refactoring & design pattern architecture`
 * **Chain of Responsibility Pattern for Footwear Resolution (`FootwearResolver`):**
