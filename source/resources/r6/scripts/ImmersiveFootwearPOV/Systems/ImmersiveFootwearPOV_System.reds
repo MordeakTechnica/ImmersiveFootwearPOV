@@ -390,8 +390,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       this.CheckPerspectiveDrift(player);
     };
 
+    if !this.m_lastTppActive {
+      let cfg: ref<FootwearConfig> = this.GetConfig();
+      if !IsDefined(cfg) || cfg.enableFPP {
+        let suppressed: Bool = this.IsSuppressed();
+        let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+        let effHeel: Float = suppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(state.currentHeelHeight);
+        HeightController.ApplyHeightOffset(player, effHeel);
+      };
+      return;
+    };
+
     let cfg: ref<FootwearConfig> = this.GetConfig();
-    if !IsDefined(cfg) || !cfg.enableHipSway || !this.m_lastTppActive {
+    if !IsDefined(cfg) || !cfg.enableHipSway {
       return;
     };
     this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
@@ -672,6 +683,31 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func GetActiveSource() -> String { return this.GetEquipmentState().activeSource; }
   public func GetSettingsSource() -> String { return this.GetEquipmentState().settingsSource; }
   public func GetEffectiveHeelPitch() -> Float { return this.GetEquipmentState().GetEffectiveHeelPitch(); }
+  public func GetActiveFppBlend() -> Float {
+    let cfg: ref<FootwearConfig> = this.GetConfig();
+    if IsDefined(cfg) && !cfg.enableFPP {
+      return 0.50;
+    };
+    if this.m_lastTppActive {
+      return 0.50;
+    };
+    let suppressed: Bool = this.IsSuppressed();
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    let effHeel: Float = suppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(state.currentHeelHeight);
+    return FootwearAnimgraphHelper.CalculateHeightBlend(effHeel);
+  }
+  public func GetActiveFppOffset() -> Float {
+    let cfg: ref<FootwearConfig> = this.GetConfig();
+    if IsDefined(cfg) && !cfg.enableFPP {
+      return 0.0;
+    };
+    if this.m_lastTppActive {
+      return 0.0;
+    };
+    let suppressed: Bool = this.IsSuppressed();
+    let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
+    return suppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(state.currentHeelHeight);
+  }
 
   // -----------------------------------------------------------------------------
   // Framework & Camera Integration Queries
