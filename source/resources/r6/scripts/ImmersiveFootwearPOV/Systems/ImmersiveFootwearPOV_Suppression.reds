@@ -180,8 +180,9 @@ public class SwayEvaluator {
           return SwayContextData.Create(false, 0.0, "Climbing / Vaulting", speed);
         };
 
-        let weapon: Int32 = psmBlackboard.GetInt(psmDefs.Weapon);
-        if weapon == 2 {
+        let crosshairState: Int32 = psmBlackboard.GetInt(psmDefs.Crosshair);
+        let upperBodyState: Int32 = psmBlackboard.GetInt(psmDefs.UpperBody);
+        if crosshairState == EnumInt(gamePSMCrosshairStates.Aim) || upperBodyState == EnumInt(gamePSMUpperBodyStates.Aim) {
           return SwayContextData.Create(false, 0.0, "Aiming Weapon", speed);
         };
       };

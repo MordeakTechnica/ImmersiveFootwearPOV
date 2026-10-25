@@ -2,6 +2,12 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.3.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.1) — 2026-10-25
+### `fix(redscript): fix member Weapon unresolved compilation error on Cyberpunk 2.5+`
+* **Player State Machine Aiming Detection:**
+  * Replaced unresolved legacy `psmDefs.Weapon` blackboard access with native `psmDefs.Crosshair` (`gamePSMCrosshairStates.Aim`) and `psmDefs.UpperBody` (`gamePSMUpperBodyStates.Aim`) checks in `SwayEvaluator`.
+  * Resolves game launch REDscript compilation failure on Cyberpunk 2.5+ / Patch 2.31+.
+
 ## [**`v2.3.0`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.0) — 2026-10-12
 ### `feat(itp): add compatibility with new Immersive Third Person (ITP) release & official Developer API`
 * **AnimGraph Rebuild for New ITP Release:**
