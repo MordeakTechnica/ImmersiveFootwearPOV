@@ -65,6 +65,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_lastLocoFrame: Uint64;
   private let m_isRcfRegistered: Bool;
   private let m_config: ref<FootwearConfig>;
+  private let m_activeNtpElevation: Float;
 
   // Debouncing & Deduplication State
   private let m_debouncePending: Bool;
@@ -274,6 +275,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
     this.m_isInitialized = false;
     this.m_hasTppInitialized = false;
+    this.m_activeNtpElevation = 0.0;
     this.GetSuppressionController().Reset();
     this.EnsurePresetsAndOverridesLoaded();
     this.UpdateEquippedFootwear(player);
@@ -293,6 +295,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
     this.m_isInitialized = false;
     this.m_hasTppInitialized = false;
+    this.m_activeNtpElevation = 0.0;
     this.GetSuppressionController().Reset();
     this.EnsurePresetsAndOverridesLoaded();
     this.UpdateEquippedFootwear(player);
@@ -405,7 +408,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     if !IsDefined(cfg) || !cfg.enableHipSway {
       return;
     };
-    this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, false);
+    let winCtrl: ref<FootwearWindowsController> = this.GetWindowsController();
+    let isOverlayOpen: Bool = IsDefined(winCtrl) && winCtrl.WasOverlayActive();
+    this.UpdateStride(player, timeDelta, cfg.enableHipSway, cfg.swayLow, cfg.swayMid, cfg.swayHigh, isOverlayOpen);
   }
 
   // -----------------------------------------------------------------------------
@@ -719,6 +724,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func SetIFPPresent(present: Bool) -> Void { this.GetFrameworkService().SetIFPPresent(present); }
   public func IsITPPresent() -> Bool { return this.GetFrameworkService().IsITPPresent(this.GetGameInstance()); }
   public func SetITPPresent(present: Bool) -> Void { this.GetFrameworkService().SetITPPresent(present); }
+  public func IsNTPPresent() -> Bool { return this.GetFrameworkService().IsNTPPresent(); }
+  public func GetActiveNtpElevation() -> Float { return this.m_activeNtpElevation; }
+  public func SetActiveNtpElevation(elevation: Float) -> Void { this.m_activeNtpElevation = elevation; }
   public func IsTPPActive(player: ref<PlayerPuppet>) -> Bool {
     if !this.m_hasTppInitialized {
       this.CheckPerspectiveDrift(player);

@@ -303,5 +303,5 @@ public class FootwearCalibratorWindow {
   public static func Create() -> ref<FootwearCalibratorWindow> {
     return new FootwearCalibratorWindow();
   }
-  public func Reset() -> Void {}
+  public func InvalidateSync() -> Void {}
 }

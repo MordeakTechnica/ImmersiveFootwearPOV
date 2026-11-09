@@ -123,6 +123,8 @@ public class StrideController {
 
       if isOverlayOpen {
         this.m_statusText = s"Active (Roll: \(this.m_currentRoll)°, Yaw: \(this.m_currentYaw)°, Pitch: \(pitchCm)cm, Speed: \(speed)m/s)";
+      } else {
+        this.m_statusText = s"Active (\(reason))";
       };
     } else {
       this.m_currentRoll = 0.0;
@@ -130,9 +132,7 @@ public class StrideController {
       this.m_currentSpineCounterYaw = 0.0;
       this.m_currentSpineCounterRoll = 0.0;
       this.m_currentLegCounterRoll = 0.0;
-      if isOverlayOpen {
-        this.m_statusText = s"Inactive (\(reason))";
-      };
+      this.m_statusText = s"Inactive (\(reason))";
     };
 
     this.Publish(player);

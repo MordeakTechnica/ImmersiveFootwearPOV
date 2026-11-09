@@ -155,9 +155,6 @@ local function DrawSettingsTab(sys, configMgr)
     local fpp, fppToggled = ImGui.Checkbox("Enable FPP Camera Lift", cfg.enableFPP)
     if fppToggled then cfg.enableFPP = fpp; changed = true end
 
-    local spd, spdChanged = ImGui.SliderFloat("Camera Easing Duration (s)", cfg.transitionSpeed, 0.10, 1.00, "%.2f s")
-    if spdChanged then cfg.transitionSpeed = spd; changed = true end
-
     ImGui.Spacing()
     ImGui.Separator()
     ImGui.Spacing()
@@ -168,6 +165,9 @@ local function DrawSettingsTab(sys, configMgr)
 
     local pm, pmToggled = ImGui.Checkbox("Auto-Elevate in Photo Mode", cfg.autoElevatePM)
     if pmToggled then cfg.autoElevatePM = pm; changed = true end
+
+    local ntp, ntpToggled = ImGui.Checkbox("Auto-Elevate in NTP (Idles & Dances)", cfg.autoElevateNTP)
+    if ntpToggled then cfg.autoElevateNTP = ntp; changed = true end
 
     ImGui.Spacing()
     ImGui.Separator()
@@ -218,6 +218,7 @@ local function DrawSettingsTab(sys, configMgr)
                 transitionSpeed = cfg.transitionSpeed,
                 enableITP = cfg.enableITP,
                 autoElevatePM = cfg.autoElevatePM,
+                autoElevateNTP = cfg.autoElevateNTP,
                 enableHipSway = cfg.enableHipSway,
                 swayLow = cfg.swayLow,
                 swayMid = cfg.swayMid,
@@ -236,6 +237,23 @@ local function DrawSettingsTab(sys, configMgr)
         if sys.OnConfigUpdated then sys:OnConfigUpdated(cfg) end
         if sys.GetStorageManager and sys:GetStorageManager().SaveConfig then
             sys:GetStorageManager():SaveConfig(cfg)
+        end
+        if configMgr and (not sys.HasRedFunctions or not sys:HasRedFunctions()) then
+            configMgr.SaveSettings({
+                enableFPP = cfg.enableFPP,
+                transitionSpeed = cfg.transitionSpeed,
+                enableITP = cfg.enableITP,
+                autoElevatePM = cfg.autoElevatePM,
+                autoElevateNTP = cfg.autoElevateNTP,
+                enableHipSway = cfg.enableHipSway,
+                swayLow = cfg.swayLow,
+                swayMid = cfg.swayMid,
+                swayHigh = cfg.swayHigh,
+                suppressVehicles = cfg.suppressVehicles,
+                suppressWorkspots = cfg.suppressWorkspots,
+                suppressScenes = cfg.suppressScenes,
+                debugLogs = cfg.debugLogs,
+            })
         end
     end
 end

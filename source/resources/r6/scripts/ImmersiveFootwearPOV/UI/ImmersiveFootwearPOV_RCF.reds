@@ -47,14 +47,14 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       .Section("First-Person Perspective (FPP)")
       .Toggle("enableFPP", "Enable FPP Camera Lift")
       .Tip("Lifts V's first-person eye height based on equipped footwear heel height.")
-      .Slider("transitionSpeed", "Camera Easing Duration (seconds)", 0.10, 1.0, 0.05, false)
-      .Tip("Smoothstep interpolation time when camera elevation changes.")
       .Divider()
       .Section("Third-Person (ITP) & Photo Mode")
       .Toggle("enableITP", "Enable Third-Person Character Elevation (ITP)")
       .Tip("Adjusts V's 3rd-person physical character elevation via animgraph blend nodes.")
       .Toggle("autoElevatePM", "Auto-Elevate in Photo Mode")
       .Tip("Automatically applies platform/sole elevation in Photo Mode.")
+      .Toggle("autoElevateNTP", "Auto-Elevate in Negotiable Third Person (NTP)")
+      .Tip("Lifts V's character model and workspot carrier during third-person idle and dance animations.")
 
       .Tab("Catwalk Locomotion")
       .Section("Feminine Stride & Pelvic Sway")
@@ -112,6 +112,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "enableFPP") { return this.m_config.enableFPP; };
     if Equals(key, "enableITP") { return this.m_config.enableITP; };
     if Equals(key, "autoElevatePM") { return this.m_config.autoElevatePM; };
+    if Equals(key, "autoElevateNTP") { return this.m_config.autoElevateNTP; };
     if Equals(key, "enableHipSway") { return this.m_config.enableHipSway; };
     if Equals(key, "suppressVehicles") { return this.m_config.suppressVehicles; };
     if Equals(key, "suppressWorkspots") { return this.m_config.suppressWorkspots; };
@@ -135,6 +136,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "enableFPP") && NotEquals(this.m_config.enableFPP, value) { this.m_config.enableFPP = value; changed = true; };
     if Equals(key, "enableITP") && NotEquals(this.m_config.enableITP, value) { this.m_config.enableITP = value; changed = true; };
     if Equals(key, "autoElevatePM") && NotEquals(this.m_config.autoElevatePM, value) { this.m_config.autoElevatePM = value; changed = true; };
+    if Equals(key, "autoElevateNTP") && NotEquals(this.m_config.autoElevateNTP, value) { this.m_config.autoElevateNTP = value; changed = true; };
     if Equals(key, "enableHipSway") && NotEquals(this.m_config.enableHipSway, value) { this.m_config.enableHipSway = value; changed = true; };
     if Equals(key, "suppressVehicles") && NotEquals(this.m_config.suppressVehicles, value) { this.m_config.suppressVehicles = value; changed = true; };
     if Equals(key, "suppressWorkspots") && NotEquals(this.m_config.suppressWorkspots, value) { this.m_config.suppressWorkspots = value; changed = true; };

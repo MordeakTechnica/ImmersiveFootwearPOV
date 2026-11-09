@@ -7,7 +7,6 @@
 local Config = {
     SETTINGS_FILE = "config.json",
     OVERRIDES_FILE = "user_shoe_overrides.json",
-    PRESETS_FILE = "presets.json",
 }
 
 --- Read and parse JSON content from a file path safely

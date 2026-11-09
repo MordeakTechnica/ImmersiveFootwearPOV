@@ -19,9 +19,13 @@ public class FootwearUnitConverter {
       return 0.0;
     };
 
-    // If decimal point exists (e.g. "0.06", "0.10", "0.25")
+    // If decimal point exists (e.g. "0.06", "0.10", "0.25", or decimal cm "6.5", "8.5")
     if StrFindFirst(valueStr, ".") >= 0 {
-      return StringToFloat(valueStr);
+      let fVal: Float = StringToFloat(valueStr);
+      if fVal > (maxAllowedCm / 100.0) && fVal <= maxAllowedCm {
+        return fVal / 100.0;
+      };
+      return fVal;
     };
 
     let intVal: Int32 = StringToInt(valueStr);

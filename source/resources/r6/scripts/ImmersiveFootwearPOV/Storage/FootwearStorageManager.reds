@@ -92,7 +92,7 @@ public class FootwearStorageManager {
       return false;
     };
 
-    config.ReadFromJson(val.AsMap());
+    FootwearConfigJsonAdapter.ReadFromJson(config, val.AsMap());
     FootwearRedLogger.LogInfo("STORAGE", "Loaded mod configuration from config.json");
     return true;
   }
@@ -108,7 +108,7 @@ public class FootwearStorageManager {
     };
 
     let map: ref<JsonMap> = JsonMap.Make();
-    config.WriteToJson(map);
+    FootwearConfigJsonAdapter.WriteToJson(config, map);
     let success: Bool = this.m_storage.WriteJson(this.CONFIG_FILE, map, false, true);
     if !success {
       FootwearRedLogger.LogError("STORAGE", "Failed to write config.json");

@@ -74,6 +74,28 @@ public class ITPDetector {
   }
 }
 
+@if(ModuleExists("NegotiableThirdPerson"))
+public class NTPDetector {
+  /**
+   * Checks whether Negotiable Third Person (NTP) module is compiled and present.
+   * @return True if NegotiableThirdPerson module exists.
+   */
+  public static func IsPresent() -> Bool {
+    return true;
+  }
+}
+
+@if(!ModuleExists("NegotiableThirdPerson"))
+public class NTPDetector {
+  /**
+   * Checks whether Negotiable Third Person (NTP) module is compiled and present.
+   * @return False when NegotiableThirdPerson module is absent.
+   */
+  public static func IsPresent() -> Bool {
+    return false;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Animgraph Elevation & Blend Math Helper
 // -----------------------------------------------------------------------------
@@ -192,6 +214,14 @@ public class FrameworkIntegrationService {
    */
   public func IsTPPActive(player: ref<PlayerPuppet>, opt currentTppState: Bool) -> Bool {
     return ITPController.IsTPPActive(player, currentTppState);
+  }
+
+  /**
+   * Checks whether Negotiable Third Person (NTP) is present.
+   * @return True if NTP is available.
+   */
+  public func IsNTPPresent() -> Bool {
+    return NTPDetector.IsPresent();
   }
 
   /**

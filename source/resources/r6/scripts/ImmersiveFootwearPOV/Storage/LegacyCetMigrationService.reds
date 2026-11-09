@@ -65,7 +65,7 @@ public class LegacyCetMigrationService {
     };
 
     if IsDefined(config) {
-      config.ReadFromJson(parsedCfg.AsMap());
+      FootwearConfigJsonAdapter.ReadFromJson(config, parsedCfg.AsMap());
     };
     storage.WriteJson("config.json", parsedCfg, false, true);
     FootwearRedLogger.LogInfo("STORAGE", "Successfully migrated legacy CET config.json into ModStorage!");
@@ -104,7 +104,7 @@ public class LegacyCetMigrationService {
       let settingsVal: ref<JsonValue> = rootMap.Value("__settings");
       if IsDefined(settingsVal) && settingsVal.IsMap() {
         if IsDefined(config) {
-          config.ReadFromJson(settingsVal.AsMap());
+          FootwearConfigJsonAdapter.ReadFromJson(config, settingsVal.AsMap());
         };
         storage.WriteJson("config.json", settingsVal, false, true);
         FootwearRedLogger.LogInfo("STORAGE", "Extracted legacy __settings into config.json in ModStorage!");

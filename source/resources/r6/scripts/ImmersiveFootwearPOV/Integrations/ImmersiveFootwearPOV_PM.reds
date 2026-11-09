@@ -22,6 +22,10 @@ public func ApplyFootwearElevation() -> Void {
   if !IsDefined(sys) {
     return;
   };
+  let cfg: ref<FootwearConfig> = sys.GetConfig();
+  if IsDefined(cfg) && !cfg.autoElevatePM {
+    return;
+  };
   let platMeters: Float = sys.GetCurrentPlatformHeight();
   if platMeters <= 0.0 {
     return;

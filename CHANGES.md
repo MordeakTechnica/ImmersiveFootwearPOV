@@ -2,6 +2,22 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.4.1-beta`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.1-beta) — 2026-11-09
+### `feat(integration): add Negotiable Third Person (NTP) idle and dance animation elevation support`
+* **Negotiable Third Person (NTP) Elevation Bridge (`ImmersiveFootwearPOV_NTP.reds`):**
+  * Implemented non-invasive REDscript integration for Negotiable Third Person (NTP) idle/dance workspots via `NTPFootwearHelper` and decoupled `NTP_Footwear_Integration.reds`.
+  * Elevates the carrier device staging coordinates based on V's active footwear platform sole height (`GetCurrentPlatformHeight()`). Using platform height (not heel height) ensures feet and soles rest flush on the ground without hovering in the air.
+  * Allows high heels and platform shoes to rest flush on the floor surface during third-person standing and dancing idle animations instead of sinking into the ground.
+  * Preserves real V's un-elevated world coordinates (`WithStagedLocation`) and wraps `NTP_PlayerHider.RestorePlayer` to cleanly return V to exact floor elevation upon exiting the animation without vertical drift.
+  * Intelligent workspot filtering: automatically elevates standing and dancing animations while ignoring sitting on ground, chairs, beds, couches, or kneeling workspots.
+  * Supports mid-scene animation transitions via `TransitionTo`.
+* **Configuration & UI (`FootwearConfig`, `ImmersiveFootwearPOV_RCF`, CET UI):**
+  * Added `autoElevateNTP` setting (enabled by default) to `FootwearConfig`.
+  * Integrated toggle and descriptive tooltip into Redscript Configuration Framework (`ImmersiveFootwearPOV_RCF`) under "Third-Person (ITP) & Photo Mode".
+  * Added CET UI checkbox and JSON synchronization support in `modules/ui.lua` and `init.lua`.
+* **Framework Probing (`NTPDetector`):**
+  * Added `@if(ModuleExists("NegotiableThirdPerson"))` detection class and `IsNTPPresent()` method to `FrameworkIntegrationService`.
+
 ## [**`v2.3.1`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.3.1) — 2026-10-25
 ### `fix(redscript): fix member Weapon unresolved compilation error on Cyberpunk 2.5+`
 * **Player State Machine Aiming Detection:**

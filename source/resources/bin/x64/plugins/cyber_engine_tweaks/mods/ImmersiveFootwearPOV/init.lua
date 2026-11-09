@@ -54,6 +54,7 @@ local function EvaluateFallbackState()
             if settings.transitionSpeed ~= nil then cfg.transitionSpeed = settings.transitionSpeed end
             if settings.enableITP ~= nil then cfg.enableITP = settings.enableITP end
             if settings.autoElevatePM ~= nil then cfg.autoElevatePM = settings.autoElevatePM end
+            if settings.autoElevateNTP ~= nil then cfg.autoElevateNTP = settings.autoElevateNTP end
             if settings.enableHipSway ~= nil then cfg.enableHipSway = settings.enableHipSway end
             if settings.swayLow ~= nil then cfg.swayLow = settings.swayLow end
             if settings.swayMid ~= nil then cfg.swayMid = settings.swayMid end
