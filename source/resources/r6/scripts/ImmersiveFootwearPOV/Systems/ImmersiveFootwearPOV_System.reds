@@ -292,7 +292,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
       return;
     };
     let winCtrl: ref<FootwearWindowsController> = this.GetWindowsController();
-    let isOverlayOpen: Bool = IsDefined(winCtrl) && winCtrl.WasOverlayActive();
+    let isOverlayOpen: Bool = FootwearCalibratorHost.IsCalibratorOpen(player.GetGame()) || (IsDefined(winCtrl) && winCtrl.WasOverlayActive());
     let currentFrame: Uint64 = GameInstance.GetFrameNumber(player.GetGame());
     if currentFrame != this.m_lastStrideFrame {
       this.m_lastStrideFrame = currentFrame;
@@ -515,6 +515,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
   private func NotifyFootwearChanged(itemID: ItemID, heel: Float, platform: Float, source: String) -> Void {
     this.GetEventDispatcher().NotifyFootwearChanged(itemID, heel, platform, source);
+    FootwearCalibratorHost.OnFootwearUpdated(this.GetGameInstance());
   }
 
   private func NotifyConfigChanged(config: ref<FootwearConfig>) -> Void {
@@ -550,6 +551,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
 
     FootwearWindowsController.Init(gi);
+    FootwearCalibratorHost.Init(gi);
   }
 
   /**

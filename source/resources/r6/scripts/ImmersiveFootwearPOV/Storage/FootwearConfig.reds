@@ -24,6 +24,9 @@ public class FootwearConfig {
   public let suppressScenes: Bool;
   public let transitionSpeed: Float;
   public let hudPinned: Bool;
+  public let calibratorHotkey: Int32;
+  public let cameraUnlockKey: Int32;
+  public let focusBootsInTPP: Bool;
   public let diagWinX: Float;
   public let diagWinY: Float;
   public let diagWinW: Float;
@@ -61,6 +64,9 @@ public class FootwearConfig {
     this.suppressScenes = true;
     this.transitionSpeed = 0.35;
     this.hudPinned = false;
+    this.calibratorHotkey = EnumInt(EInputKey.IK_NumPad1);
+    this.cameraUnlockKey = EnumInt(EInputKey.IK_C);
+    this.focusBootsInTPP = true;
     this.diagWinX = -1.0;
     this.diagWinY = -1.0;
     this.diagWinW = -1.0;
@@ -109,6 +115,9 @@ public class FootwearConfigJsonAdapter {
     cfg.suppressScenes = map.Bool("suppressScenes", cfg.suppressScenes);
     cfg.transitionSpeed = map.Float("transitionSpeed", cfg.transitionSpeed);
     cfg.hudPinned = map.Bool("hudPinned", cfg.hudPinned);
+    cfg.calibratorHotkey = map.Int("calibratorHotkey", cfg.calibratorHotkey);
+    cfg.cameraUnlockKey = map.Int("cameraUnlockKey", cfg.cameraUnlockKey);
+    cfg.focusBootsInTPP = map.Bool("focusBootsInTPP", cfg.focusBootsInTPP);
     cfg.diagWinX = map.Float("diagWinX", cfg.diagWinX);
     cfg.diagWinY = map.Float("diagWinY", cfg.diagWinY);
     cfg.diagWinW = map.Float("diagWinW", cfg.diagWinW);
@@ -142,6 +151,9 @@ public class FootwearConfigJsonAdapter {
     map.PutBool("suppressScenes", cfg.suppressScenes);
     map.PutFloat("transitionSpeed", cfg.transitionSpeed);
     map.PutBool("hudPinned", cfg.hudPinned);
+    map.PutInt("calibratorHotkey", cfg.calibratorHotkey);
+    map.PutInt("cameraUnlockKey", cfg.cameraUnlockKey);
+    map.PutBool("focusBootsInTPP", cfg.focusBootsInTPP);
     map.PutFloat("diagWinX", cfg.diagWinX);
     map.PutFloat("diagWinY", cfg.diagWinY);
     map.PutFloat("diagWinW", cfg.diagWinW);

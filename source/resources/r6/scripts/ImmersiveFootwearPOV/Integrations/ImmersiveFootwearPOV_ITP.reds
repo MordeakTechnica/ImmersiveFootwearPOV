@@ -1,5 +1,8 @@
 module ImmersiveFootwearPOV
 
+@if(ModuleExists("ImmersiveThirdPerson"))
+import ImmersiveThirdPerson.*
+
 // =============================================================================
 // Immersive Footwear POV - Immersive Third Person (ITP) Integration
 // Real-time Third-Person Character Elevation Driver
@@ -107,4 +110,53 @@ public class ITPController {
     };
     return distSq > 2.0;
   }
+
+  /**
+   * Maintains an active third-person lease and optional boot-focus framing in Immersive Third Person
+   * while the calibrator UI is open.
+   */
+  public static func MaintainCalibratorTPPLease(gi: GameInstance, focusBoots: Bool) -> Void {
+    ITPApiCalibratorAdapter.MaintainLease(gi, focusBoots);
+  }
+
+  /**
+   * Releases calibrator camera and perspective leases in Immersive Third Person.
+   */
+  public static func ReleaseCalibratorTPPLease(gi: GameInstance) -> Void {
+    ITPApiCalibratorAdapter.ReleaseLease(gi);
+  }
+}
+
+@if(ModuleExists("ImmersiveThirdPerson"))
+public class ITPApiCalibratorAdapter {
+  public static func MaintainLease(gi: GameInstance, focusBoots: Bool) -> Void {
+    let api: ref<ITPApi> = ITPApi.Get(gi);
+    if !IsDefined(api) {
+      return;
+    };
+    let owner: CName = n"ImmersiveFootwearPOV";
+    api.KeepThirdPerson(owner, 100, 1.0);
+    if focusBoots {
+      // Frame boots at ankle/calf height (0.50m minimum valid ITPApi height) centered in the open right viewport
+      api.RequestFraming(owner, 100, 1.0, 15, 1.00, 0.50, -0.22, 50.0, 0.25);
+    } else {
+      api.Release(owner, n"camera");
+    };
+  }
+
+  public static func ReleaseLease(gi: GameInstance) -> Void {
+    let api: ref<ITPApi> = ITPApi.Get(gi);
+    if !IsDefined(api) {
+      return;
+    };
+    let owner: CName = n"ImmersiveFootwearPOV";
+    api.Release(owner, n"camera");
+    api.Release(owner, n"perspective");
+  }
+}
+
+@if(!ModuleExists("ImmersiveThirdPerson"))
+public class ITPApiCalibratorAdapter {
+  public static func MaintainLease(gi: GameInstance, focusBoots: Bool) -> Void {}
+  public static func ReleaseLease(gi: GameInstance) -> Void {}
 }

@@ -160,11 +160,24 @@ public class FootwearCalibratorWindow {
     win.SetRowVisible(n"calib_input_plat", hasFootwear);
     win.SetRowVisible(n"calib_plat_tip1", hasFootwear);
     win.SetRowVisible(n"calib_plat_tip2", hasFootwear);
+    win.SetRowVisible(n"calib_presets_hdr", hasFootwear);
+    win.SetRowVisible(n"calib_pre_0", hasFootwear);
+    win.SetRowVisible(n"calib_pre_4", hasFootwear);
+    win.SetRowVisible(n"calib_pre_8", hasFootwear);
+    win.SetRowVisible(n"calib_pre_12", hasFootwear);
     win.SetRowVisible(n"calib_spc", hasFootwear);
     win.SetRowVisible(n"calib_btn_save", hasFootwear);
     win.SetRowVisible(n"calib_btn_revert", hasFootwear);
     win.SetRowVisible(n"calib_spc_none", !hasFootwear);
     win.SetRowVisible(n"calib_btn_close", !hasFootwear);
+  }
+
+  private func ApplyPresetHeel(system: ref<ImmersiveFootwearPOVSystem>, win: ref<RWWindow>, heelCm: Float) -> Void {
+    let platMeters: Float = system.GetCurrentPlatformHeight();
+    system.ApplyLiveCalibration(heelCm / 100.0, platMeters);
+    system.FlushPendingOverrideSave();
+    this.m_heelAxis.ForceSync(win, system.GetCurrentHeelHeight() * 100.0);
+    this.m_platAxis.ForceSync(win, system.GetCurrentPlatformHeight() * 100.0);
   }
 
   public func RenderInternal(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
@@ -178,9 +191,22 @@ public class FootwearCalibratorWindow {
       return;
     };
 
-    win.minW = 500.0;
+    win.SetSkinStyle(RWSkinStyle.Popup);
+    win.minW = 520.0;
     win.SetClosable(true);
     win.SetOverlayOnly(true);
+
+    let cfg: ref<FootwearConfig> = system.GetConfig();
+    if IsDefined(cfg) {
+      let nextFocus: Bool = win.Checkbox(n"calib_focus_boots", "Focus Boots in TPP (Close Low-Angle View)", cfg.focusBootsInTPP);
+      if NotEquals(nextFocus, cfg.focusBootsInTPP) {
+        cfg.focusBootsInTPP = nextFocus;
+        system.OnConfigUpdated(cfg);
+        system.GetStorageManager().SaveConfig(cfg);
+        ITPController.MaintainCalibratorTPPLease(gi, cfg.focusBootsInTPP);
+        FootwearCalibratorCamera.SetFocusBoots(gi, cfg.focusBootsInTPP);
+      };
+    };
 
     let itemID: ItemID = system.GetEquippedFootwearID();
     let hasFootwear: Bool = ItemID.IsValid(itemID);
@@ -199,9 +225,7 @@ public class FootwearCalibratorWindow {
       this.InvalidateSync();
       win.Spacer(n"calib_spc_none");
       if win.Button(n"calib_btn_close", "Close Calibrator") {
-        system.FlushPendingOverrideSave();
-        FootwearWindowsController.SaveGeometryImmediate(gi);
-        win.Hide();
+        FootwearWindowsController.CloseCalibrator(gi);
       };
       return;
     };
@@ -248,6 +272,12 @@ public class FootwearCalibratorWindow {
       };
     };
 
+    win.Header(n"calib_presets_hdr", "Quick Heel Presets");
+    if win.Button(n"calib_pre_0", "Flat (0.0 cm)") { this.ApplyPresetHeel(system, win, 0.0); };
+    if win.Button(n"calib_pre_4", "Low Heel (4.0 cm)") { this.ApplyPresetHeel(system, win, 4.0); };
+    if win.Button(n"calib_pre_8", "Mid Heel (8.0 cm)") { this.ApplyPresetHeel(system, win, 8.0); };
+    if win.Button(n"calib_pre_12", "High Heel (12.0 cm)") { this.ApplyPresetHeel(system, win, 12.0); };
+
     win.Spacer(n"calib_spc");
 
     if win.Button(n"calib_btn_save", "Save as Permanent Custom Override") {
@@ -271,9 +301,7 @@ public class FootwearCalibratorWindow {
     };
 
     if win.Button(n"calib_btn_close", "Close Calibrator") {
-      system.FlushPendingOverrideSave();
-      FootwearWindowsController.SaveGeometryImmediate(gi);
-      win.Hide();
+      FootwearWindowsController.CloseCalibrator(gi);
     };
   }
 }

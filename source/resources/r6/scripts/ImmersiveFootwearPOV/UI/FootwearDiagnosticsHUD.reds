@@ -101,7 +101,15 @@ public class FootwearDiagnosticsHUD {
     };
 
     if win.Button(n"btn_open_calib", "Open Live Shoe Calibrator") {
-      FootwearWindowsController.ToggleCalibrator(gi);
+      if FootwearDVEnvironment.HasCodewareUI() {
+        let mgr: ref<RWManager> = RWManager.Get(gi);
+        if IsDefined(mgr) && RedWindowsAPI.IsOverlay(gi) {
+          mgr.CloseOverlayFor(n"IFP_Diagnostics");
+        };
+        FootwearCalibratorHost.OpenCalibrator(gi);
+      } else {
+        FootwearWindowsController.ToggleCalibrator(gi);
+      };
     };
     if win.Button(n"btn_close", "Close HUD") {
       FootwearWindowsController.SaveGeometryImmediate(gi);

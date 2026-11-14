@@ -120,6 +120,13 @@ public class FootwearHooksHelper {
       || Equals(actionName, n"WeaponSlot3")
       || Equals(actionName, n"WeaponSlot4");
   }
+
+  public static func IsCameraPerspectiveAction(actionName: CName) -> Bool {
+    return Equals(actionName, n"ToggleCamera")
+      || Equals(actionName, n"ToggleVehFPPCamera")
+      || Equals(actionName, n"CameraPerspective")
+      || Equals(actionName, n"VehicleTogglePerspective");
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -320,17 +327,31 @@ protected cb func OnUnmountingEvent(evt: ref<UnmountingEvent>) -> Bool {
  */
 @wrapMethod(PlayerPuppet)
 protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsumer) -> Bool {
+  let actionName: CName = ListenerAction.GetName(action);
+  let gi: GameInstance = this.GetGame();
+
+  if FootwearCalibratorHost.IsCameraInputBlocked(gi) && (FootwearHooksHelper.IsCameraPerspectiveAction(actionName) || FootwearHooksHelper.IsWeaponAction(actionName)) {
+    ListenerActionConsumer.Consume(consumer);
+    ListenerActionConsumer.DontSendReleaseEvent(consumer);
+    return false;
+  };
+
+  if (Equals(actionName, n"ToggleCrouch") || Equals(actionName, n"Crouch")) && FootwearCalibratorHost.ShouldConsumeUnlockCrouch(gi) {
+    ListenerActionConsumer.Consume(consumer);
+    ListenerActionConsumer.DontSendReleaseEvent(consumer);
+    return false;
+  };
+
   let result: Bool = wrappedMethod(action, consumer);
   if !ListenerAction.IsButtonJustPressed(action) {
     return result;
   };
-  let actionName: CName = ListenerAction.GetName(action);
   if FootwearHooksHelper.IsWeaponAction(actionName) {
     FootwearHooksHelper.NotifyWeaponAction(this, NameToString(actionName));
     return result;
   };
-  if Equals(actionName, n"ToggleCamera") || Equals(actionName, n"ToggleVehFPPCamera") || Equals(actionName, n"CameraPerspective") || Equals(actionName, n"VehicleTogglePerspective") {
-    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(this.GetGame());
+  if FootwearHooksHelper.IsCameraPerspectiveAction(actionName) {
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(sys) {
       return result;
     };

@@ -78,10 +78,16 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       .Section("HUD & Live Calibrator")
       .Toggle("hudPinned", "Show Diagnostics on HUD")
       .Tip("Keeps the floating diagnostics HUD visible in first-person gameplay even when the RedWindows overlay is closed.")
+      .Toggle("focusBootsInTPP", "Focus Boots in TPP Calibrator")
+      .Tip("When opening the live calibrator in TPP, automatically moves the camera low and offset to the right so V's legs & boots stay unobstructed beside the left panel.")
+      .ModifierKeybind("calibratorHotkey", "Open / Close Live Calibrator Hotkey")
+      .Tip("Global hotkey to toggle the live shoe height calibrator during gameplay (Default: NumPad 1).")
+      .ModifierKeybind("cameraUnlockKey", "Calibrator Camera Unlock Key")
+      .Tip("Toggles free camera orbit/zoom while the live calibrator remains docked on the left (Default: C).")
       .Button("openDiagnostics", "Open Live Diagnostics HUD (RedWindows)")
       .Tip("Opens or focuses the floating native HUD showing active footwear, elevation, and suppression telemetry.")
-      .Button("openCalibrator", "Open Live Shoe Height Calibrator (RedWindows)")
-      .Tip("Opens or focuses the floating real-time shoe calibrator to adjust heel/platform sliders with live character preview.")
+      .Button("openCalibrator", "Open Live Shoe Height Calibrator")
+      .Tip("Opens or closes the real-time shoe calibrator to adjust heel & platform sliders with live character preview.")
       .Divider()
       .Section("Configuration & Overrides")
       .Toggle("debugLogs", "Verbose Redscript Logging")
@@ -117,6 +123,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "suppressScenes") { return this.m_config.suppressScenes; };
     if Equals(key, "debugLogs") { return this.m_config.debugLogs; };
     if Equals(key, "hudPinned") { return this.m_config.hudPinned; };
+    if Equals(key, "focusBootsInTPP") { return this.m_config.focusBootsInTPP; };
     return false;
   }
 
@@ -140,6 +147,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     if Equals(key, "suppressWorkspots") && NotEquals(this.m_config.suppressWorkspots, value) { this.m_config.suppressWorkspots = value; changed = true; };
     if Equals(key, "suppressScenes") && NotEquals(this.m_config.suppressScenes, value) { this.m_config.suppressScenes = value; changed = true; };
     if Equals(key, "debugLogs") && NotEquals(this.m_config.debugLogs, value) { this.m_config.debugLogs = value; changed = true; };
+    if Equals(key, "focusBootsInTPP") && NotEquals(this.m_config.focusBootsInTPP, value) { this.m_config.focusBootsInTPP = value; changed = true; };
     if Equals(key, "hudPinned") && NotEquals(this.m_config.hudPinned, value) {
       this.m_config.hudPinned = value;
       changed = true;
@@ -204,6 +212,11 @@ public class FootwearRCFProvider extends DVRCF_Provider {
    * @return Integer value (defaults to 0).
    */
   public func GetInt(key: String) -> Int32 {
+    if !IsDefined(this.m_config) {
+      return 0;
+    };
+    if Equals(key, "calibratorHotkey") { return this.m_config.calibratorHotkey; };
+    if Equals(key, "cameraUnlockKey") { return this.m_config.cameraUnlockKey; };
     return 0;
   }
 
@@ -213,7 +226,26 @@ public class FootwearRCFProvider extends DVRCF_Provider {
    * @param key Setting identifier key.
    * @param value New integer value.
    */
-  public func SetInt(key: String, value: Int32) -> Void {}
+  public func SetInt(key: String, value: Int32) -> Void {
+    if !IsDefined(this.m_config) {
+      return;
+    };
+    let changed: Bool = false;
+    if Equals(key, "calibratorHotkey") && this.m_config.calibratorHotkey != value {
+      this.m_config.calibratorHotkey = value;
+      changed = true;
+    };
+    if Equals(key, "cameraUnlockKey") && this.m_config.cameraUnlockKey != value {
+      this.m_config.cameraUnlockKey = value;
+      changed = true;
+    };
+    if !changed || !IsDefined(this.m_system) {
+      return;
+    };
+    this.m_system.GetStorageManager().SaveConfig(this.m_config);
+    this.m_system.OnConfigUpdated(this.m_config);
+    FootwearCalibratorHost.OnFootwearUpdated(this.m_system.GetGameInstance());
+  }
 
   /**
    * Callback invoked by RCF when user settings are restored or reloaded.
@@ -239,7 +271,12 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       return;
     };
     if Equals(key, "openCalibrator") {
-      FootwearWindowsController.ToggleCalibrator(this.m_system.GetGameInstance());
+      let gi: GameInstance = this.m_system.GetGameInstance();
+      let hub: ref<DVRCF_Hub> = DVRCF_Hub.Get(gi);
+      if IsDefined(hub) && hub.IsOpen() {
+        hub.ToggleModConfig("ImmersiveFootwearPOV");
+      };
+      FootwearCalibratorHost.ToggleCalibrator(gi);
       return;
     };
     if Equals(key, "reloadStorage") {
@@ -287,6 +324,11 @@ public class FootwearRCFProvider extends DVRCF_Provider {
     );
     FootwearRedLogger.LogInfo("RCF", "Registered Immersive Footwear POV with Redscript Configuration Framework (RCF)");
   }
+
+  public static func IsHubOpen(gi: GameInstance) -> Bool {
+    let hub: ref<DVRCF_Hub> = DVRCF_Hub.Get(gi);
+    return IsDefined(hub) && hub.IsOpen();
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -296,5 +338,9 @@ public class FootwearRCFProvider extends DVRCF_Provider {
 public class FootwearRCFProvider {
   public static func Register(gi: GameInstance, config: ref<FootwearConfig>, system: ref<ImmersiveFootwearPOVSystem>) -> Void {
     // No-op: RCF is not installed; configuration will be handled via CET fallback
+  }
+
+  public static func IsHubOpen(gi: GameInstance) -> Bool {
+    return false;
   }
 }

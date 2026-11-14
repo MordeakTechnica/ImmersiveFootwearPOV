@@ -39,6 +39,14 @@ public class RedLoggerDetector {
   public static func IsPresent() -> Bool { return false; }
 }
 
+public class CodewareUIDetector {
+  @if(ModuleExists("Codeware.UI"))
+  public static func IsPresent() -> Bool { return true; }
+
+  @if(!ModuleExists("Codeware.UI"))
+  public static func IsPresent() -> Bool { return false; }
+}
+
 public class FootwearDVEnvironment {
 
   /**
@@ -71,6 +79,14 @@ public class FootwearDVEnvironment {
    */
   public static func HasRedLogger() -> Bool {
     return RedLoggerDetector.IsPresent();
+  }
+
+  /**
+   * Checks whether Codeware.UI is installed and available for integrated Cyberpunk popups.
+   * @return True if Codeware.UI module is present.
+   */
+  public static func HasCodewareUI() -> Bool {
+    return CodewareUIDetector.IsPresent();
   }
 
   /**

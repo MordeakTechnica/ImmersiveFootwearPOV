@@ -85,6 +85,13 @@ public class FootwearWindowBinding {
     let y: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinY : cfg.calibWinY;
     let w: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinW : cfg.calibWinW;
     let h: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinH : cfg.calibWinH;
+    if Equals(this.kind, FootwearWindowKind.Calibrator) && x < 0.0 {
+      x = 50.0;
+      y = 160.0;
+      if w < this.minW {
+        w = this.minW;
+      };
+    };
     FootwearWindowsController.ApplySavedGeometry(win, x, y, w, h, this.minW, gi);
     this.geoApplied = true;
   }
@@ -124,7 +131,7 @@ public class FootwearWindowsController {
   public static func Create() -> ref<FootwearWindowsController> {
     let controller: ref<FootwearWindowsController> = new FootwearWindowsController();
     ArrayPush(controller.m_bindings, FootwearWindowBinding.Create(FootwearWindowKind.Diagnostics, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics", 440.0, false));
-    ArrayPush(controller.m_bindings, FootwearWindowBinding.Create(FootwearWindowKind.Calibrator, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator", 500.0, true));
+    ArrayPush(controller.m_bindings, FootwearWindowBinding.Create(FootwearWindowKind.Calibrator, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator", 520.0, true));
     return controller;
   }
 
@@ -294,6 +301,10 @@ public class FootwearWindowsController {
     if IsDefined(calibWin) && calibWin.IsVisible() {
       FootwearCalibratorWindow.Render(gi, calibWin);
     };
+    FootwearCalibratorCamera.Disengage(gi, true);
+    ITPController.ReleaseCalibratorTPPLease(gi);
+    RedWindowsAPI.SetPauseMode(gi, RWPause.Config);
+    RedWindowsAPI.SetScrim(gi, 0.35);
     system.FlushPendingOverrideSave();
     FootwearWindowsController.SaveGeometryImmediate(gi);
   }
@@ -351,7 +362,11 @@ public class FootwearWindowsController {
       };
     };
 
-    if isOverlay && isCalibActive { return 0.15; };
+    if isOverlay && isCalibActive {
+      let focusBoots: Bool = IsDefined(cfg) ? cfg.focusBootsInTPP : true;
+      ITPController.MaintainCalibratorTPPLease(gi, focusBoots);
+      return 0.15;
+    };
     if isOverlay { return 0.25; };
     if isDiagActive { return 2.5; };
     return 5.0;
@@ -375,14 +390,23 @@ public class FootwearWindowsController {
     let shouldHide: Bool = binding.alwaysOverlayOnly ? (win.IsVisible() && RedWindowsAPI.IsOverlay(gi)) : win.IsVisible();
     if shouldHide {
       if Equals(kind, FootwearWindowKind.Calibrator) {
-        let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
-        if IsDefined(system) {
-          system.FlushPendingOverrideSave();
-        };
+        FootwearWindowsController.CloseCalibrator(gi);
+        return;
       };
       FootwearWindowsController.SaveGeometryImmediate(gi);
       win.Hide();
       return;
+    };
+
+    if Equals(kind, FootwearWindowKind.Calibrator) {
+      win.SetSkinStyle(RWSkinStyle.Popup);
+      RedWindowsAPI.SetPauseMode(gi, RWPause.Never);
+      RedWindowsAPI.SetScrim(gi, 0.0);
+      let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+      let cfg: ref<FootwearConfig> = IsDefined(sys) ? sys.GetConfig() : null;
+      let focusBoots: Bool = IsDefined(cfg) ? cfg.focusBootsInTPP : true;
+      ITPController.MaintainCalibratorTPPLease(gi, focusBoots);
+      FootwearCalibratorCamera.Engage(gi, focusBoots, false);
     };
 
     win.ShowForced();
@@ -394,6 +418,34 @@ public class FootwearWindowsController {
       if !inMenu {
         RedWindowsAPI.OpenFor(gi, win);
       };
+    };
+  }
+
+  public static func IsCalibratorOpen(gi: GameInstance) -> Bool {
+    if !RedWindowsAPI.IsOverlay(gi) {
+      return false;
+    };
+    let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
+    return IsDefined(calibWin) && calibWin.IsVisible();
+  }
+
+  public static func CloseCalibrator(gi: GameInstance) -> Void {
+    let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+    if IsDefined(system) {
+      system.FlushPendingOverrideSave();
+    };
+    FootwearCalibratorCamera.Disengage(gi, true);
+    ITPController.ReleaseCalibratorTPPLease(gi);
+    RedWindowsAPI.SetPauseMode(gi, RWPause.Config);
+    RedWindowsAPI.SetScrim(gi, 0.35);
+    FootwearWindowsController.SaveGeometryImmediate(gi);
+    let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
+    if IsDefined(calibWin) {
+      calibWin.Hide();
+    };
+    let mgr: ref<RWManager> = RWManager.Get(gi);
+    if IsDefined(mgr) && mgr.IsSolo() && RedWindowsAPI.IsOverlay(gi) {
+      mgr.CloseOverlayFor(n"IFP_Calibrator");
     };
   }
 
@@ -445,6 +497,8 @@ public class FootwearWindowsController {
   public static func OnOverlayExited(gi: GameInstance) -> Void {}
   public static func ToggleDiagnostics(gi: GameInstance) -> Void {}
   public static func ToggleCalibrator(gi: GameInstance) -> Void {}
+  public static func IsCalibratorOpen(gi: GameInstance) -> Bool { return false; }
+  public static func CloseCalibrator(gi: GameInstance) -> Void {}
   public static func SaveGeometryImmediate(gi: GameInstance) -> Void {}
   public static func SetDiagnosticsPinned(gi: GameInstance, pinned: Bool) -> Void {}
 
