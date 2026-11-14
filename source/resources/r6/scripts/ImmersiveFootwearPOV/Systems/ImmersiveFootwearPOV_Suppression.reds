@@ -2,15 +2,18 @@ module ImmersiveFootwearPOV
 
 // =============================================================================
 // Immersive Footwear POV - Context-Aware Suppression Domain
-// Design Pattern: Specification / Rule Engine Pattern & State Controller
 // Single Responsibility Principle (SRP):
 // - FootwearSuppressionReasons: Constant definitions for typed suppression identifiers
 // - PlayerSuppressionSnapshot: Immutable capture of player state machine blackboard
-// - ISuppressionRule: Discrete rule specification for each context
+// - ISuppressionRule: Discrete rule check for each context
 // - SuppressionRuleEngine: Pure, side-effect-free evaluation of rules
-// - SuppressionStateController: State machine tracking vehicle, workspot, and suppression
-// - SuppressionEvaluator: Facade adapter connecting Rule Engine to System state
+// - SuppressionStateController: State controller tracking vehicle, workspot, and suppression
 // =============================================================================
+
+public enum FootwearContextChannel {
+  Vehicle = 0,
+  Workspot = 1
+}
 
 public abstract class FootwearSuppressionReasons {
   public static func Vehicle() -> String { return "Vehicle Occupancy"; }
@@ -28,7 +31,7 @@ public class SuppressionRuleResult {
   public let reason: String;
 
   /**
-   * Factory method for unsuppressed evaluation result (elevation permitted).
+   * Creates an unsuppressed evaluation result (elevation permitted).
    * @return A passing SuppressionRuleResult.
    */
   public static func Pass() -> ref<SuppressionRuleResult> {
@@ -39,7 +42,7 @@ public class SuppressionRuleResult {
   }
 
   /**
-   * Factory method for suppressed evaluation result with descriptive context trigger.
+   * Creates a suppressed evaluation result with descriptive context trigger.
    * @param reason Human-readable explanation of why elevation was suppressed.
    * @return A suppressed SuppressionRuleResult.
    */
@@ -101,7 +104,7 @@ public class PlayerSuppressionSnapshot {
 }
 
 // -----------------------------------------------------------------------------
-// Abstract Rule Specification
+// Abstract Suppression Rule
 // -----------------------------------------------------------------------------
 public abstract class ISuppressionRule {
   /**
@@ -252,13 +255,13 @@ public class CombatActionLockRule extends ISuppressionRule {
 }
 
 // -----------------------------------------------------------------------------
-// Rule Engine Composite Evaluator (Pure Query - Zero Side Effects)
+// Suppression Rule Evaluator (Pure Query - Zero Side Effects)
 // -----------------------------------------------------------------------------
 public class SuppressionRuleEngine {
   private let m_rules: array<ref<ISuppressionRule>>;
 
   /**
-   * Factory method initializing the rule engine with standard gameplay suppression rules.
+   * Initializes the rule engine with standard gameplay suppression rules.
    * @return A newly initialized SuppressionRuleEngine instance.
    */
   public static func CreateDefault() -> ref<SuppressionRuleEngine> {
@@ -299,7 +302,7 @@ public class SuppressionRuleEngine {
 }
 
 // -----------------------------------------------------------------------------
-// Suppression State Controller (State Machine & Facade)
+// Suppression State Controller
 // -----------------------------------------------------------------------------
 public class SuppressionStateController {
   private let m_isInVehicle: Bool;
@@ -309,7 +312,7 @@ public class SuppressionStateController {
   private let m_ruleEngine: ref<SuppressionRuleEngine>;
 
   /**
-   * Factory method initializing a SuppressionStateController with its default rule engine.
+   * Initializes a SuppressionStateController with its default rule engine.
    * @return A newly initialized SuppressionStateController instance.
    */
   public static func Create() -> ref<SuppressionStateController> {
@@ -390,104 +393,34 @@ public class SuppressionStateController {
   }
 
   /**
-   * Sets vehicle occupancy state. Updates internal suppression state if exiting.
-   * @param inVehicle True if entered vehicle, false if exited.
-   * @param dispatcher Event dispatcher to notify on change.
-   * @param telemetry Telemetry logger instance.
-   * @param sys System reference for telemetry logging.
-   * @return True if vehicle state actually changed.
+   * Updates a contextual suppression channel (Vehicle or Workspot) and logs transitions cleanly without circular System dependencies.
+   * @return True if channel state actually changed.
    */
-  public func SetVehicleState(inVehicle: Bool, dispatcher: ref<FootwearEventDispatcher>, telemetry: ref<FootwearTelemetryLogger>, sys: ref<ImmersiveFootwearPOVSystem>) -> Bool {
-    if Equals(this.m_isInVehicle, inVehicle) {
+  public func SetContextState(channel: FootwearContextChannel, active: Bool, state: ref<FootwearEquipmentState>, dispatcher: ref<FootwearEventDispatcher>) -> Bool {
+    let wasActive: Bool = Equals(channel, FootwearContextChannel.Vehicle) ? this.m_isInVehicle : this.m_isInWorkspot;
+    if Equals(wasActive, active) {
       return false;
     };
-    this.m_isInVehicle = inVehicle;
-    if !inVehicle && Equals(this.m_suppressionReason, FootwearSuppressionReasons.Vehicle()) {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-      if IsDefined(dispatcher) {
-        dispatcher.NotifySuppressionChanged(false, "");
-      };
-    };
-    if IsDefined(telemetry) && IsDefined(sys) {
-      FootwearTelemetryLogger.LogVehicleState(sys, inVehicle);
-    };
-    return true;
-  }
 
-  /**
-   * Clears vehicle occupancy suppression when auto-recovery detects player on foot.
-   * @param dispatcher Event dispatcher to notify on change.
-   * @param telemetry Telemetry logger instance.
-   * @param sys System reference for telemetry logging.
-   * @return True if vehicle state was cleared.
-   */
-  public func ClearVehicleState(dispatcher: ref<FootwearEventDispatcher>, telemetry: ref<FootwearTelemetryLogger>, sys: ref<ImmersiveFootwearPOVSystem>) -> Bool {
-    if !this.m_isInVehicle {
-      return false;
+    if Equals(channel, FootwearContextChannel.Vehicle) {
+      this.m_isInVehicle = active;
+    } else {
+      this.m_isInWorkspot = active;
     };
-    this.m_isInVehicle = false;
-    if Equals(this.m_suppressionReason, FootwearSuppressionReasons.Vehicle()) {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-      if IsDefined(dispatcher) {
-        dispatcher.NotifySuppressionChanged(false, "");
-      };
-    };
-    if IsDefined(telemetry) && IsDefined(sys) {
-      FootwearTelemetryLogger.LogVehicleAutoRecovered(sys);
-    };
-    return true;
-  }
 
-  /**
-   * Sets authored workspot animation state (sitting, furniture).
-   * @param inWorkspot True if entered workspot, false if exited.
-   * @param dispatcher Event dispatcher to notify on change.
-   * @param telemetry Telemetry logger instance.
-   * @param sys System reference for telemetry logging.
-   * @return True if workspot state actually changed.
-   */
-  public func SetWorkspotState(inWorkspot: Bool, dispatcher: ref<FootwearEventDispatcher>, telemetry: ref<FootwearTelemetryLogger>, sys: ref<ImmersiveFootwearPOVSystem>) -> Bool {
-    if Equals(this.m_isInWorkspot, inWorkspot) {
-      return false;
-    };
-    this.m_isInWorkspot = inWorkspot;
-    if !inWorkspot && Equals(this.m_suppressionReason, FootwearSuppressionReasons.Workspot()) {
-      this.m_isSuppressed = false;
-      this.m_suppressionReason = "";
-      if IsDefined(dispatcher) {
-        dispatcher.NotifySuppressionChanged(false, "");
-      };
-    };
-    if IsDefined(telemetry) && IsDefined(sys) {
-      FootwearTelemetryLogger.LogWorkspotState(sys, inWorkspot);
-    };
-    return true;
-  }
+    let targetReason: String = Equals(channel, FootwearContextChannel.Vehicle)
+      ? FootwearSuppressionReasons.Vehicle()
+      : FootwearSuppressionReasons.Workspot();
 
-  /**
-   * Clears workspot suppression when auto-recovery detects player standing up.
-   * @param dispatcher Event dispatcher to notify on change.
-   * @param telemetry Telemetry logger instance.
-   * @param sys System reference for telemetry logging.
-   * @return True if workspot state was cleared.
-   */
-  public func ClearWorkspotState(dispatcher: ref<FootwearEventDispatcher>, telemetry: ref<FootwearTelemetryLogger>, sys: ref<ImmersiveFootwearPOVSystem>) -> Bool {
-    if !this.m_isInWorkspot {
-      return false;
-    };
-    this.m_isInWorkspot = false;
-    if Equals(this.m_suppressionReason, FootwearSuppressionReasons.Workspot()) {
+    if !active && Equals(this.m_suppressionReason, targetReason) {
       this.m_isSuppressed = false;
       this.m_suppressionReason = "";
       if IsDefined(dispatcher) {
         dispatcher.NotifySuppressionChanged(false, "");
       };
     };
-    if IsDefined(telemetry) && IsDefined(sys) {
-      FootwearTelemetryLogger.LogWorkspotAutoRecovered(sys);
-    };
+
+    FootwearTelemetryLogger.LogContextTransition(channel, active, state);
     return true;
   }
 
@@ -527,30 +460,5 @@ public class SuppressionStateController {
     let result: ref<SuppressionRuleResult> = this.GetRuleEngine().EvaluateAll(snap, cfg);
     this.SetSuppressionState(result.isSuppressed, result.reason, dispatcher);
     return this.m_isSuppressed;
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Suppression Evaluator (Facade Adapter for Backwards Compatibility)
-// -----------------------------------------------------------------------------
-public class SuppressionEvaluator {
-
-  /**
-   * Evaluates all suppression contexts against the player and synchronizes state on ImmersiveFootwearPOVSystem.
-   * @param sys Reference to ImmersiveFootwearPOVSystem.
-   * @param player The local player puppet reference.
-   * @return True if elevation is currently suppressed.
-   */
-  public static func Evaluate(sys: ref<ImmersiveFootwearPOVSystem>, player: ref<PlayerPuppet>) -> Bool {
-    if !IsDefined(player) {
-      FootwearRedLogger.LogError("SUPPRESSION", "SuppressionEvaluator.Evaluate: Player entity is undefined");
-      return false;
-    };
-    if !IsDefined(sys) {
-      FootwearRedLogger.LogError("SUPPRESSION", "SuppressionEvaluator.Evaluate: System instance is undefined");
-      return false;
-    };
-
-    return sys.GetSuppressionController().Evaluate(player, sys.GetConfig(), sys.GetEventDispatcher());
   }
 }

@@ -1,13 +1,12 @@
 module ImmersiveFootwearPOV
 
 // =============================================================================
-// Immersive Footwear POV - Elevation Output Strategies & Coordinator
-// Design Pattern: Strategy Pattern & Actuator Facade
+// Immersive Footwear POV - Elevation Output Actuators & Coordinator
 // Single Responsibility Principle (SRP):
 // - FppAnimgraphActuator: Handles skeletal elevation in First-Person Perspective (IFP)
 // - TppAnimgraphActuator: Handles character elevation in Third-Person Perspective (ITP)
 // - TfpCameraActuator: Handles camera and weapon reticle elevation in True First Person (TFP)
-// - ElevationActuatorCoordinator: Routes elevation requests to active perspective strategy
+// - ElevationActuatorCoordinator: Routes elevation requests to the active perspective actuator
 // =============================================================================
 
 public abstract class IElevationActuator {
@@ -28,7 +27,7 @@ public abstract class IElevationActuator {
 }
 
 // -----------------------------------------------------------------------------
-// Strategy 1: FPP Skeletal Elevation (IFP animgraph blend)
+// FPP Skeletal Elevation (IFP animgraph blend)
 // -----------------------------------------------------------------------------
 public class FppAnimgraphActuator extends IElevationActuator {
   /**
@@ -55,7 +54,7 @@ public class FppAnimgraphActuator extends IElevationActuator {
 }
 
 // -----------------------------------------------------------------------------
-// Strategy 2: TPP Puppet Elevation (ITP foot_elevation_offset)
+// TPP Puppet Elevation (ITP foot_elevation_offset)
 // -----------------------------------------------------------------------------
 public class TppAnimgraphActuator extends IElevationActuator {
   /**
@@ -82,7 +81,7 @@ public class TppAnimgraphActuator extends IElevationActuator {
 }
 
 // -----------------------------------------------------------------------------
-// Strategy 3: TFP Camera & Weapon Reticle Alignment (True First Person)
+// TFP Camera & Weapon Reticle Alignment (True First Person)
 // -----------------------------------------------------------------------------
 public class TfpCameraActuator extends IElevationActuator {
   /**
@@ -109,7 +108,7 @@ public class TfpCameraActuator extends IElevationActuator {
 }
 
 // -----------------------------------------------------------------------------
-// Actuator Facade & Perspective Coordinator
+// Perspective Elevation Coordinator
 // -----------------------------------------------------------------------------
 public class ElevationActuatorCoordinator {
   private let m_fppActuator: ref<FppAnimgraphActuator>;
@@ -118,7 +117,7 @@ public class ElevationActuatorCoordinator {
   private let m_lastTppActive: Bool;
 
   /**
-   * Factory method initializing the perspective coordinator and constituent actuators.
+   * Initializes the perspective coordinator and constituent actuators.
    * @return A newly initialized ElevationActuatorCoordinator instance.
    */
   public static func Create() -> ref<ElevationActuatorCoordinator> {

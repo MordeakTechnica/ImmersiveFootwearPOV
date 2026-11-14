@@ -14,7 +14,7 @@ public class SwayContextData {
   public let heelPitchCm: Float;
 
   /**
-   * Factory method creating a new SwayContextData container.
+   * Creates a new SwayContextData container.
    * @param canSway True if biomechanical conditions permit hip sway.
    * @param heelScale Normalized intensity scalar (0.0 to 1.0).
    * @param reason Diagnostic explanation or gait description string.

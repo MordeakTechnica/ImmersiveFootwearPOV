@@ -2,7 +2,6 @@ module ImmersiveFootwearPOV
 
 // =============================================================================
 // Immersive Footwear POV - Footwear Resolution Pipeline
-// Design Pattern: Chain of Responsibility
 // Single Responsibility Principle (SRP): Each handler evaluates exactly one footwear layer
 // Open/Closed Principle (OCP): New outfit or equipment mods can be registered without altering core logic
 // =============================================================================
@@ -12,7 +11,7 @@ public class FootwearResolutionResult {
   public let sourceName: String;
 
   /**
-   * Factory method constructing a footwear resolution result.
+   * Constructs a footwear resolution result.
    * @param itemID The resolved footwear ItemID.
    * @param sourceName Description of the resolving layer (e.g. "Equipment-EX", "Vanilla Wardrobe").
    * @return A newly initialized FootwearResolutionResult.
@@ -26,7 +25,7 @@ public class FootwearResolutionResult {
 }
 
 // -----------------------------------------------------------------------------
-// Base Handler for Chain of Responsibility
+// Base Footwear Resolution Handler
 // -----------------------------------------------------------------------------
 public abstract class FootwearResolutionHandler {
   protected let m_nextHandler: ref<FootwearResolutionHandler>;
@@ -163,13 +162,13 @@ public class BarefootFallbackHandler extends FootwearResolutionHandler {
 }
 
 // -----------------------------------------------------------------------------
-// Footwear Resolver Pipeline Orchestrator (Facade)
+// Footwear Resolver Pipeline Orchestrator
 // -----------------------------------------------------------------------------
 public class FootwearResolver {
   private let m_chain: ref<FootwearResolutionHandler>;
 
   /**
-   * Factory method initializing a resolver instance with a pre-assembled handler chain.
+   * Initializes a resolver instance with a pre-assembled handler chain.
    * @return A newly initialized FootwearResolver instance.
    */
   public static func Create() -> ref<FootwearResolver> {
@@ -219,7 +218,7 @@ public class FootwearResolver {
   }
 
   /**
-   * Resolves currently visible footwear for the player puppet using the Chain of Responsibility pipeline.
+   * Resolves currently visible footwear for the player puppet through the layered resolution pipeline.
    * Reuses the system's cached calibration resolver when available to prevent per-call object allocations.
    * @param player The local player puppet reference.
    * @return The resolved FootwearResolutionResult containing ItemID and layer name.

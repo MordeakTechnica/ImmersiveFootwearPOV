@@ -6,19 +6,22 @@ import RedWindows.*
 import RedFunctions.*
 
 // =============================================================================
-// Immersive Footwear POV - RedWindows UI Integration (Facade & Controller)
+// Immersive Footwear POV - RedWindows UI Integration
 // Single Responsibility Principle (SRP):
-// Coordinates opening, closing, ticking, and layout geometry of native RedWindows.
+// Coordinates opening, closing, ticking, and layout geometry of native RedWindows
+// via uniform FootwearWindowBinding descriptors.
 // =============================================================================
+
+public enum FootwearWindowKind {
+  Diagnostics = 0,
+  Calibrator = 1
+}
 
 @if(ModuleExists("RedWindows"))
 public class FootwearWindowsTick extends DelayCallback {
   public let m_gi: GameInstance;
   public let m_generation: Int32;
 
-  /**
-   * Periodic callback invoked by DelaySystem to tick and render active RedWindows windows.
-   */
   public func Call() -> Void {
     let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(this.m_gi);
     if IsDefined(winCtrl) && this.m_generation != winCtrl.GetTickGeneration() {
@@ -33,40 +36,103 @@ public class FootwearWindowsTick extends DelayCallback {
 }
 
 @if(ModuleExists("RedWindows"))
+public class FootwearWindowBinding {
+  public let kind: FootwearWindowKind;
+  public let winId: CName;
+  public let title: String;
+  public let minW: Float;
+  public let alwaysOverlayOnly: Bool;
+  public let geoApplied: Bool;
+
+  public static func Create(kind: FootwearWindowKind, winId: CName, title: String, minW: Float, alwaysOverlayOnly: Bool) -> ref<FootwearWindowBinding> {
+    let b: ref<FootwearWindowBinding> = new FootwearWindowBinding();
+    b.kind = kind;
+    b.winId = winId;
+    b.title = title;
+    b.minW = minW;
+    b.alwaysOverlayOnly = alwaysOverlayOnly;
+    return b;
+  }
+
+  public func ResolveWindow(gi: GameInstance) -> ref<RWWindow> {
+    return RedWindowsAPI.Window(gi, this.winId, this.title);
+  }
+
+  public func RenderContent(gi: GameInstance, win: ref<RWWindow>) -> Void {
+    if Equals(this.kind, FootwearWindowKind.Diagnostics) {
+      FootwearDiagnosticsHUD.Render(gi, win);
+    } else {
+      FootwearCalibratorWindow.Render(gi, win);
+    };
+  }
+
+  public func ApplyOverlayRule(win: ref<RWWindow>, cfg: ref<FootwearConfig>) -> Void {
+    if !IsDefined(win) {
+      return;
+    };
+    if this.alwaysOverlayOnly {
+      win.SetOverlayOnly(true);
+    } else if IsDefined(cfg) {
+      win.SetOverlayOnly(!cfg.hudPinned);
+    };
+  }
+
+  public func EnsureGeometry(gi: GameInstance, win: ref<RWWindow>, cfg: ref<FootwearConfig>) -> Void {
+    if !IsDefined(win) || !IsDefined(cfg) || this.geoApplied {
+      return;
+    };
+    let x: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinX : cfg.calibWinX;
+    let y: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinY : cfg.calibWinY;
+    let w: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinW : cfg.calibWinW;
+    let h: Float = Equals(this.kind, FootwearWindowKind.Diagnostics) ? cfg.diagWinH : cfg.calibWinH;
+    FootwearWindowsController.ApplySavedGeometry(win, x, y, w, h, this.minW, gi);
+    this.geoApplied = true;
+  }
+
+  public func SyncToConfig(win: ref<RWWindow>, cfg: ref<FootwearConfig>, checkDelta: Bool) -> Bool {
+    if !IsDefined(win) || !IsDefined(cfg) || win.x <= 0.0 {
+      return false;
+    };
+    if Equals(this.kind, FootwearWindowKind.Diagnostics) {
+      if checkDelta && AbsF(cfg.diagWinX - win.x) <= 1.0 && AbsF(cfg.diagWinY - win.y) <= 1.0 && AbsF(cfg.diagWinW - win.w) <= 1.0 {
+        return false;
+      };
+      cfg.diagWinX = win.x;
+      cfg.diagWinY = win.y;
+      cfg.diagWinW = win.w;
+      if win.userH > 0.0 { cfg.diagWinH = win.userH; };
+      return true;
+    };
+    if checkDelta && AbsF(cfg.calibWinX - win.x) <= 1.0 && AbsF(cfg.calibWinY - win.y) <= 1.0 && AbsF(cfg.calibWinW - win.w) <= 1.0 {
+      return false;
+    };
+    cfg.calibWinX = win.x;
+    cfg.calibWinY = win.y;
+    cfg.calibWinW = win.w;
+    if win.userH > 0.0 { cfg.calibWinH = win.userH; };
+    return true;
+  }
+}
+
+@if(ModuleExists("RedWindows"))
 public class FootwearWindowsController {
   private let m_calibratorWindow: ref<FootwearCalibratorWindow>;
-  private let m_windowsLoopStarted: Bool;
-  private let m_diagGeoApplied: Bool;
-  private let m_calibGeoApplied: Bool;
+  private let m_bindings: array<ref<FootwearWindowBinding>>;
   private let m_wasOverlayActive: Bool;
   private let m_tickGeneration: Int32;
 
-  /**
-   * Factory method creating a new FootwearWindowsController instance.
-   * @return Initialized FootwearWindowsController instance.
-   */
   public static func Create() -> ref<FootwearWindowsController> {
     let controller: ref<FootwearWindowsController> = new FootwearWindowsController();
+    ArrayPush(controller.m_bindings, FootwearWindowBinding.Create(FootwearWindowKind.Diagnostics, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics", 440.0, false));
+    ArrayPush(controller.m_bindings, FootwearWindowBinding.Create(FootwearWindowKind.Calibrator, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator", 500.0, true));
     return controller;
   }
 
-  /**
-   * Retrieves the singleton FootwearWindowsController from the game system container.
-   * @param gi Game instance context.
-   * @return FootwearWindowsController instance or null.
-   */
   public static func GetInstance(gi: GameInstance) -> ref<FootwearWindowsController> {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
-    if !IsDefined(system) {
-      return null;
-    };
-    return system.GetWindowsController();
+    return IsDefined(system) ? system.GetWindowsController() : null;
   }
 
-  /**
-   * Lazily initializes and retrieves the FootwearCalibratorWindow UI.
-   * @return The FootwearCalibratorWindow instance.
-   */
   public func GetCalibratorWindow() -> ref<FootwearCalibratorWindow> {
     if !IsDefined(this.m_calibratorWindow) {
       this.m_calibratorWindow = FootwearCalibratorWindow.Create();
@@ -74,96 +140,37 @@ public class FootwearWindowsController {
     return this.m_calibratorWindow;
   }
 
-  /**
-   * Checks whether the RedWindows tick loop has already been started.
-   * @return True if started.
-   */
-  public func IsWindowsLoopStarted() -> Bool {
-    return this.m_windowsLoopStarted;
-  }
-
-  /**
-   * Sets the flag indicating whether the RedWindows tick loop is running.
-   * @param started True if started.
-   */
-  public func SetWindowsLoopStarted(started: Bool) -> Void {
-    this.m_windowsLoopStarted = started;
-  }
-
-  /**
-   * Returns the current tick generation token used to invalidate stale DelaySystem loops across session loads.
-   */
   public func GetTickGeneration() -> Int32 {
     return this.m_tickGeneration;
   }
 
-  /**
-   * Increments and returns the tick generation token.
-   */
   public func NextTickGeneration() -> Int32 {
     this.m_tickGeneration += 1;
     return this.m_tickGeneration;
   }
 
-  /**
-   * Checks whether initial geometry has been applied to the diagnostics window.
-   * @return True if applied.
-   */
-  public func IsDiagGeoApplied() -> Bool {
-    return this.m_diagGeoApplied;
-  }
-
-  /**
-   * Sets the flag indicating whether initial geometry has been applied to the diagnostics window.
-   * @param applied True if applied.
-   */
-  public func SetDiagGeoApplied(applied: Bool) -> Void {
-    this.m_diagGeoApplied = applied;
-  }
-
-  /**
-   * Checks whether initial geometry has been applied to the calibrator window.
-   * @return True if applied.
-   */
-  public func IsCalibGeoApplied() -> Bool {
-    return this.m_calibGeoApplied;
-  }
-
-  /**
-   * Sets the flag indicating whether initial geometry has been applied to the calibrator window.
-   * @param applied True if applied.
-   */
-  public func SetCalibGeoApplied(applied: Bool) -> Void {
-    this.m_calibGeoApplied = applied;
-  }
-
-  /**
-   * Checks whether the RedWindows overlay was active during the preceding tick.
-   * @return True if overlay was previously active.
-   */
   public func WasOverlayActive() -> Bool {
     return this.m_wasOverlayActive;
   }
 
-  /**
-   * Records whether the RedWindows overlay was active during the current tick.
-   * @param active True if overlay is active.
-   */
   public func SetWasOverlayActive(active: Bool) -> Void {
     this.m_wasOverlayActive = active;
   }
 
+  private func GetBinding(kind: FootwearWindowKind) -> ref<FootwearWindowBinding> {
+    let i: Int32 = 0;
+    while i < ArraySize(this.m_bindings) {
+      if Equals(this.m_bindings[i].kind, kind) {
+        return this.m_bindings[i];
+      };
+      i += 1;
+    };
+    return null;
+  }
+
   /**
-   * Applies persistently saved window coordinates and dimensions to an active RedWindows window.
-   * Clamps positions to visible screen boundaries to prevent off-screen window loss.
-   *
-   * @param win Target RedWindows window.
-   * @param x Saved horizontal coordinate.
-   * @param y Saved vertical coordinate.
-   * @param w Saved window width.
-   * @param h Saved window height (userH).
-   * @param minW Minimum allowed window width.
-   * @param gi Game instance context.
+   * Applies persistently saved window coordinates and dimensions to an active RedWindows window,
+   * clamping positions to visible screen boundaries.
    */
   public static func ApplySavedGeometry(win: ref<RWWindow>, x: Float, y: Float, w: Float, h: Float, minW: Float, gi: GameInstance) -> Void {
     if !IsDefined(win) {
@@ -202,42 +209,26 @@ public class FootwearWindowsController {
     };
   }
 
-  /**
-   * Immediately saves current window coordinates, sizes, and layout to FootwearConfig and RedWindows store.
-   *
-   * @param gi Game instance context.
-   */
   public static func SaveGeometryImmediate(gi: GameInstance) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {
       return;
     };
+    let winCtrl: ref<FootwearWindowsController> = system.GetWindowsController();
     let cfg: ref<FootwearConfig> = system.GetConfig();
-    if !IsDefined(cfg) {
+    if !IsDefined(winCtrl) || !IsDefined(cfg) {
       return;
     };
 
     let hasChanged: Bool = false;
-    let diagWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
-    if IsDefined(diagWin) && diagWin.x > 0.0 {
-      if AbsF(cfg.diagWinX - diagWin.x) > 1.0 || AbsF(cfg.diagWinY - diagWin.y) > 1.0 || AbsF(cfg.diagWinW - diagWin.w) > 1.0 {
-        cfg.diagWinX = diagWin.x;
-        cfg.diagWinY = diagWin.y;
-        cfg.diagWinW = diagWin.w;
-        cfg.diagWinH = diagWin.userH;
+    let i: Int32 = 0;
+    while i < ArraySize(winCtrl.m_bindings) {
+      let binding: ref<FootwearWindowBinding> = winCtrl.m_bindings[i];
+      let win: ref<RWWindow> = binding.ResolveWindow(gi);
+      if binding.SyncToConfig(win, cfg, true) {
         hasChanged = true;
       };
-    };
-
-    let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
-    if IsDefined(calibWin) && calibWin.x > 0.0 {
-      if AbsF(cfg.calibWinX - calibWin.x) > 1.0 || AbsF(cfg.calibWinY - calibWin.y) > 1.0 || AbsF(cfg.calibWinW - calibWin.w) > 1.0 {
-        cfg.calibWinX = calibWin.x;
-        cfg.calibWinY = calibWin.y;
-        cfg.calibWinW = calibWin.w;
-        cfg.calibWinH = calibWin.userH;
-        hasChanged = true;
-      };
+      i += 1;
     };
 
     if !hasChanged {
@@ -251,11 +242,6 @@ public class FootwearWindowsController {
     };
   }
 
-  /**
-   * Pre-registers mod windows with the RedWindows Window Manager on game startup and restores geometry.
-   *
-   * @param gi Game instance context.
-   */
   public static func Init(gi: GameInstance) -> Void {
     let mgr: ref<RWManager> = RWManager.Get(gi);
     if !IsDefined(mgr) {
@@ -264,63 +250,37 @@ public class FootwearWindowsController {
 
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     let winCtrl: ref<FootwearWindowsController> = IsDefined(system) ? system.GetWindowsController() : null;
-    let cfg: ref<FootwearConfig> = IsDefined(system) ? system.GetConfig() : null;
-
-    // Pre-register windows so RedWindows Window Manager is aware of them
-    let diagWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
-    if IsDefined(diagWin) {
-      diagWin.minW = 440.0;
-      diagWin.SetClosable(true);
-      if IsDefined(cfg) {
-        diagWin.SetOverlayOnly(!cfg.hudPinned);
-        if cfg.hudPinned {
-          diagWin.Show();
-        };
-        FootwearWindowsController.ApplySavedGeometry(diagWin, cfg.diagWinX, cfg.diagWinY, cfg.diagWinW, cfg.diagWinH, 440.0, gi);
-        if IsDefined(winCtrl) {
-          winCtrl.SetDiagGeoApplied(true);
-        };
-      };
+    if !IsDefined(winCtrl) {
+      return;
     };
+    let cfg: ref<FootwearConfig> = system.GetConfig();
 
-    let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
-    if IsDefined(calibWin) {
-      calibWin.minW = 500.0;
-      calibWin.SetClosable(true);
-      calibWin.SetOverlayOnly(true); // Always hide when closing RedWindows overlay
-      if IsDefined(cfg) {
-        FootwearWindowsController.ApplySavedGeometry(calibWin, cfg.calibWinX, cfg.calibWinY, cfg.calibWinW, cfg.calibWinH, 500.0, gi);
-        if IsDefined(winCtrl) {
-          winCtrl.SetCalibGeoApplied(true);
+    let i: Int32 = 0;
+    while i < ArraySize(winCtrl.m_bindings) {
+      let binding: ref<FootwearWindowBinding> = winCtrl.m_bindings[i];
+      let win: ref<RWWindow> = binding.ResolveWindow(gi);
+      if IsDefined(win) {
+        win.minW = binding.minW;
+        win.SetClosable(true);
+        binding.ApplyOverlayRule(win, cfg);
+        if !binding.alwaysOverlayOnly && IsDefined(cfg) && cfg.hudPinned {
+          win.Show();
         };
+        binding.EnsureGeometry(gi, win, cfg);
       };
+      i += 1;
     };
   }
 
-  /**
-   * Initiates or restarts the persistent periodic UI update loop via DelaySystem.
-   * Uses a generation counter so stale callbacks from pre-game or previous sessions exit cleanly.
-   *
-   * @param gi Game instance context.
-   */
   public static func StartTick(gi: GameInstance) -> Void {
     let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(gi);
-    let gen: Int32 = 1;
-    if IsDefined(winCtrl) {
-      winCtrl.SetWindowsLoopStarted(true);
-      gen = winCtrl.NextTickGeneration();
-    };
+    let gen: Int32 = IsDefined(winCtrl) ? winCtrl.NextTickGeneration() : 1;
     let cb: ref<FootwearWindowsTick> = new FootwearWindowsTick();
     cb.m_gi = gi;
     cb.m_generation = gen;
     GameInstance.GetDelaySystem(gi).DelayCallback(cb, 1.0, false);
   }
 
-  /**
-   * Synchronously commits any pending Calibrator inputs and flushes dirty overrides when the RedWindows overlay exits.
-   *
-   * @param gi Game instance context.
-   */
   public static func OnOverlayExited(gi: GameInstance) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {
@@ -338,14 +298,6 @@ public class FootwearWindowsController {
     FootwearWindowsController.SaveGeometryImmediate(gi);
   }
 
-  /**
-   * Ticks active RedWindows windows and dynamically computes the next polling interval
-   * based on user interaction, overlay visibility, and pinned status.
-   * Synchronizes window moves and resizing directly to persistent storage.
-   *
-   * @param gi Game instance context.
-   * @return Number of seconds to delay before the subsequent tick.
-   */
   public static func Update(gi: GameInstance) -> Float {
     let mgr: ref<RWManager> = RWManager.Get(gi);
     if !IsDefined(mgr) {
@@ -359,7 +311,6 @@ public class FootwearWindowsController {
     let isOverlay: Bool = RedWindowsAPI.IsOverlay(gi);
     let isHudPinned: Bool = IsDefined(cfg) && cfg.hudPinned;
 
-    // Detect overlay closing: when transitioning from open to closed, persist pending overrides and window geometry ONCE to disk.
     if IsDefined(winCtrl) {
       if winCtrl.WasOverlayActive() && !isOverlay {
         FootwearWindowsController.OnOverlayExited(gi);
@@ -368,194 +319,124 @@ public class FootwearWindowsController {
       };
     };
 
-    // Fast-path: When RedWindows overlay is closed and HUD is unpinned, skip all window rendering & sync
     if !isOverlay && !isHudPinned {
       return 5.0;
     };
 
-    let diagWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
     let isDiagActive: Bool = false;
-    if IsDefined(diagWin) {
-      if IsDefined(winCtrl) && IsDefined(cfg) && !winCtrl.IsDiagGeoApplied() {
-        FootwearWindowsController.ApplySavedGeometry(diagWin, cfg.diagWinX, cfg.diagWinY, cfg.diagWinW, cfg.diagWinH, 440.0, gi);
-        diagWin.SetOverlayOnly(!cfg.hudPinned);
-        winCtrl.SetDiagGeoApplied(true);
-      };
-
-      if diagWin.IsVisible() {
-        if isOverlay || !diagWin.overlayOnly {
-          FootwearDiagnosticsHUD.Render(gi, diagWin);
-          isDiagActive = true;
-        };
-      };
-    };
-
-    let calibWin: ref<RWWindow> = null;
     let isCalibActive: Bool = false;
-    // Calibrator is strictly overlay-only; only query and render when overlay is open
-    if isOverlay {
-      calibWin = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
-      if IsDefined(calibWin) {
-        if IsDefined(winCtrl) && IsDefined(cfg) && !winCtrl.IsCalibGeoApplied() {
-          FootwearWindowsController.ApplySavedGeometry(calibWin, cfg.calibWinX, cfg.calibWinY, cfg.calibWinW, cfg.calibWinH, 500.0, gi);
-          calibWin.SetOverlayOnly(true);
-          winCtrl.SetCalibGeoApplied(true);
+    if IsDefined(winCtrl) {
+      let i: Int32 = 0;
+      while i < ArraySize(winCtrl.m_bindings) {
+        let binding: ref<FootwearWindowBinding> = winCtrl.m_bindings[i];
+        if !binding.alwaysOverlayOnly || isOverlay {
+          let win: ref<RWWindow> = binding.ResolveWindow(gi);
+          if IsDefined(win) {
+            if !binding.geoApplied && IsDefined(cfg) {
+              binding.EnsureGeometry(gi, win, cfg);
+              binding.ApplyOverlayRule(win, cfg);
+            };
+            if win.IsVisible() && (isOverlay || !win.overlayOnly) {
+              binding.RenderContent(gi, win);
+              if Equals(binding.kind, FootwearWindowKind.Diagnostics) {
+                isDiagActive = true;
+              } else {
+                isCalibActive = true;
+              };
+            };
+            binding.SyncToConfig(win, cfg, false);
+          };
         };
-
-        if calibWin.IsVisible() {
-          FootwearCalibratorWindow.Render(gi, calibWin);
-          isCalibActive = true;
-        };
+        i += 1;
       };
     };
 
-    // In-memory geometry tracking (ZERO disk I/O): keeps in-RAM FootwearConfig positions in sync while dragging
-    if IsDefined(cfg) {
-      if IsDefined(diagWin) && diagWin.x > 0.0 {
-        cfg.diagWinX = diagWin.x;
-        cfg.diagWinY = diagWin.y;
-        cfg.diagWinW = diagWin.w;
-        if diagWin.userH > 0.0 {
-          cfg.diagWinH = diagWin.userH;
-        };
-      };
-
-      if IsDefined(calibWin) && calibWin.x > 0.0 {
-        cfg.calibWinX = calibWin.x;
-        cfg.calibWinY = calibWin.y;
-        cfg.calibWinW = calibWin.w;
-        if calibWin.userH > 0.0 {
-          cfg.calibWinH = calibWin.userH;
-        };
-      };
-    };
-
-    // Adaptive tick delay:
-    // When RedWindows overlay is actively open and calibrator is being adjusted: 0.15s for smooth slider response
-    // When overlay is open without calibrator: 0.25s
-    // When only HUD telemetry is pinned: 1.5s (ultra-lightweight, zero hitching)
-    // When overlay is closed and nothing is pinned: 3.0s (idle check)
-    if isOverlay && isCalibActive {
-      return 0.15;
-    };
-    if isOverlay {
-      return 0.25;
-    };
-    if isDiagActive {
-      return 2.5;
-    };
+    if isOverlay && isCalibActive { return 0.15; };
+    if isOverlay { return 0.25; };
+    if isDiagActive { return 2.5; };
     return 5.0;
   }
 
-  /**
-   * Forces display and immediate rendering of the diagnostics HUD window.
-   *
-   * @param gi Game instance context.
-   */
-  public static func RenderDiagnostics(gi: GameInstance) -> Void {
-    let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
+  private static func ToggleWindow(gi: GameInstance, kind: FootwearWindowKind) -> Void {
+    let winCtrl: ref<FootwearWindowsController> = FootwearWindowsController.GetInstance(gi);
+    let binding: ref<FootwearWindowBinding> = IsDefined(winCtrl) ? winCtrl.GetBinding(kind) : null;
+    if !IsDefined(binding) {
+      return;
+    };
+    let win: ref<RWWindow> = binding.ResolveWindow(gi);
     if !IsDefined(win) {
       return;
     };
-    win.ShowForced();
-    FootwearDiagnosticsHUD.Render(gi, win);
-  }
 
-  /**
-   * Forces display and immediate rendering of the shoe calibrator window.
-   *
-   * @param gi Game instance context.
-   */
-  public static func RenderCalibrator(gi: GameInstance) -> Void {
-    let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
-    if !IsDefined(win) {
-      return;
+    if binding.alwaysOverlayOnly {
+      win.SetOverlayOnly(true);
     };
-    win.SetOverlayOnly(true);
-    win.ShowForced();
-    FootwearCalibratorWindow.Render(gi, win);
-  }
 
-  /**
-   * Toggles the visibility of the diagnostics HUD window between shown and hidden.
-   *
-   * @param gi Game instance context.
-   */
-  public static func ToggleDiagnostics(gi: GameInstance) -> Void {
-    let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
-    if !IsDefined(win) {
-      return;
-    };
-    if win.IsVisible() {
-      FootwearWindowsController.SaveGeometryImmediate(gi);
-      win.Hide();
-      return;
-    };
-    win.ShowForced();
-    FootwearDiagnosticsHUD.Render(gi, win);
-  }
-
-  /**
-   * Toggles the visibility of the shoe calibrator window and opens the RedWindows overlay.
-   *
-   * @param gi Game instance context.
-   */
-  public static func ToggleCalibrator(gi: GameInstance) -> Void {
-    let win: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
-    if !IsDefined(win) {
-      return;
-    };
-    win.SetOverlayOnly(true);
-    if win.IsVisible() && RedWindowsAPI.IsOverlay(gi) {
-      let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
-      if IsDefined(system) {
-        system.FlushPendingOverrideSave();
+    let shouldHide: Bool = binding.alwaysOverlayOnly ? (win.IsVisible() && RedWindowsAPI.IsOverlay(gi)) : win.IsVisible();
+    if shouldHide {
+      if Equals(kind, FootwearWindowKind.Calibrator) {
+        let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+        if IsDefined(system) {
+          system.FlushPendingOverrideSave();
+        };
       };
       FootwearWindowsController.SaveGeometryImmediate(gi);
       win.Hide();
       return;
     };
+
     win.ShowForced();
-    FootwearCalibratorWindow.Render(gi, win);
-    let bb: ref<IBlackboard> = GameInstance.GetBlackboardSystem(gi).Get(GetAllBlackboardDefs().UI_System);
-    let inMenu: Bool = IsDefined(bb) && bb.GetBool(GetAllBlackboardDefs().UI_System.IsInMenu);
-    if !inMenu {
-      RedWindowsAPI.OpenFor(gi, win);
+    binding.RenderContent(gi, win);
+
+    if Equals(kind, FootwearWindowKind.Calibrator) {
+      let bb: ref<IBlackboard> = GameInstance.GetBlackboardSystem(gi).Get(GetAllBlackboardDefs().UI_System);
+      let inMenu: Bool = IsDefined(bb) && bb.GetBool(GetAllBlackboardDefs().UI_System.IsInMenu);
+      if !inMenu {
+        RedWindowsAPI.OpenFor(gi, win);
+      };
+    };
+  }
+
+  public static func ToggleDiagnostics(gi: GameInstance) -> Void {
+    FootwearWindowsController.ToggleWindow(gi, FootwearWindowKind.Diagnostics);
+  }
+
+  public static func ToggleCalibrator(gi: GameInstance) -> Void {
+    FootwearWindowsController.ToggleWindow(gi, FootwearWindowKind.Calibrator);
+  }
+
+  /**
+   * Synchronizes the pinned HUD state for the Diagnostics window without exposing RedWindowsAPI to callers.
+   */
+  public static func SetDiagnosticsPinned(gi: GameInstance, pinned: Bool) -> Void {
+    let diagWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
+    if !IsDefined(diagWin) {
+      return;
+    };
+    diagWin.SetOverlayOnly(!pinned);
+    diagWin.SetBoolValue(n"ifp_diag_pin", pinned);
+    if pinned {
+      diagWin.Show();
     };
   }
 }
 
 // -----------------------------------------------------------------------------
 // Fallback Stub (when RedWindows is NOT installed)
-// Single Responsibility: Provides safe no-op implementation so system logic
-// and session initialization execute without null pointer or unresolved symbol errors.
 // -----------------------------------------------------------------------------
 @if(!ModuleExists("RedWindows"))
 public class FootwearWindowsController {
   private let m_calibratorWindow: ref<FootwearCalibratorWindow>;
-  private let m_windowsLoopStarted: Bool;
-  private let m_diagGeoApplied: Bool;
-  private let m_calibGeoApplied: Bool;
-  private let m_wasOverlayActive: Bool;
-  private let m_tickGeneration: Int32;
 
   public static func Create() -> ref<FootwearWindowsController> {
     let controller: ref<FootwearWindowsController> = new FootwearWindowsController();
     controller.m_calibratorWindow = FootwearCalibratorWindow.Create();
-    controller.m_windowsLoopStarted = false;
-    controller.m_diagGeoApplied = false;
-    controller.m_calibGeoApplied = false;
-    controller.m_wasOverlayActive = false;
-    controller.m_tickGeneration = 1;
     return controller;
   }
 
   public static func GetInstance(gi: GameInstance) -> ref<FootwearWindowsController> {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
-    if IsDefined(system) {
-      return system.GetWindowsController();
-    };
-    return null;
+    return IsDefined(system) ? system.GetWindowsController() : null;
   }
 
   public static func Init(gi: GameInstance) -> Void {}
@@ -565,17 +446,8 @@ public class FootwearWindowsController {
   public static func ToggleDiagnostics(gi: GameInstance) -> Void {}
   public static func ToggleCalibrator(gi: GameInstance) -> Void {}
   public static func SaveGeometryImmediate(gi: GameInstance) -> Void {}
+  public static func SetDiagnosticsPinned(gi: GameInstance, pinned: Bool) -> Void {}
 
   public func GetCalibratorWindow() -> ref<FootwearCalibratorWindow> { return this.m_calibratorWindow; }
-  public func IsWindowsLoopStarted() -> Bool { return this.m_windowsLoopStarted; }
-  public func SetWindowsLoopStarted(started: Bool) -> Void { this.m_windowsLoopStarted = started; }
-  public func GetTickGeneration() -> Int32 { return this.m_tickGeneration; }
-  public func NextTickGeneration() -> Int32 { this.m_tickGeneration += 1; return this.m_tickGeneration; }
-  public func IsDiagGeoApplied() -> Bool { return this.m_diagGeoApplied; }
-  public func SetDiagGeoApplied(applied: Bool) -> Void { this.m_diagGeoApplied = applied; }
-  public func IsCalibGeoApplied() -> Bool { return this.m_calibGeoApplied; }
-  public func SetCalibGeoApplied(applied: Bool) -> Void { this.m_calibGeoApplied = applied; }
-  public func WasOverlayActive() -> Bool { return this.m_wasOverlayActive; }
-  public func SetWasOverlayActive(active: Bool) -> Void { this.m_wasOverlayActive = active; }
+  public func WasOverlayActive() -> Bool { return false; }
 }
-

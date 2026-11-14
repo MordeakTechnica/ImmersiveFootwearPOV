@@ -34,7 +34,7 @@ public class FootwearConfig {
   public let calibWinH: Float;
 
   /**
-   * Factory method creating a FootwearConfig populated with factory default settings.
+   * Creates a FootwearConfig populated with default settings.
    * @return A newly initialized FootwearConfig with default values.
    */
   public static func CreateDefault() -> ref<FootwearConfig> {
@@ -73,7 +73,7 @@ public class FootwearConfig {
 }
 
 // =============================================================================
-// Immersive Footwear POV - Configuration JSON Serializer Adapter
+// Immersive Footwear POV - Configuration JSON Serializer
 // Single Responsibility: Class-level conditional RedFunctions JSON serialization
 // =============================================================================
 @if(ModuleExists("RedFunctions"))

@@ -2,7 +2,6 @@ module ImmersiveFootwearPOV
 
 // =============================================================================
 // Immersive Footwear POV - Footwear Equipment State
-// Design Pattern: State / Value Object Pattern
 // Single Responsibility Principle (SRP):
 // Encapsulates authoritative state for equipped footwear, height offsets,
 // tags, and custom overrides.
@@ -21,7 +20,7 @@ public class FootwearEquipmentState {
   public let customPlatformHeight: Float;
 
   /**
-   * Factory method creating a freshly initialized FootwearEquipmentState.
+   * Creates a freshly initialized FootwearEquipmentState.
    * @return Initialized FootwearEquipmentState instance with zeroed baseline.
    */
   public static func Create() -> ref<FootwearEquipmentState> {

@@ -20,7 +20,7 @@ public class StrideController {
   private let m_hasZeroPublished: Bool;
 
   /**
-   * Factory method initializing a new StrideController in idle state.
+   * Initializes a new StrideController in idle state.
    * @return A newly initialized StrideController instance.
    */
   public static func Create() -> ref<StrideController> {

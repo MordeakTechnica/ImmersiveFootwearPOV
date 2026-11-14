@@ -3,7 +3,6 @@ module ImmersiveFootwearPOV
 // =============================================================================
 // Immersive Footwear POV - Framework Detection & Diagnostics
 // Compile-time & runtime presence detection for 1st-person and outfit frameworks
-// Design Pattern: Adapter / Registry Pattern (FrameworkIntegrationService)
 // =============================================================================
 
 @if(ModuleExists("TrueFirstPerson"))
@@ -114,7 +113,7 @@ public class FootwearAnimgraphHelper {
 }
 
 // -----------------------------------------------------------------------------
-// Framework Integration Service (Adapter / Registry Pattern)
+// Framework Integration Service
 // Single Responsibility Principle (SRP) & Open/Closed Principle (OCP)
 // -----------------------------------------------------------------------------
 public class FrameworkIntegrationService {
@@ -124,7 +123,7 @@ public class FrameworkIntegrationService {
   private let m_isPhotoModeActive: Bool;
 
   /**
-   * Factory method initializing a new FrameworkIntegrationService instance.
+   * Initializes a new FrameworkIntegrationService instance.
    * @return Initialized FrameworkIntegrationService instance.
    */
   public static func Create() -> ref<FrameworkIntegrationService> {

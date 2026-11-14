@@ -10,12 +10,61 @@ public class FootwearTelemetryLogger {
   private let m_lastLoggedOffset: Float;
   private let m_lastLoggedSuppressed: Bool;
 
+  private let m_hasLoggedFootwearOnce: Bool;
+  private let m_lastLoggedFootwearID: ItemID;
+  private let m_lastLoggedSource: String;
+  private let m_lastLoggedLayer: String;
+  private let m_lastLoggedHeel: Float;
+  private let m_lastLoggedPlatform: Float;
+
   /**
-   * Factory method initializing a new FootwearTelemetryLogger instance.
+   * Initializes a new FootwearTelemetryLogger instance.
    * @return A newly initialized FootwearTelemetryLogger.
    */
   public static func Create() -> ref<FootwearTelemetryLogger> {
     return new FootwearTelemetryLogger();
+  }
+
+  /**
+   * Logs equipped footwear resolution only when identity, source, layer, or height values actually changed.
+   * @param state Authoritative FootwearEquipmentState snapshot.
+   */
+  public func LogFootwearUpdateIfChanged(state: ref<FootwearEquipmentState>) -> Void {
+    if !IsDefined(state) { return; };
+
+    let shoeChanged: Bool = !this.m_hasLoggedFootwearOnce
+      || NotEquals(state.equippedFootwearID, this.m_lastLoggedFootwearID)
+      || NotEquals(state.settingsSource, this.m_lastLoggedSource)
+      || NotEquals(state.activeSource, this.m_lastLoggedLayer)
+      || AbsF(state.currentHeelHeight - this.m_lastLoggedHeel) > 0.0005
+      || AbsF(state.currentPlatformHeight - this.m_lastLoggedPlatform) > 0.0005;
+
+    if !shoeChanged {
+      return;
+    };
+
+    this.m_hasLoggedFootwearOnce = true;
+    this.m_lastLoggedFootwearID = state.equippedFootwearID;
+    this.m_lastLoggedSource = state.settingsSource;
+    this.m_lastLoggedLayer = state.activeSource;
+    this.m_lastLoggedHeel = state.currentHeelHeight;
+    this.m_lastLoggedPlatform = state.currentPlatformHeight;
+
+    let shoeName: String = FootwearDisplayHelper.GetResolvedShoeDisplayName(state.equippedFootwearID);
+    let heelCm: Float = state.currentHeelHeight * 100.0;
+    let platCm: Float = state.currentPlatformHeight * 100.0;
+    FootwearRedLogger.LogInfo("FOOTWEAR", s"Equipped footwear updated: '\(shoeName)' | Source: [\(state.settingsSource)] | Layer: [\(state.activeSource)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
+  }
+
+  /**
+   * Synchronizes deduplication state after live slider calibration without emitting duplicate equip logs.
+   * @param state Authoritative FootwearEquipmentState snapshot.
+   */
+  public func SyncLiveCalibrationSnapshot(state: ref<FootwearEquipmentState>) -> Void {
+    if !IsDefined(state) { return; };
+    this.m_lastLoggedSource = state.settingsSource;
+    this.m_lastLoggedHeel = state.currentHeelHeight;
+    this.m_lastLoggedPlatform = state.currentPlatformHeight;
   }
 
   /**
@@ -73,56 +122,24 @@ public class FootwearTelemetryLogger {
   }
 
   /**
-   * Logs entry or exit from a vehicle and the corresponding suppression action taken.
-   * @param sys Reference to ImmersiveFootwearPOVSystem.
-   * @param inVehicle True if vehicle mount detected, false if dismounted.
+   * Logs entry or exit for a gameplay suppression context (Vehicle or Workspot) from the state snapshot.
    */
-  public static func LogVehicleState(sys: ref<ImmersiveFootwearPOVSystem>, inVehicle: Bool) -> Void {
-    if !IsDefined(sys) { return; };
-    let shoeName: String = sys.GetResolvedShoeDisplayName();
-    let heelCm: Float = sys.GetCurrentHeelHeight() * 100.0;
-    let platCm: Float = sys.GetCurrentPlatformHeight() * 100.0;
-    let settingsSrc: String = sys.GetSettingsSource();
-    let actionDesc: String = inVehicle
-      ? "Suppression ENFORCED (Vehicle Occupancy: resetting effective offset to 0.0m, neutralizing stance)"
-      : "Suppression CLEARED (Restoring footwear elevation)";
-    FootwearRedLogger.LogInfo("VEHICLE", s"Vehicle state updated: inVehicle=\(inVehicle) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Source: [\(settingsSrc)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
-  }
+  public static func LogContextTransition(channel: FootwearContextChannel, active: Bool, state: ref<FootwearEquipmentState>) -> Void {
+    let shoeName: String = IsDefined(state) ? FootwearDisplayHelper.GetResolvedShoeDisplayName(state.equippedFootwearID) : "None";
+    let heelCm: Float = IsDefined(state) ? state.currentHeelHeight * 100.0 : 0.0;
+    let platCm: Float = IsDefined(state) ? state.currentPlatformHeight * 100.0 : 0.0;
+    let settingsSrc: String = IsDefined(state) ? state.settingsSource : "None";
 
-  /**
-   * Logs automatic recovery from vehicle occupancy suppression when player is detected on foot.
-   * @param sys Reference to ImmersiveFootwearPOVSystem.
-   */
-  public static func LogVehicleAutoRecovered(sys: ref<ImmersiveFootwearPOVSystem>) -> Void {
-    if !IsDefined(sys) { return; };
-    let settingsSrc: String = sys.GetSettingsSource();
-    FootwearRedLogger.LogWarn("VEHICLE", s"Vehicle state auto-recovered (Exited) | Action: Clearing Vehicle Occupancy suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())' | Source: [\(settingsSrc)]");
-  }
-
-  /**
-   * Logs entry or exit from an authored workspot animation and suppression state change.
-   * @param sys Reference to ImmersiveFootwearPOVSystem.
-   * @param inWorkspot True if player entered workspot, false if exited.
-   */
-  public static func LogWorkspotState(sys: ref<ImmersiveFootwearPOVSystem>, inWorkspot: Bool) -> Void {
-    if !IsDefined(sys) { return; };
-    let shoeName: String = sys.GetResolvedShoeDisplayName();
-    let heelCm: Float = sys.GetCurrentHeelHeight() * 100.0;
-    let platCm: Float = sys.GetCurrentPlatformHeight() * 100.0;
-    let settingsSrc: String = sys.GetSettingsSource();
-    let actionDesc: String = inWorkspot
-      ? "Suppression ENFORCED (Authored Workspot: chair/vending machine/furniture: resetting effective offset to 0.0m, neutralizing stance)"
-      : "Suppression CLEARED (Restoring footwear elevation)";
-    FootwearRedLogger.LogInfo("WORKSPOT", s"Workspot state updated: inWorkspot=\(inWorkspot) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Source: [\(settingsSrc)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
-  }
-
-  /**
-   * Logs automatic recovery from authored workspot suppression when player stands up or departs.
-   * @param sys Reference to ImmersiveFootwearPOVSystem.
-   */
-  public static func LogWorkspotAutoRecovered(sys: ref<ImmersiveFootwearPOVSystem>) -> Void {
-    if !IsDefined(sys) { return; };
-    let settingsSrc: String = sys.GetSettingsSource();
-    FootwearRedLogger.LogWarn("WORKSPOT", s"Workspot state auto-recovered (Standing/Exited) | Action: Clearing Authored Workspot suppression and restoring footwear elevation | Shoe: '\(sys.GetResolvedShoeDisplayName())' | Source: [\(settingsSrc)]");
+    if Equals(channel, FootwearContextChannel.Vehicle) {
+      let actionDesc: String = active
+        ? "Suppression ENFORCED (Vehicle Occupancy: resetting effective offset to 0.0m, neutralizing stance)"
+        : "Suppression CLEARED (Restoring footwear elevation)";
+      FootwearRedLogger.LogInfo("VEHICLE", s"Vehicle state updated: inVehicle=\(active) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Source: [\(settingsSrc)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
+    } else {
+      let actionDesc: String = active
+        ? "Suppression ENFORCED (Authored Workspot: chair/vending machine/furniture: resetting effective offset to 0.0m, neutralizing stance)"
+        : "Suppression CLEARED (Restoring footwear elevation)";
+      FootwearRedLogger.LogInfo("WORKSPOT", s"Workspot state updated: inWorkspot=\(active) | Action: \(actionDesc) | Shoe: '\(shoeName)' | Source: [\(settingsSrc)] | Heel: \(heelCm) cm | Platform: \(platCm) cm");
+    };
   }
 }

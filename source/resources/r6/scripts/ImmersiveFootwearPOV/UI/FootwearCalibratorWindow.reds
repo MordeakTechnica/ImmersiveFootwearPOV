@@ -11,42 +11,133 @@ import RedFunctions.*
 // with instant character preview, matching CET calibration capabilities.
 // =============================================================================
 @if(ModuleExists("RedWindows"))
+public class CalibratorAxisController {
+  private let m_sliderRow: CName;
+  private let m_inputRow: CName;
+  private let m_sliderLabel: String;
+  private let m_inputLabel: String;
+  private let m_maxCm: Float;
+  private let m_lastSyncedCm: Float;
+  private let m_wasInputFocused: Bool;
+
+  public let sliderValueCm: Float;
+  public let manualInputStr: String;
+  public let targetCm: Float;
+  public let didChange: Bool;
+  public let isInteracting: Bool;
+  public let isInputFocused: Bool;
+  public let didFinishManualInput: Bool;
+  private let m_changedBySlider: Bool;
+
+  public static func Create(sliderRow: CName, inputRow: CName, sliderLabel: String, inputLabel: String, maxCm: Float) -> ref<CalibratorAxisController> {
+    let axis: ref<CalibratorAxisController> = new CalibratorAxisController();
+    axis.m_sliderRow = sliderRow;
+    axis.m_inputRow = inputRow;
+    axis.m_sliderLabel = sliderLabel;
+    axis.m_inputLabel = inputLabel;
+    axis.m_maxCm = maxCm;
+    axis.m_lastSyncedCm = -1.0;
+    return axis;
+  }
+
+  public func InvalidateSync() -> Void {
+    this.m_lastSyncedCm = -1.0;
+  }
+
+  public func ForceSync(win: ref<RWWindow>, valueCm: Float) -> Void {
+    this.m_lastSyncedCm = valueCm;
+    win.SetValueF(this.m_sliderRow, valueCm);
+    win.SetInputText(this.m_inputRow, FloatToStringPrec(valueCm, 1));
+  }
+
+  public func SyncAfterApply(win: ref<RWWindow>, valueCm: Float) -> Void {
+    this.m_lastSyncedCm = valueCm;
+    if this.m_changedBySlider || !this.isInputFocused {
+      win.SetInputText(this.m_inputRow, FloatToStringPrec(valueCm, 1));
+    };
+  }
+
+  public func DrawWidgets(win: ref<RWWindow>, currentCm: Float) -> Void {
+    this.sliderValueCm = win.SliderF(this.m_sliderRow, this.m_sliderLabel, 0.0, this.m_maxCm, currentCm, 0.50);
+    this.manualInputStr = win.Input(this.m_inputRow, this.m_inputLabel, FloatToStringPrec(currentCm, 1));
+  }
+
+  public func EvaluateInteraction(win: ref<RWWindow>, currentCm: Float, shoeChanged: Bool) -> Void {
+    let sliderChanged: Bool = win.Changed(this.m_sliderRow);
+    let sliderActive: Bool = win.Active(this.m_sliderRow);
+    let inputChanged: Bool = win.Changed(this.m_inputRow);
+    let inputSubmitted: Bool = win.InputSubmitted(this.m_inputRow);
+    let inputFocused: Bool = win.InputFocused(this.m_inputRow);
+    let inputFocusLost: Bool = this.m_wasInputFocused && !inputFocused;
+    this.m_wasInputFocused = inputFocused;
+
+    this.targetCm = currentCm;
+    this.didChange = false;
+    this.m_changedBySlider = false;
+    this.isInputFocused = inputFocused;
+    this.isInteracting = sliderActive || inputFocused;
+    this.didFinishManualInput = inputSubmitted || inputFocusLost;
+
+    if shoeChanged && !sliderChanged && !inputChanged && !inputSubmitted {
+      this.m_lastSyncedCm = currentCm;
+      win.SetValueF(this.m_sliderRow, currentCm);
+      if !inputFocused {
+        win.SetInputText(this.m_inputRow, FloatToStringPrec(currentCm, 1));
+      };
+      this.sliderValueCm = currentCm;
+    };
+
+    if sliderChanged {
+      this.m_changedBySlider = true;
+      this.targetCm = this.sliderValueCm;
+      this.didChange = true;
+      return;
+    };
+
+    if inputSubmitted || inputChanged || inputFocusLost {
+      if StrLen(this.manualInputStr) > 0 {
+        let typedCm: Float = ClampF(StringToFloat(this.manualInputStr), 0.0, this.m_maxCm);
+        if inputChanged || inputSubmitted || AbsF(typedCm - currentCm) > 0.01 {
+          win.SetValueF(this.m_sliderRow, typedCm);
+          this.targetCm = typedCm;
+          this.didChange = true;
+        };
+      };
+      if !inputFocused && !this.didChange {
+        win.SetInputText(this.m_inputRow, FloatToStringPrec(currentCm, 1));
+      };
+      return;
+    };
+
+    if !sliderActive && !inputFocused {
+      if AbsF(this.m_lastSyncedCm - currentCm) > 0.05 || AbsF(this.sliderValueCm - currentCm) > 0.25 {
+        this.ForceSync(win, currentCm);
+      };
+    };
+  }
+}
+
+@if(ModuleExists("RedWindows"))
 public class FootwearCalibratorWindow {
   private let m_lastShoeKey: String;
   private let m_lastHasFootwear: Int32;
-  private let m_lastSyncedHeelCm: Float;
-  private let m_lastSyncedPlatCm: Float;
-  private let m_wasHeelInputFocused: Bool;
-  private let m_wasPlatInputFocused: Bool;
+  private let m_heelAxis: ref<CalibratorAxisController>;
+  private let m_platAxis: ref<CalibratorAxisController>;
 
-  /**
-   * Instantiates a new footwear calibrator window instance with uninitialized state.
-   *
-   * @return Initialized footwear calibrator window reference.
-   */
   public static func Create() -> ref<FootwearCalibratorWindow> {
     let win: ref<FootwearCalibratorWindow> = new FootwearCalibratorWindow();
     win.m_lastHasFootwear = -1;
-    win.m_lastSyncedHeelCm = -1.0;
-    win.m_lastSyncedPlatCm = -1.0;
+    win.m_heelAxis = CalibratorAxisController.Create(n"calib_slider_heel", n"calib_input_heel", "Custom Heel Slider (cm)", "Manual Heel (cm)", FootwearHeightLimits.GetMaxHeightCm());
+    win.m_platAxis = CalibratorAxisController.Create(n"calib_slider_plat", n"calib_input_plat", "Custom Platform Slider (cm)", "Manual Platform (cm)", FootwearHeightLimits.GetMaxPlatformCm());
     return win;
   }
 
-  /**
-   * Invalidates cached slider synchronization state so controls resync on next render.
-   */
   public func InvalidateSync() -> Void {
     this.m_lastShoeKey = "";
-    this.m_lastSyncedHeelCm = -1.0;
-    this.m_lastSyncedPlatCm = -1.0;
+    if IsDefined(this.m_heelAxis) { this.m_heelAxis.InvalidateSync(); };
+    if IsDefined(this.m_platAxis) { this.m_platAxis.InvalidateSync(); };
   }
 
-  /**
-   * Static entrypoint for rendering the footwear calibrator window.
-   *
-   * @param gi Game instance context.
-   * @param targetWin Optional RedWindows window container to render within.
-   */
   public static func Render(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {
@@ -55,60 +146,52 @@ public class FootwearCalibratorWindow {
     system.GetCalibratorWindow().RenderInternal(gi, targetWin);
   }
 
-  /**
-   * Internal render implementation handling dynamic UI state, slider adjustments,
-   * manual text input clamping, live elevation preview, and override persistence.
-   *
-   * @param gi Game instance context.
-   * @param targetWin Optional RedWindows window container to render within.
-   */
+  private func UpdateRowVisibility(win: ref<RWWindow>, hasFootwear: Bool) -> Void {
+    win.SetRowVisible(n"calib_hdr_none", false);
+    win.SetRowVisible(n"calib_txt_none", false);
+    win.SetRowVisible(n"calib_close_btn", false);
+    win.SetRowVisible(n"calib_sep1", hasFootwear);
+    win.SetRowVisible(n"calib_slider_heel", hasFootwear);
+    win.SetRowVisible(n"calib_input_heel", hasFootwear);
+    win.SetRowVisible(n"calib_heel_tip1", hasFootwear);
+    win.SetRowVisible(n"calib_heel_tip2", hasFootwear);
+    win.SetRowVisible(n"calib_sep2", hasFootwear);
+    win.SetRowVisible(n"calib_slider_plat", hasFootwear);
+    win.SetRowVisible(n"calib_input_plat", hasFootwear);
+    win.SetRowVisible(n"calib_plat_tip1", hasFootwear);
+    win.SetRowVisible(n"calib_plat_tip2", hasFootwear);
+    win.SetRowVisible(n"calib_spc", hasFootwear);
+    win.SetRowVisible(n"calib_btn_save", hasFootwear);
+    win.SetRowVisible(n"calib_btn_revert", hasFootwear);
+    win.SetRowVisible(n"calib_spc_none", !hasFootwear);
+    win.SetRowVisible(n"calib_btn_close", !hasFootwear);
+  }
+
   public func RenderInternal(gi: GameInstance, opt targetWin: ref<RWWindow>) -> Void {
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {
       return;
     };
 
-    let win: ref<RWWindow> = targetWin;
-    if !IsDefined(win) {
-      win = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
-    };
+    let win: ref<RWWindow> = IsDefined(targetWin) ? targetWin : RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
     if !IsDefined(win) {
       return;
     };
 
     win.minW = 500.0;
     win.SetClosable(true);
-    win.SetOverlayOnly(true); // Always hide when closing RedWindows overlay
+    win.SetOverlayOnly(true);
 
     let itemID: ItemID = system.GetEquippedFootwearID();
     let hasFootwear: Bool = ItemID.IsValid(itemID);
     let shoeKey: String = hasFootwear ? TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID)) : "";
 
-    // Toggle row visibility ONLY when equipped state changes (avoids costly ApplyGeometry layout passes)
     let curState: Int32 = hasFootwear ? 1 : 0;
     if NotEquals(this.m_lastHasFootwear, curState) {
       this.m_lastHasFootwear = curState;
-      win.SetRowVisible(n"calib_hdr_none", false);
-      win.SetRowVisible(n"calib_txt_none", false);
-      win.SetRowVisible(n"calib_close_btn", false);
-      win.SetRowVisible(n"calib_sep1", hasFootwear);
-      win.SetRowVisible(n"calib_slider_heel", hasFootwear);
-      win.SetRowVisible(n"calib_input_heel", hasFootwear);
-      win.SetRowVisible(n"calib_heel_tip1", hasFootwear);
-      win.SetRowVisible(n"calib_heel_tip2", hasFootwear);
-      win.SetRowVisible(n"calib_sep2", hasFootwear);
-      win.SetRowVisible(n"calib_slider_plat", hasFootwear);
-      win.SetRowVisible(n"calib_input_plat", hasFootwear);
-      win.SetRowVisible(n"calib_plat_tip1", hasFootwear);
-      win.SetRowVisible(n"calib_plat_tip2", hasFootwear);
-      win.SetRowVisible(n"calib_spc", hasFootwear);
-      win.SetRowVisible(n"calib_btn_save", hasFootwear);
-      win.SetRowVisible(n"calib_btn_revert", hasFootwear);
-      win.SetRowVisible(n"calib_spc_none", !hasFootwear);
-      win.SetRowVisible(n"calib_btn_close", !hasFootwear);
+      this.UpdateRowVisibility(win, hasFootwear);
     };
 
-    // Unified Header & Subtitle (avoids duplicate retained rows in RedWindows)
     win.Header(n"calib_hdr", hasFootwear ? s"Calibrating: \(shoeKey)" : "No Footwear Equipped");
     win.Text(n"calib_sub", hasFootwear ? s"Source: [\(system.GetSettingsSource())] | Adjust sliders or type values for live preview on V." : "Equip a pair of shoes or boots in inventory to calibrate.");
 
@@ -124,151 +207,57 @@ public class FootwearCalibratorWindow {
     };
 
     win.Separator(n"calib_sep1");
-
     let currentHeelCm: Float = system.GetCurrentHeelHeight() * 100.0;
     let currentPlatCm: Float = system.GetCurrentPlatformHeight() * 100.0;
 
-    let maxHeelCm: Float = FootwearHeightLimits.GetMaxHeightCm();     // 40.0 cm
-    let maxPlatCm: Float = FootwearHeightLimits.GetMaxPlatformCm();   // 30.0 cm
-
-    // -------------------------------------------------------------------------
-    // Custom Heel Height Controls (Slider + Manual Numerical Input)
-    // -------------------------------------------------------------------------
-    let newHeelCm: Float = win.SliderF(n"calib_slider_heel", "Custom Heel Slider (cm)", 0.0, maxHeelCm, currentHeelCm, 0.50);
-    let manualHeelStr: String = win.Input(n"calib_input_heel", "Manual Heel (cm)", FloatToStringPrec(currentHeelCm, 1));
-
+    this.m_heelAxis.DrawWidgets(win, currentHeelCm);
     win.Text(n"calib_heel_tip1", "  -> Total heel: drives catwalk sway pitch; elevates FPP camera up to 25.0 cm max.");
     win.Text(n"calib_heel_tip2", "  -> Manual input: Type exact cm (Auto-clamps: 0.0 to 40.0 cm; negative disallowed).");
 
     win.Separator(n"calib_sep2");
-
-    // -------------------------------------------------------------------------
-    // Custom Platform Height Controls (Slider + Manual Numerical Input)
-    // -------------------------------------------------------------------------
-    let newPlatCm: Float = win.SliderF(n"calib_slider_plat", "Custom Platform Slider (cm)", 0.0, maxPlatCm, currentPlatCm, 0.50);
-    let manualPlatStr: String = win.Input(n"calib_input_plat", "Manual Platform (cm)", FloatToStringPrec(currentPlatCm, 1));
-
+    this.m_platAxis.DrawWidgets(win, currentPlatCm);
     win.Text(n"calib_plat_tip1", "  -> Front sole thickness: lifts character puppet in Third Person & Photo Mode.");
     win.Text(n"calib_plat_tip2", "  -> Manual input: Type exact cm (Auto-clamps: 0.0 to 30.0 cm; negative disallowed).");
-
-    // -------------------------------------------------------------------------
-    // Inspect Widget Interaction & Focus State Before Synchronizing
-    // -------------------------------------------------------------------------
-    let heelSliderChanged: Bool = win.Changed(n"calib_slider_heel");
-    let heelSliderActive: Bool = win.Active(n"calib_slider_heel");
-    let heelInputChanged: Bool = win.Changed(n"calib_input_heel");
-    let heelInputSubmitted: Bool = win.InputSubmitted(n"calib_input_heel");
-    let heelInputFocused: Bool = win.InputFocused(n"calib_input_heel");
-    let heelInputFocusLost: Bool = this.m_wasHeelInputFocused && !heelInputFocused;
-    this.m_wasHeelInputFocused = heelInputFocused;
-
-    let platSliderChanged: Bool = win.Changed(n"calib_slider_plat");
-    let platSliderActive: Bool = win.Active(n"calib_slider_plat");
-    let platInputChanged: Bool = win.Changed(n"calib_input_plat");
-    let platInputSubmitted: Bool = win.InputSubmitted(n"calib_input_plat");
-    let platInputFocused: Bool = win.InputFocused(n"calib_input_plat");
-    let platInputFocusLost: Bool = this.m_wasPlatInputFocused && !platInputFocused;
-    this.m_wasPlatInputFocused = platInputFocused;
 
     let shoeChanged: Bool = NotEquals(this.m_lastShoeKey, shoeKey);
     if shoeChanged {
       this.m_lastShoeKey = shoeKey;
-      if !heelSliderChanged && !heelInputChanged && !heelInputSubmitted {
-        this.m_lastSyncedHeelCm = currentHeelCm;
-        win.SetValueF(n"calib_slider_heel", currentHeelCm);
-        if !heelInputFocused {
-          win.SetInputText(n"calib_input_heel", FloatToStringPrec(currentHeelCm, 1));
-        };
-        newHeelCm = currentHeelCm;
-      };
-      if !platSliderChanged && !platInputChanged && !platInputSubmitted {
-        this.m_lastSyncedPlatCm = currentPlatCm;
-        win.SetValueF(n"calib_slider_plat", currentPlatCm);
-        if !platInputFocused {
-          win.SetInputText(n"calib_input_plat", FloatToStringPrec(currentPlatCm, 1));
-        };
-        newPlatCm = currentPlatCm;
-      };
     };
 
-    // Process Heel Slider / Manual Input / External Sync
-    if heelSliderChanged {
-      win.SetInputText(n"calib_input_heel", FloatToStringPrec(newHeelCm, 1));
-      system.ApplyLiveCalibration(newHeelCm / 100.0, currentPlatCm / 100.0);
+    this.m_heelAxis.EvaluateInteraction(win, currentHeelCm, shoeChanged);
+    this.m_platAxis.EvaluateInteraction(win, currentPlatCm, shoeChanged);
+
+    if this.m_heelAxis.didChange || this.m_platAxis.didChange {
+      system.ApplyLiveCalibration(this.m_heelAxis.targetCm / 100.0, this.m_platAxis.targetCm / 100.0);
       currentHeelCm = system.GetCurrentHeelHeight() * 100.0;
-      this.m_lastSyncedHeelCm = currentHeelCm;
-    } else if heelInputSubmitted || heelInputChanged || heelInputFocusLost {
-      if StrLen(manualHeelStr) > 0 {
-        let typedHeel: Float = ClampF(StringToFloat(manualHeelStr), 0.0, maxHeelCm);
-        if heelInputChanged || heelInputSubmitted || AbsF(typedHeel - currentHeelCm) > 0.01 {
-          win.SetValueF(n"calib_slider_heel", typedHeel);
-          system.ApplyLiveCalibration(typedHeel / 100.0, currentPlatCm / 100.0);
-          currentHeelCm = system.GetCurrentHeelHeight() * 100.0;
-          this.m_lastSyncedHeelCm = currentHeelCm;
-        };
-      };
-      if !heelInputFocused {
-        win.SetInputText(n"calib_input_heel", FloatToStringPrec(currentHeelCm, 1));
-      };
-    } else if !heelSliderActive && !heelInputFocused {
-      if AbsF(this.m_lastSyncedHeelCm - currentHeelCm) > 0.05 || AbsF(newHeelCm - currentHeelCm) > 0.25 {
-        this.m_lastSyncedHeelCm = currentHeelCm;
-        win.SetValueF(n"calib_slider_heel", currentHeelCm);
-        win.SetInputText(n"calib_input_heel", FloatToStringPrec(currentHeelCm, 1));
-      };
-    };
-
-    // Process Platform Slider / Manual Input / External Sync
-    if platSliderChanged {
-      win.SetInputText(n"calib_input_plat", FloatToStringPrec(newPlatCm, 1));
-      system.ApplyLiveCalibration(currentHeelCm / 100.0, newPlatCm / 100.0);
       currentPlatCm = system.GetCurrentPlatformHeight() * 100.0;
-      this.m_lastSyncedPlatCm = currentPlatCm;
-    } else if platInputSubmitted || platInputChanged || platInputFocusLost {
-      if StrLen(manualPlatStr) > 0 {
-        let typedPlat: Float = ClampF(StringToFloat(manualPlatStr), 0.0, maxPlatCm);
-        if platInputChanged || platInputSubmitted || AbsF(typedPlat - currentPlatCm) > 0.01 {
-          win.SetValueF(n"calib_slider_plat", typedPlat);
-          system.ApplyLiveCalibration(currentHeelCm / 100.0, typedPlat / 100.0);
-          currentPlatCm = system.GetCurrentPlatformHeight() * 100.0;
-          this.m_lastSyncedPlatCm = currentPlatCm;
-        };
+      if this.m_heelAxis.didChange {
+        this.m_heelAxis.SyncAfterApply(win, currentHeelCm);
       };
-      if !platInputFocused {
-        win.SetInputText(n"calib_input_plat", FloatToStringPrec(currentPlatCm, 1));
-      };
-    } else if !platSliderActive && !platInputFocused {
-      if AbsF(this.m_lastSyncedPlatCm - currentPlatCm) > 0.05 || AbsF(newPlatCm - currentPlatCm) > 0.25 {
-        this.m_lastSyncedPlatCm = currentPlatCm;
-        win.SetValueF(n"calib_slider_plat", currentPlatCm);
-        win.SetInputText(n"calib_input_plat", FloatToStringPrec(currentPlatCm, 1));
+      if this.m_platAxis.didChange {
+        this.m_platAxis.SyncAfterApply(win, currentPlatCm);
       };
     };
 
-    // Auto-save dirty overrides as soon as slider drag finishes or manual input is submitted/unfocused
     if system.HasDirtyOverride() {
-      let manualFinished: Bool = heelInputSubmitted || platInputSubmitted || heelInputFocusLost || platInputFocusLost;
-      let idleAfterEdit: Bool = !heelSliderActive && !platSliderActive && !heelInputFocused && !platInputFocused;
+      let manualFinished: Bool = this.m_heelAxis.didFinishManualInput || this.m_platAxis.didFinishManualInput;
+      let idleAfterEdit: Bool = !this.m_heelAxis.isInteracting && !this.m_platAxis.isInteracting;
       if manualFinished || idleAfterEdit {
         system.FlushPendingOverrideSave();
-        // Refresh subtitle immediately so Source: [Custom User Override] is shown
         win.Text(n"calib_sub", s"Source: [\(system.GetSettingsSource())] | Adjust sliders or type values for live preview on V.");
       };
     };
 
     win.Spacer(n"calib_spc");
 
-    // -------------------------------------------------------------------------
-    // Action Buttons
-    // -------------------------------------------------------------------------
     if win.Button(n"calib_btn_save", "Save as Permanent Custom Override") {
       let activeHeel: Float = system.GetCurrentHeelHeight();
       let activePlat: Float = system.GetCurrentPlatformHeight();
       system.ClearPendingOverrideSave();
       system.GetStorageManager().SaveUserOverride(shoeKey, activeHeel, activePlat);
       system.RegisterCustomOverride(shoeKey, activeHeel, activePlat);
-      this.m_lastSyncedHeelCm = activeHeel * 100.0;
-      this.m_lastSyncedPlatCm = activePlat * 100.0;
+      this.m_heelAxis.ForceSync(win, activeHeel * 100.0);
+      this.m_platAxis.ForceSync(win, activePlat * 100.0);
       FootwearRedLogger.LogInfo("CALIBRATOR", s"Saved permanent override for \(shoeKey) via RedWindows");
     };
 
@@ -276,14 +265,8 @@ public class FootwearCalibratorWindow {
       system.ClearPendingOverrideSave();
       system.GetStorageManager().RemoveUserOverride(shoeKey);
       system.RevertFootwearToDefault();
-      let defaultHeelCm: Float = system.GetCurrentHeelHeight() * 100.0;
-      let defaultPlatCm: Float = system.GetCurrentPlatformHeight() * 100.0;
-      this.m_lastSyncedHeelCm = defaultHeelCm;
-      this.m_lastSyncedPlatCm = defaultPlatCm;
-      win.SetValueF(n"calib_slider_heel", defaultHeelCm);
-      win.SetInputText(n"calib_input_heel", FloatToStringPrec(defaultHeelCm, 1));
-      win.SetValueF(n"calib_slider_plat", defaultPlatCm);
-      win.SetInputText(n"calib_input_plat", FloatToStringPrec(defaultPlatCm, 1));
+      this.m_heelAxis.ForceSync(win, system.GetCurrentHeelHeight() * 100.0);
+      this.m_platAxis.ForceSync(win, system.GetCurrentPlatformHeight() * 100.0);
       FootwearRedLogger.LogInfo("CALIBRATOR", s"Reverted override for \(shoeKey) to baseline");
     };
 

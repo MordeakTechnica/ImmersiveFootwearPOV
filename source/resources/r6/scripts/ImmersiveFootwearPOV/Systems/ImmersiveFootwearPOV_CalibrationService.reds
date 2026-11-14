@@ -2,7 +2,6 @@ module ImmersiveFootwearPOV
 
 // =============================================================================
 // Immersive Footwear POV - Footwear Calibration Service
-// Design Pattern: Domain Service Pattern
 // Single Responsibility Principle (SRP):
 // Encapsulates footwear resolution evaluation, official tag parsing, custom
 // override synchronization with the repository, and real-time live calibration.
@@ -10,9 +9,13 @@ module ImmersiveFootwearPOV
 
 public class FootwearCalibrationService {
   private let m_resolver: ref<FootwearResolver>;
+  private let m_hasDirtyOverride: Bool;
+  private let m_dirtyOverrideKey: String;
+  private let m_dirtyOverrideHeel: Float;
+  private let m_dirtyOverridePlat: Float;
 
   /**
-   * Factory method initializing a FootwearCalibrationService instance with its resolver collaborator.
+   * Initializes a FootwearCalibrationService instance with its resolver collaborator.
    * @return A newly initialized FootwearCalibrationService instance.
    */
   public static func Create() -> ref<FootwearCalibrationService> {
@@ -115,12 +118,10 @@ public class FootwearCalibrationService {
   }
 
   /**
-   * Applies live preview elevation adjustments during calibration window slider manipulation.
-   * @param state The target FootwearEquipmentState to update.
-   * @param heel Temporary preview heel height in meters.
-   * @param platform Temporary preview platform height in meters.
+   * Applies live preview elevation adjustments during calibration window slider manipulation,
+   * updates the in-memory repository, and records pending dirty state for deferred disk persistence.
    */
-  public func ApplyLiveCalibration(state: ref<FootwearEquipmentState>, heel: Float, platform: Float) -> Void {
+  public func ApplyLiveCalibration(state: ref<FootwearEquipmentState>, repo: ref<FootwearOverrideRepository>, storageMgr: ref<FootwearStorageManager>, heel: Float, platform: Float) -> Void {
     if !IsDefined(state) {
       return;
     };
@@ -130,6 +131,79 @@ public class FootwearCalibrationService {
     state.customPlatformHeight = FootwearClampingPolicy.ClampPlatformHeight(platform);
     state.currentHeelHeight = state.customHeelHeight;
     state.currentPlatformHeight = state.customPlatformHeight;
+
+    if ItemID.IsValid(state.equippedFootwearID) {
+      let shoeKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
+      if StrLen(shoeKey) > 0 {
+        if this.m_hasDirtyOverride && NotEquals(this.m_dirtyOverrideKey, shoeKey) {
+          this.FlushPendingOverrideSave(state, repo, storageMgr);
+        };
+        if IsDefined(repo) {
+          repo.RegisterUserOverride(shoeKey, state.currentHeelHeight, state.currentPlatformHeight);
+        };
+        this.m_hasDirtyOverride = true;
+        this.m_dirtyOverrideKey = shoeKey;
+        this.m_dirtyOverrideHeel = state.currentHeelHeight;
+        this.m_dirtyOverridePlat = state.currentPlatformHeight;
+      };
+    };
+  }
+
+  /**
+   * Registers or updates a custom shoe override in the repository and synchronizes active state if equipped.
+   */
+  public func RegisterCustomOverride(state: ref<FootwearEquipmentState>, repo: ref<FootwearOverrideRepository>, key: String, heel: Float, platform: Float) -> Void {
+    if StrLen(key) == 0 {
+      return;
+    };
+    let clampedHeel: Float = FootwearClampingPolicy.ClampHeight(heel);
+    let clampedPlat: Float = FootwearClampingPolicy.ClampPlatformHeight(platform);
+    if IsDefined(repo) {
+      repo.RegisterUserOverride(key, clampedHeel, clampedPlat);
+    };
+    if !IsDefined(state) || !ItemID.IsValid(state.equippedFootwearID) {
+      return;
+    };
+    let currentKey: String = TDBID.ToStringDEBUG(ItemID.GetTDBID(state.equippedFootwearID));
+    if !Equals(currentKey, key) && !Equals(StrLower(currentKey), StrLower(key)) {
+      return;
+    };
+
+    state.hasCustomOverride = true;
+    state.settingsSource = "User Override";
+    state.customHeelHeight = clampedHeel;
+    state.customPlatformHeight = clampedPlat;
+    state.currentHeelHeight = clampedHeel;
+    state.currentPlatformHeight = clampedPlat;
+  }
+
+  /**
+   * Persists any uncommitted live calibration override to user_shoe_overrides.json once.
+   */
+  public func FlushPendingOverrideSave(state: ref<FootwearEquipmentState>, repo: ref<FootwearOverrideRepository>, storageMgr: ref<FootwearStorageManager>) -> Void {
+    if !this.m_hasDirtyOverride || StrLen(this.m_dirtyOverrideKey) == 0 {
+      return;
+    };
+    let key: String = this.m_dirtyOverrideKey;
+    let heel: Float = this.m_dirtyOverrideHeel;
+    let plat: Float = this.m_dirtyOverridePlat;
+    this.m_hasDirtyOverride = false;
+    this.m_dirtyOverrideKey = "";
+
+    if IsDefined(storageMgr) {
+      storageMgr.SaveUserOverride(key, heel, plat);
+    };
+    this.RegisterCustomOverride(state, repo, key, heel, plat);
+    FootwearRedLogger.LogInfo("CALIBRATOR", s"Auto-saved permanent override for \(key)");
+  }
+
+  public func HasDirtyOverride() -> Bool {
+    return this.m_hasDirtyOverride;
+  }
+
+  public func ClearPendingOverrideSave() -> Void {
+    this.m_hasDirtyOverride = false;
+    this.m_dirtyOverrideKey = "";
   }
 
   /**

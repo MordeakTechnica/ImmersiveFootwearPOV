@@ -4,8 +4,6 @@ module ImmersiveFootwearPOV
 import RedscriptConfigFramework.*
 @if(ModuleExists("RedFunctions"))
 import RedFunctions.*
-@if(ModuleExists("RedWindows"))
-import RedWindows.*
 
 // =============================================================================
 // Immersive Footwear POV - Redscript Configuration Framework (RCF) Integration
@@ -32,7 +30,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
   }
 
   // -----------------------------------------------------------------------------
-  // Schema Declaration (Fluent Builder Pattern)
+  // Schema Declaration
   // -----------------------------------------------------------------------------
   /**
    * Builds the declarative RCF menu schema containing tabs, sections,
@@ -146,14 +144,7 @@ public class FootwearRCFProvider extends DVRCF_Provider {
       this.m_config.hudPinned = value;
       changed = true;
       if IsDefined(this.m_system) {
-        let diagWin: ref<RWWindow> = RedWindowsAPI.Window(this.m_system.GetGameInstance(), n"IFP_Diagnostics", "Immersive Footwear POV — Diagnostics");
-        if IsDefined(diagWin) {
-          diagWin.SetOverlayOnly(!value);
-          diagWin.SetBoolValue(n"ifp_diag_pin", value);
-          if value {
-            diagWin.Show();
-          };
-        };
+        FootwearWindowsController.SetDiagnosticsPinned(this.m_system.GetGameInstance(), value);
       };
     };
 

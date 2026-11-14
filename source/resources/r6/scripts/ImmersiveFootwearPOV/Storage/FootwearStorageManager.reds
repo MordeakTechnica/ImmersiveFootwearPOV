@@ -8,7 +8,7 @@ import RedFunctions.Json.*
 import RedFunctions.Storage.*
 
 // =============================================================================
-// Immersive Footwear POV - Native Storage Manager (Repository Pattern)
+// Immersive Footwear POV - Native Storage Manager
 // Single Responsibility: Low-level file persistence of config, presets, and overrides via RedFunctions
 // =============================================================================
 @if(ModuleExists("RedFunctions"))
@@ -20,7 +20,7 @@ public class FootwearStorageManager {
   private let PRESETS_FILE: String;
 
   /**
-   * Factory method initializing and opening the ModStorage file interface for ImmersiveFootwearPOV.
+   * Initializes and opens the ModStorage file interface for ImmersiveFootwearPOV.
    * @return A newly initialized FootwearStorageManager instance.
    */
   public static func Create() -> ref<FootwearStorageManager> {
@@ -30,7 +30,7 @@ public class FootwearStorageManager {
   }
 
   /**
-   * Factory method initializing and opening the ModStorage file interface for ImmersiveFootwearPOV.
+   * Initializes and opens the ModStorage file interface for ImmersiveFootwearPOV.
    * Prefer using ImmersiveFootwearPOVSystem.GetStorageManager() to reuse a single open handle.
    * @return A FootwearStorageManager instance.
    */
@@ -150,19 +150,14 @@ public class FootwearStorageManager {
   }
 
   /**
-   * Loads user calibrated shoe overrides from user_shoe_overrides.json into the provided repository.
-   * @param repo The target FootwearOverrideRepository to populate.
-   * @return Number of override entries successfully parsed and registered.
+   * Shared JSON map loader populating either user overrides or master presets into the repository.
    */
-  public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
-    if !this.IsReady() || !IsDefined(repo) {
-      return 0;
-    };
-    if !this.m_storage.Has(this.OVERRIDES_FILE) {
+  private func LoadEntriesFromJson(fileName: String, repo: ref<FootwearOverrideRepository>, asUserOverrides: Bool, label: String) -> Int32 {
+    if !this.IsReady() || !IsDefined(repo) || !this.m_storage.Has(fileName) {
       return 0;
     };
 
-    let val: ref<JsonValue> = this.m_storage.ReadJson(this.OVERRIDES_FILE);
+    let val: ref<JsonValue> = this.m_storage.ReadJson(fileName);
     if !IsDefined(val) || !val.IsMap() {
       return 0;
     };
@@ -181,16 +176,28 @@ public class FootwearStorageManager {
           let itemMap: ref<JsonMap> = entryVal.AsMap();
           let heelCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "heel", 0.0);
           let platCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "platform", 0.0);
-          // Convert centimeters from JSON to meters for repository registration
-          repo.RegisterUserOverride(key, heelCm / 100.0, platCm / 100.0);
+          if asUserOverrides {
+            repo.RegisterUserOverride(key, heelCm / 100.0, platCm / 100.0);
+          } else {
+            repo.RegisterPreset(key, heelCm / 100.0, platCm / 100.0);
+          };
           registered += 1;
         };
       };
       i += 1;
     };
 
-    FootwearRedLogger.LogInfo("STORAGE", s"Loaded \(registered) user shoe overrides from user_shoe_overrides.json");
+    FootwearRedLogger.LogInfo("STORAGE", s"Loaded \(registered) \(label) from \(fileName)");
     return registered;
+  }
+
+  /**
+   * Loads user calibrated shoe overrides from user_shoe_overrides.json into the provided repository.
+   * @param repo The target FootwearOverrideRepository to populate.
+   * @return Number of override entries successfully parsed and registered.
+   */
+  public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
+    return this.LoadEntriesFromJson(this.OVERRIDES_FILE, repo, true, "user shoe overrides");
   }
 
   /**
@@ -267,74 +274,7 @@ public class FootwearStorageManager {
    * @return Number of preset entries successfully loaded.
    */
   public func LoadMasterPresetsIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
-    if !this.IsReady() || !IsDefined(repo) {
-      return 0;
-    };
-    if !this.m_storage.Has(this.PRESETS_FILE) {
-      return 0;
-    };
-
-    let val: ref<JsonValue> = this.m_storage.ReadJson(this.PRESETS_FILE);
-    if !IsDefined(val) || !val.IsMap() {
-      return 0;
-    };
-
-    let rootMap: ref<JsonMap> = val.AsMap();
-    let keys: array<String> = rootMap.KeyList();
-    let count: Int32 = ArraySize(keys);
-    let registered: Int32 = 0;
-
-    let i: Int32 = 0;
-    while i < count {
-      let key: String = keys[i];
-      if !Equals(key, "__settings") {
-        let entryVal: ref<JsonValue> = rootMap.Value(key);
-        if IsDefined(entryVal) && entryVal.IsMap() {
-          let itemMap: ref<JsonMap> = entryVal.AsMap();
-          let heelCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "heel", 0.0);
-          let platCm: Float = FootwearStorageManager.ReadNumberAsFloat(itemMap, "platform", 0.0);
-          repo.RegisterPreset(key, heelCm / 100.0, platCm / 100.0);
-          registered += 1;
-        };
-      };
-      i += 1;
-    };
-
-    FootwearRedLogger.LogInfo("STORAGE", s"Loaded \(registered) master shoe presets from presets.json");
-    return registered;
-  }
-
-  /**
-   * Legacy adapter loading user shoe overrides directly through the central system.
-   * @param system Reference to ImmersiveFootwearPOVSystem.
-   * @return Number of entries registered.
-   */
-  public func LoadUserOverrides(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
-    if !IsDefined(system) {
-      return 0;
-    };
-    return this.LoadUserOverridesIntoRepo(system.GetOverrideRepository());
-  }
-
-  /**
-   * Legacy adapter loading master shoe presets directly through the central system.
-   * @param system Reference to ImmersiveFootwearPOVSystem.
-   * @return Number of entries registered.
-   */
-  public func LoadMasterPresets(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
-    if !IsDefined(system) {
-      return 0;
-    };
-    return this.LoadMasterPresetsIntoRepo(system.GetOverrideRepository());
-  }
-
-  /**
-   * Initiates migration of legacy CET configuration and shoe overrides if detected.
-   * @param system Reference to ImmersiveFootwearPOVSystem.
-   * @param config The current configuration instance.
-   */
-  public func MigrateLegacyCet(system: ref<ImmersiveFootwearPOVSystem>, config: ref<FootwearConfig>) -> Void {
-    LegacyCetMigrationService.MigrateIfNeeded(this, config);
+    return this.LoadEntriesFromJson(this.PRESETS_FILE, repo, false, "master shoe presets");
   }
 }
 
@@ -365,8 +305,8 @@ public class FootwearStorageManager {
     return false;
   }
 
-  public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Bool {
-    return false;
+  public func LoadUserOverridesIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
+    return 0;
   }
 
   public func SaveUserOverridesFromRepo(repo: ref<FootwearOverrideRepository>) -> Bool {
@@ -381,14 +321,8 @@ public class FootwearStorageManager {
     return false;
   }
 
-  public func LoadMasterPresetsIntoRepo(repo: ref<FootwearOverrideRepository>) -> Bool {
-    return false;
-  }
-
-  public func LoadMasterPresets(system: ref<ImmersiveFootwearPOVSystem>) -> Int32 {
+  public func LoadMasterPresetsIntoRepo(repo: ref<FootwearOverrideRepository>) -> Int32 {
     return 0;
   }
-
-  public func MigrateLegacyCet(system: ref<ImmersiveFootwearPOVSystem>, config: ref<FootwearConfig>) -> Void {}
 }
 

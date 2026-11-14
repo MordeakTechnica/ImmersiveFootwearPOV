@@ -1,19 +1,19 @@
 module ImmersiveFootwearPOV
 
 // =============================================================================
-// Immersive Footwear POV - Shoe Height Parser (Facade Pattern)
-// Single Responsibility: Clean facade for reading shoe metadata from ItemID / TDBID / Item_Record
+// Immersive Footwear POV - Shoe Height Parser
+// Single Responsibility: Clean interface for reading shoe metadata from ItemID / TDBID / Item_Record
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// Shoe Height Data Container (Value Object)
+// Shoe Height Data Container
 // -----------------------------------------------------------------------------
 public class ShoeHeightData {
   public let heelHeight: Float;      // Primary height adjustment: elevates V up/down in FPP
   public let platformHeight: Float;  // Secondary sole thickness: reserved for Photo Mode (PM) height shifting
 
   /**
-   * Factory method initializing a ShoeHeightData container with heel and platform measurements.
+   * Initializes a ShoeHeightData container with heel and platform measurements.
    * @param heel Heel height offset in meters.
    * @param platform Platform height offset in meters.
    * @return A newly initialized ShoeHeightData instance.
@@ -27,7 +27,7 @@ public class ShoeHeightData {
 }
 
 // -----------------------------------------------------------------------------
-// Shoe Height Parser Facade
+// Shoe Height Parser
 // -----------------------------------------------------------------------------
 public class ShoeHeightParser {
 
