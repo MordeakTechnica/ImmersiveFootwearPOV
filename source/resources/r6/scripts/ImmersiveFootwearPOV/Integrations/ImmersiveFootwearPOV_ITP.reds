@@ -6,15 +6,18 @@ import ImmersiveThirdPerson.*
 // =============================================================================
 // Immersive Footwear POV - Immersive Third Person (ITP) Integration
 // Real-time Third-Person Character Elevation Driver
-// Interfaces with the custom animgraph variable 'foot_elevation_offset'
+// Primary: ITPApi.RequestGroundOffset (component-level, 0.1 mm precision)
+// Fallback: Custom animgraph variable 'foot_elevation_offset'
 // =============================================================================
 
 public class ITPController {
 
   /**
-   * Sets dynamic vertical elevation on the player puppet for third-person perspective via 'foot_elevation_offset'.
+   * Sets dynamic vertical elevation on the player puppet for third-person perspective.
+   * Uses ITPApi.RequestGroundOffset when available so decimal/sub-cm values apply cleanly,
+   * and falls back to 'foot_elevation_offset' only if ITPApi is unavailable or refuses.
    * @param player The local player puppet reference.
-   * @param offsetMeters Elevation offset in meters (e.g. +0.08 for 8cm high heels).
+   * @param offsetMeters Elevation offset in meters (e.g. +0.085 for 8.5cm high platforms).
    * @return True if offset was successfully applied, false if player undefined.
    */
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetMeters: Float) -> Bool {
@@ -23,12 +26,25 @@ public class ITPController {
       return false;
     };
 
+    let gi: GameInstance = player.GetGame();
     let clampedOffset: Float = ShoeHeightParser.ClampPlatformHeight(offsetMeters);
+    let offsetMm: Float = clampedOffset * 1000.0;
+    let apiStatus: Int32 = ITPApiCalibratorAdapter.RequestGroundOffsetStatus(gi, offsetMm);
+    let usedApiGround: Bool = apiStatus >= 0;
 
-    // Native REDengine API queues AnimInputSetterFloat directly into active animgraph
-    // Note: We deliberately do NOT set 'ifp_height_blend' here. 
+    // Note: We deliberately do NOT set 'ifp_height_blend' here.
     // FPP heel height is managed by HeightController. Setting it here would clobber FPP stance upon ITP reset.
-    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
+    if usedApiGround {
+      // Clear skeletal fallback variable so ITP's component ground level owns 100% of the lift without double-lifting.
+      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
+    } else {
+      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
+    };
+
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+    if IsDefined(sys) {
+      sys.LogITPElevationIfChanged(clampedOffset, usedApiGround, apiStatus);
+    };
     return true;
   }
 
@@ -115,11 +131,17 @@ public class ITPController {
   }
 
   /**
-   * Maintains an active third-person lease and optional boot-focus framing in Immersive Third Person
-   * while the calibrator UI is open.
+   * Maintains an active third-person lease, optional boot-focus framing, and ground-level
+   * elevation lease in Immersive Third Person while the calibrator UI is open.
    */
   public static func MaintainCalibratorTPPLease(gi: GameInstance, focusBoots: Bool) -> Void {
     ITPApiCalibratorAdapter.MaintainLease(gi, focusBoots);
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(sys) && IsDefined(player) {
+      sys.CheckPerspectiveDrift(player);
+      sys.RenewTPPElevationLease(player);
+    };
   }
 
   /**
@@ -147,6 +169,19 @@ public class ITPApiCalibratorAdapter {
     };
   }
 
+  public static func RequestGroundOffsetStatus(gi: GameInstance, offsetMm: Float) -> Int32 {
+    let api: ref<ITPApi> = ITPApi.Get(gi);
+    if !IsDefined(api) {
+      return -101;
+    };
+    let owner: CName = n"ImmersiveFootwearPOV";
+    if offsetMm <= 0.05 {
+      api.Release(owner, n"groundLevel");
+      return 0;
+    };
+    return api.RequestGroundOffset(owner, 100, 3.0, offsetMm);
+  }
+
   public static func ReleaseLease(gi: GameInstance) -> Void {
     let api: ref<ITPApi> = ITPApi.Get(gi);
     if !IsDefined(api) {
@@ -161,5 +196,6 @@ public class ITPApiCalibratorAdapter {
 @if(!ModuleExists("ImmersiveThirdPerson"))
 public class ITPApiCalibratorAdapter {
   public static func MaintainLease(gi: GameInstance, focusBoots: Bool) -> Void {}
+  public static func RequestGroundOffsetStatus(gi: GameInstance, offsetMm: Float) -> Int32 { return -100; }
   public static func ReleaseLease(gi: GameInstance) -> Void {}
 }

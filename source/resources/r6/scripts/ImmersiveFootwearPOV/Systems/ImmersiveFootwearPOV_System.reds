@@ -45,6 +45,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_lastTppActive: Bool;
   private let m_hasTppInitialized: Bool;
   private let m_driftCheckTimer: Float;
+  private let m_tppLeaseTimer: Float;
+  private let m_lastItpLoggedMm: Float;
+  private let m_lastItpLoggedMode: Int32;
   private let m_swayContext: ref<SwayContextData>;
   private let m_lastStrideFrame: Uint64;
   private let m_lastLocoFrame: Uint64;
@@ -151,6 +154,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.EnsureServices();
     this.m_isInitialized = false;
     this.m_hasTppInitialized = false;
+    this.m_tppLeaseTimer = 0.0;
+    this.m_lastItpLoggedMode = -1;
+    this.m_lastItpLoggedMm = -1.0;
     this.m_activeNtpElevation = 0.0;
     this.GetSuppressionController().Reset();
     this.EnsurePresetsAndOverridesLoaded();
@@ -280,11 +286,18 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     };
 
     if !this.m_lastTppActive {
+      this.m_tppLeaseTimer = 0.0;
       let cfg: ref<FootwearConfig> = this.GetConfig();
       if !IsDefined(cfg) || cfg.enableFPP {
         HeightController.ApplyHeightOffset(player, this.GetActiveFppOffset());
       };
       return;
+    };
+
+    this.m_tppLeaseTimer += timeDelta;
+    if this.m_tppLeaseTimer >= 0.75 {
+      this.m_tppLeaseTimer = 0.0;
+      this.RenewTPPElevationLease(player);
     };
 
     let cfg: ref<FootwearConfig> = this.GetConfig();
@@ -443,6 +456,49 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     let suppressed: Bool = this.IsSuppressed();
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();
     return suppressed ? 0.0 : FootwearClampingPolicy.ClampIFPHeight(state.currentHeelHeight);
+  }
+  public func GetActiveTppOffset() -> Float {
+    let cfg: ref<FootwearConfig> = this.GetConfig();
+    if IsDefined(cfg) && !cfg.enableITP {
+      return 0.0;
+    };
+    if !this.m_lastTppActive {
+      return 0.0;
+    };
+    return this.GetEffectivePlatformOffset();
+  }
+
+  /**
+   * Renews the active ITP ground-level lease during third-person gameplay or calibrator sessions.
+   */
+  public func RenewTPPElevationLease(player: ref<PlayerPuppet>) -> Void {
+    if !IsDefined(player) || !this.m_lastTppActive {
+      return;
+    };
+    let effPlat: Float = this.GetActiveTppOffset();
+    if effPlat > 0.00005 {
+      ITPController.ApplyHeightOffset(player, effPlat);
+    };
+  }
+
+  /**
+   * Logs ITP elevation driver and applied millimeter offset only when debug logging is enabled
+   * and the driver mode or exact millimeter value changed.
+   */
+  public func LogITPElevationIfChanged(offsetMeters: Float, usedApiGround: Bool, apiStatus: Int32) -> Void {
+    if !this.m_debugLogging {
+      return;
+    };
+    let mm: Float = offsetMeters * 1000.0;
+    let mode: Int32 = usedApiGround ? 1 : 0;
+    if mode == this.m_lastItpLoggedMode && AbsF(mm - this.m_lastItpLoggedMm) <= 0.05 {
+      return;
+    };
+    this.m_lastItpLoggedMode = mode;
+    this.m_lastItpLoggedMm = mm;
+    let cm: Float = offsetMeters * 100.0;
+    let driver: String = usedApiGround ? "ITPApi.RequestGroundOffset" : "AnimGraph foot_elevation_offset (fallback)";
+    FootwearRedLogger.LogDebug("ITP", s"ApplyHeightOffset: \(cm) cm (\(mm) mm) | Driver: \(driver) | ApiStatus: \(apiStatus)");
   }
 
   // -----------------------------------------------------------------------------

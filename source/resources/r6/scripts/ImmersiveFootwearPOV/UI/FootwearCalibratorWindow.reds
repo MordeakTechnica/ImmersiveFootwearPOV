@@ -96,7 +96,8 @@ public class CalibratorAxisController {
 
     if inputSubmitted || inputChanged || inputFocusLost {
       if StrLen(this.manualInputStr) > 0 {
-        let typedCm: Float = ClampF(StringToFloat(this.manualInputStr), 0.0, this.m_maxCm);
+        let normalizedInput: String = StrReplace(this.manualInputStr, ",", ".");
+        let typedCm: Float = ClampF(StringToFloat(normalizedInput), 0.0, this.m_maxCm);
         if inputChanged || inputSubmitted || AbsF(typedCm - currentCm) > 0.01 {
           win.SetValueF(this.m_sliderRow, typedCm);
           this.targetCm = typedCm;
