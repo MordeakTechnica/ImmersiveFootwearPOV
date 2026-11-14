@@ -85,6 +85,9 @@ public class ITPController {
     if !isITPPresent {
       return false;
     };
+    if FootwearCalibratorCamera.IsCalibratorCamActive(player.GetGame()) {
+      return true;
+    };
     let camSys: ref<CameraSystem> = GameInstance.GetCameraSystem(player.GetGame());
     if !IsDefined(camSys) {
       return false;

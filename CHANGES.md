@@ -2,6 +2,15 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.5.0-beta`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.5.0-beta) — 2026-11-14
+### `feat(ui): Codeware live shoe calibrator, dedicated boot-focus camera, and TPP slider/telemetry fixes (v2.5.0-beta)`
+* **Codeware Live Shoe Calibrator (`FootwearCalibratorHost`, `FootwearCalibratorPopup`, `FootwearTheme`):**
+  * Added native `Codeware.UI.InGamePopup` live shoe calibrator with `Num 1` default toggle hotkey, `C` camera unlock/relock HUD mirror (`FootwearCalibratorHudMirror`), quick heel presets, and `RedWindows` fallback (`FootwearCalibratorWindow`) when `Codeware.UI` is absent.
+  * Fixed slider track clicks and handle dragging (`FootwearSliderAxis`) by removing the pointer-drag gate on `OnSliderValueChanged` and committing snapped `0.1 cm` tenths cleanly on release (`SyncFromSliderProgress`), ensuring live TPP/FPP puppet height updates for both slider drags and step buttons (`-1`, `-.1`, `+.1`, `+1`).
+* **Dedicated Inspection Camera & TPP Perspective Accuracy (`FootwearCalibratorCamera`, `ITPController`, `ImmersiveFootwearPOVSystem`):**
+  * Added transient `simple_free_camera.ent` inspection camera taking viewport ownership while locked (preventing ITP mouse-orbit interference), optional side-profile boot framing (`focusBootsInTPP`), and camera pose preservation across `C` unlock/re-lock toggles.
+  * Updated `ITPController.IsTPPActive` to recognize active `FootwearCalibratorCamera`, refreshed perspective drift inside `ApplyLiveCalibration`, and updated popup/HUD telemetry (`EFFECTIVE LIFT`) to display platform offset in TPP and heel offset in FPP.
+
 ## [**`v2.4.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.3) — 2026-11-14
 ### `refactor(redscript): streamline services, UI descriptors, and conditional module detectors (v2.4.3)`
 * **Method-Level Conditional Compilation in Detectors (`ImmersiveFootwearPOV_Framework`, `ImmersiveFootwearPOV_DVEnvironment`):**

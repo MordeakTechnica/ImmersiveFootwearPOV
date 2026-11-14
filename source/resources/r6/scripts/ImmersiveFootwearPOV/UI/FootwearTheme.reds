@@ -274,7 +274,6 @@ public class FootwearSliderAxis {
   private let m_sliderW: Float;
   private let m_suppressCallback: Bool;
   private let m_isHovered: Bool;
-  private let m_isPointerDragging: Bool;
 
   private let m_valueText: ref<inkText>;
   private let m_fillBar: ref<inkRectangle>;
@@ -397,14 +396,14 @@ public class FootwearSliderAxis {
     ctrl.handleRef = inkWidgetRef.Create(handle);
     ctrl.direction = inkESliderDirection.Horizontal;
     ctrl.autoSizeHandle = false;
+    axis.m_suppressCallback = true;
     ctrl.Setup(0.0, 1.0, initNorm);
+    axis.m_suppressCallback = false;
     sliderArea.AttachController(ctrl);
     axis.m_sliderCtrl = ctrl;
 
     ctrl.RegisterToCallback(n"OnSliderValueChanged", axis, n"OnSliderValueChanged");
     ctrl.RegisterToCallback(n"OnSliderHandleReleased", axis, n"OnSliderReleased");
-    sliderArea.RegisterToCallback(n"OnPress", axis, n"OnAreaPress");
-    handle.RegisterToCallback(n"OnPress", axis, n"OnAreaPress");
     sliderArea.RegisterToCallback(n"OnRelease", axis, n"OnAreaRelease");
     sliderArea.RegisterToCallback(n"OnHoverOver", axis, n"OnSliderHoverOver");
     sliderArea.RegisterToCallback(n"OnHoverOut", axis, n"OnSliderHoverOut");
@@ -472,29 +471,34 @@ public class FootwearSliderAxis {
     return Cast<Float>(FootwearSliderAxis.ToTenths(val)) / 10.0;
   }
 
-  protected cb func OnAreaPress(evt: ref<inkPointerEvent>) -> Bool {
-    if evt.IsAction(n"click") {
-      this.m_isPointerDragging = true;
+  private func SyncFromSliderProgress(progress: Float, commit: Bool) -> Void {
+    let clampedNorm: Float = ClampF(progress, 0.0, 1.0);
+    let cm: Float = FootwearSliderAxis.SnapTenths(ClampF(clampedNorm * this.m_maxCm, 0.0, this.m_maxCm));
+    let snappedNorm: Float = ClampF(cm / this.m_maxCm, 0.0, 1.0);
+    this.m_valueCm = cm;
+    this.UpdateReadoutAndFill(snappedNorm);
+    if commit && IsDefined(this.m_sliderCtrl) && AbsF(this.m_sliderCtrl.GetProgress() - snappedNorm) > 0.001 {
+      this.m_suppressCallback = true;
+      this.m_sliderCtrl.ChangeProgress(snappedNorm);
+      this.m_suppressCallback = false;
     };
-    return false;
+    if IsDefined(this.m_owner) {
+      this.m_owner.OnAxisValue(this.m_axisId, this.m_valueCm, commit);
+    };
   }
 
   protected cb func OnSliderValueChanged(slider: wref<inkSliderController>, progress: Float, value: Float) -> Bool {
-    if this.m_suppressCallback || !this.m_isPointerDragging {
+    if this.m_suppressCallback {
       return false;
     };
-    let cm: Float = FootwearSliderAxis.SnapTenths(ClampF(progress * this.m_maxCm, 0.0, this.m_maxCm));
-    this.m_valueCm = cm;
-    this.UpdateReadoutAndFill(progress);
-    if IsDefined(this.m_owner) {
-      this.m_owner.OnAxisValue(this.m_axisId, this.m_valueCm, false);
-    };
+    this.SyncFromSliderProgress(progress, false);
     return false;
   }
 
   protected cb func OnSliderReleased() -> Bool {
-    this.m_isPointerDragging = false;
-    if IsDefined(this.m_owner) {
+    if IsDefined(this.m_sliderCtrl) {
+      this.SyncFromSliderProgress(this.m_sliderCtrl.GetProgress(), true);
+    } else if IsDefined(this.m_owner) {
       this.m_owner.OnAxisValue(this.m_axisId, this.m_valueCm, true);
     };
     return false;
@@ -502,8 +506,9 @@ public class FootwearSliderAxis {
 
   protected cb func OnAreaRelease(evt: ref<inkPointerEvent>) -> Bool {
     if evt.IsAction(n"click") {
-      this.m_isPointerDragging = false;
-      if IsDefined(this.m_owner) {
+      if IsDefined(this.m_sliderCtrl) {
+        this.SyncFromSliderProgress(this.m_sliderCtrl.GetProgress(), true);
+      } else if IsDefined(this.m_owner) {
         this.m_owner.OnAxisValue(this.m_axisId, this.m_valueCm, true);
       };
     };

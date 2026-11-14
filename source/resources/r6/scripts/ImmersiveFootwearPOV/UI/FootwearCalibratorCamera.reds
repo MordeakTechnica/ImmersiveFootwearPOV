@@ -69,6 +69,11 @@ public class FootwearCalibratorCamera extends ScriptableSystem {
     };
   }
 
+  public static func IsCalibratorCamActive(gi: GameInstance) -> Bool {
+    let cam: ref<FootwearCalibratorCamera> = FootwearCalibratorCamera.GetInstance(gi);
+    return IsDefined(cam) && (cam.m_active || cam.m_wanted);
+  }
+
   private func OnDetach() -> Void {
     this.ReleaseLock(true);
   }

@@ -495,13 +495,13 @@ public class FootwearCalibratorPopup extends InGamePopup {
   }
 
   private func UpdateTelemetry(system: ref<ImmersiveFootwearPOVSystem>) -> Void {
-    let effCm: Float = system.GetEffectiveOffset() * 100.0;
+    let player: ref<PlayerPuppet> = this.GetPlayer();
+    let isTpp: Bool = IsDefined(player) && system.IsTPPActive(player);
+    let effCm: Float = (isTpp ? system.GetEffectivePlatformOffset() : system.GetEffectiveOffset()) * 100.0;
     if IsDefined(this.m_teleLift) {
       this.m_teleLift.SetText("+" + FloatToStringPrec(effCm, 1) + " cm");
     };
 
-    let player: ref<PlayerPuppet> = this.GetPlayer();
-    let isTpp: Bool = IsDefined(player) && ITPController.IsTPPActive(player, false);
     if IsDefined(this.m_telePersp) {
       this.m_telePersp.SetText(isTpp ? "TPP (ITP)" : "FPP");
     };
@@ -742,10 +742,13 @@ public class FootwearCalibratorHudMirror {
     };
     if IsDefined(this.m_valuesText) {
       if hasFootwear {
+        let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
+        let isTpp: Bool = IsDefined(player) && system.IsTPPActive(player);
         let hCm: String = FloatToStringPrec(system.GetCurrentHeelHeight() * 100.0, 1);
         let pCm: String = FloatToStringPrec(system.GetCurrentPlatformHeight() * 100.0, 1);
-        let eCm: String = FloatToStringPrec(system.GetEffectiveOffset() * 100.0, 1);
-        this.m_valuesText.SetText("HEEL: " + hCm + " CM   •   PLATFORM: " + pCm + " CM   •   LIFT: +" + eCm + " CM");
+        let eCm: String = FloatToStringPrec((isTpp ? system.GetEffectivePlatformOffset() : system.GetEffectiveOffset()) * 100.0, 1);
+        let liftLbl: String = isTpp ? "TPP LIFT: +" : "FPP LIFT: +";
+        this.m_valuesText.SetText("HEEL: " + hCm + " CM   •   PLATFORM: " + pCm + " CM   •   " + liftLbl + eCm + " CM");
       } else {
         this.m_valuesText.SetText("EQUIP SHOES TO VIEW LIVE TELEMETRY");
       };

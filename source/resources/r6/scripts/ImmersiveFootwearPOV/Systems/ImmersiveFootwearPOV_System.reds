@@ -609,6 +609,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
 
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) {
+      this.CheckPerspectiveDrift(player);
       this.RecalculateEffectiveOffset(player);
     };
     this.NotifyFootwearChanged(state.equippedFootwearID, state.currentHeelHeight, state.currentPlatformHeight, "Live Calibration");
