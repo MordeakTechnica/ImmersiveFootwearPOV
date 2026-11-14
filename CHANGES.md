@@ -2,6 +2,16 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.4.2`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.2) — 2026-11-14
+### `fix(ifp): update IFP animgraph height contract to v3 (-100..+200 cm)`
+* **Immersive First Person (IFP) v3 Height Contract Alignment:**
+  * Updated `tools/animgraph_toolkit/recipes/ifp_height.py` to target donor node `ImmersiveFirstPerson_Runtime_Height_v3_minus100_plus200cm` (with `v2_signed_50cm` fallback), set `ifp_height_blend` neutral default to `0.33333334`, and register `ifp_height_contract_v3_minus100_plus200cm`.
+  * Rebuilt `player_base.animgraph` and `##_ITP_Immersive_Footwear_POV.archive` with the IFP v3 height contract.
+  * Updated `FootwearAnimgraphHelper.CalculateHeightBlend` in `ImmersiveFootwearPOV_Framework.reds` to normalize offsets across the `[-1.00m, +2.00m]` (`3.00m` span) range where baseline `0.0m` maps to `1.0 / 3.0` (`~0.333333`).
+  * Updated `ImmersiveFootwearPOVSystem.GetActiveFppBlend` in `ImmersiveFootwearPOV_System.reds` to compute the neutral baseline via `FootwearAnimgraphHelper.CalculateHeightBlend(0.0)` instead of hardcoded `0.50`.
+* **Negotiable Third Person (NTP) Upstream Patch (`patches/`):**
+  * Added `patches/NTP_AnimatedSystem_footwear_elevation.diff` providing upstream `NTP_AnimatedSystem.reds` elevation and ground-position restoration fixes.
+
 ## [**`v2.4.1-beta`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.1-beta) — 2026-11-09
 ### `feat(integration): add Negotiable Third Person (NTP) idle and dance animation elevation support`
 * **Negotiable Third Person (NTP) Elevation Bridge (`ImmersiveFootwearPOV_NTP.reds`):**

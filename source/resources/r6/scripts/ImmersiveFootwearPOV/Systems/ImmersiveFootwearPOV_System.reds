@@ -691,10 +691,10 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   public func GetActiveFppBlend() -> Float {
     let cfg: ref<FootwearConfig> = this.GetConfig();
     if IsDefined(cfg) && !cfg.enableFPP {
-      return 0.50;
+      return FootwearAnimgraphHelper.CalculateHeightBlend(0.0);
     };
     if this.m_lastTppActive {
-      return 0.50;
+      return FootwearAnimgraphHelper.CalculateHeightBlend(0.0);
     };
     let suppressed: Bool = this.IsSuppressed();
     let state: ref<FootwearEquipmentState> = this.GetEquipmentState();

@@ -103,12 +103,13 @@ public class FootwearAnimgraphHelper {
 
   /**
    * Calculates skeletal animgraph blend value for 'ifp_height_blend'.
-   * Blend range is 0.0 (-0.50m) to 1.0 (+0.50m). Baseline 0.0m offset = 0.50.
+   * IFP v3 contract range is -1.00m (0.0 blend) to +2.00m (1.0 blend), total span 3.00m.
+   * Baseline 0.0m offset = (0.0 - (-1.00)) / 3.00 = 1.00 / 3.00 ~= 0.333333.
    * @param offsetMeters Elevation offset in meters.
    * @return Clamped normalized blend scalar between 0.0 and 1.0.
    */
   public static func CalculateHeightBlend(offsetMeters: Float) -> Float {
-    return ClampF((offsetMeters + 0.50) / 1.00, 0.0, 1.0);
+    return ClampF((offsetMeters + 1.00) / 3.00, 0.0, 1.0);
   }
 }
 

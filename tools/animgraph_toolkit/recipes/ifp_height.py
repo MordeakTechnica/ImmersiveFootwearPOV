@@ -38,7 +38,9 @@ class IFPHeightRecipe(GraphRecipe):
         donor_registry = NodeRegistry(donor_graph)
 
         # 2. Locate IFP Blend2 node in donor graph
-        ifp_blend = donor_registry.find_one(debug_name="ImmersiveFirstPerson_Runtime_Height_v2_signed_50cm")
+        ifp_blend = donor_registry.find_one(debug_name="ImmersiveFirstPerson_Runtime_Height_v3_minus100_plus200cm")
+        if not ifp_blend:
+            ifp_blend = donor_registry.find_one(debug_name="ImmersiveFirstPerson_Runtime_Height_v2_signed_50cm")
         if not ifp_blend:
             # Fallback to handle 3734
             ifp_blend = donor_registry.get_node("3734")
@@ -73,12 +75,12 @@ class IFPHeightRecipe(GraphRecipe):
         graph.ensure_float_variable(
             name="ifp_height_blend",
             handle_id=registry.allocate_handle(),
-            default_val=0.5, min_val=0.0, max_val=1.0,
+            default_val=0.33333334, min_val=0.0, max_val=1.0,
         )
         graph.ensure_float_variable(
-            name="ifp_height_contract_v2_signed_50cm",
+            name="ifp_height_contract_v3_minus100_plus200cm",
             handle_id=registry.allocate_handle(),
-            default_val=0.5, min_val=0.0, max_val=1.0,
+            default_val=0.0, min_val=0.0, max_val=1.0,
         )
 
         registry.rebuild_index()
