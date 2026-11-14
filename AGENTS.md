@@ -16,5 +16,5 @@
 
 ## 3. REDscript Coding & Logging Guidelines
 - **Logging**: Use native `FTLog`, `FTLogWarning`, and `FTLogError`. Never use `LogChannel(...)` or third-party logger dependencies directly in core modules.
-- **Dependency Resilience**: Use `@if(ModuleExists(...))` at the class level (detector classes or stubs) for optional mod integrations (`RedWindows`, `RedscriptConfigFramework`, `RedFunctions`, `EquipmentEx`, `TrueFirstPerson`).
+- **Dependency Resilience**: Use `@if(ModuleExists(...))` at the method level for detector checks (`IsPresent()`), and at the import/class level when importing or referencing types from optional mod integrations (`RedWindows`, `RedscriptConfigFramework`, `RedFunctions`, `RedLogger`, `EquipmentEx`, `TrueFirstPerson`, `NegotiableThirdPerson`).
 - **SOLID Architecture**: Keep 100% of gameplay, elevation, camera, and locomotion math in REDscript; keep CET strictly as a dormant configuration/calibration fallback.

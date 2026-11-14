@@ -4,63 +4,39 @@ module ImmersiveFootwearPOV
 // Immersive Footwear POV - DigitalVixen Environment Probes & Detectors
 // Single Responsibility: Evaluates the presence of required DigitalVixen mods
 // (RedWindows, RedscriptConfigFramework, RedFunctions) using compile-time
-// class-level conditional compilation (@if / @if(!ModuleExists(...))).
+// method-level conditional compilation (@if / @if(!ModuleExists(...))).
 // =============================================================================
 
-@if(ModuleExists("RedWindows"))
 public class RedWindowsDetector {
-  public static func IsPresent() -> Bool {
-    return true;
-  }
+  @if(ModuleExists("RedWindows"))
+  public static func IsPresent() -> Bool { return true; }
+
+  @if(!ModuleExists("RedWindows"))
+  public static func IsPresent() -> Bool { return false; }
 }
 
-@if(!ModuleExists("RedWindows"))
-public class RedWindowsDetector {
-  public static func IsPresent() -> Bool {
-    return false;
-  }
-}
-
-@if(ModuleExists("RedscriptConfigFramework"))
 public class RCFDetector {
-  public static func IsPresent() -> Bool {
-    return true;
-  }
+  @if(ModuleExists("RedscriptConfigFramework"))
+  public static func IsPresent() -> Bool { return true; }
+
+  @if(!ModuleExists("RedscriptConfigFramework"))
+  public static func IsPresent() -> Bool { return false; }
 }
 
-@if(!ModuleExists("RedscriptConfigFramework"))
-public class RCFDetector {
-  public static func IsPresent() -> Bool {
-    return false;
-  }
-}
-
-@if(ModuleExists("RedFunctions"))
 public class RedFunctionsDetector {
-  public static func IsPresent() -> Bool {
-    return true;
-  }
+  @if(ModuleExists("RedFunctions"))
+  public static func IsPresent() -> Bool { return true; }
+
+  @if(!ModuleExists("RedFunctions"))
+  public static func IsPresent() -> Bool { return false; }
 }
 
-@if(!ModuleExists("RedFunctions"))
-public class RedFunctionsDetector {
-  public static func IsPresent() -> Bool {
-    return false;
-  }
-}
-
-@if(ModuleExists("RedLogger"))
 public class RedLoggerDetector {
-  public static func IsPresent() -> Bool {
-    return true;
-  }
-}
+  @if(ModuleExists("RedLogger"))
+  public static func IsPresent() -> Bool { return true; }
 
-@if(!ModuleExists("RedLogger"))
-public class RedLoggerDetector {
-  public static func IsPresent() -> Bool {
-    return false;
-  }
+  @if(!ModuleExists("RedLogger"))
+  public static func IsPresent() -> Bool { return false; }
 }
 
 public class FootwearDVEnvironment {

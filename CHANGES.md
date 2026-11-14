@@ -2,6 +2,16 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
+## [**`v2.4.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.3) — 2026-11-14
+### `refactor(redscript): streamline services, UI descriptors, and conditional module detectors (v2.4.3)`
+* **Method-Level Conditional Compilation in Detectors (`ImmersiveFootwearPOV_Framework`, `ImmersiveFootwearPOV_DVEnvironment`):**
+  * Consolidated duplicated class-level `@if(ModuleExists(...))` pairs (`FrameworkDetector`, `EquipmentExDetector`, `ITPDetector`, `NTPDetector`, `RedWindowsDetector`, `RCFDetector`, `RedFunctionsDetector`, `RedLoggerDetector`) into single classes with method-level conditional compilation on `IsPresent()` / `IsTFPPresent()`.
+  * Verified `NegotiableThirdPerson` (`NTP`) soft-dependency compilation with NTP absent from the game directory.
+  * Updated `AGENTS.md` dependency resilience guidelines for method-level detector checks and class/import-level optional integration wrappers.
+* **REDscript Service & UI Consolidation:**
+  * Streamlined event dispatching (`FootwearEventDispatcher`), typed override repository indexing (`FootwearOverrideRepository`), storage helpers (`FootwearStorageManager`), calibration/telemetry services, and suppression rule evaluation (`SuppressionRuleEngine`, `SuppressionStateController`).
+  * Simplified RCF settings schema declaration and RedWindows UI widget builders/descriptors (`FootwearWindowsController`, `FootwearCalibratorWindow`) using table-driven layouts while preserving all public APIs.
+
 ## [**`v2.4.2`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.2) — 2026-11-14
 ### `fix(ifp): update IFP animgraph height contract to v3 (-100..+200 cm)`
 * **Immersive First Person (IFP) v3 Height Contract Alignment:**

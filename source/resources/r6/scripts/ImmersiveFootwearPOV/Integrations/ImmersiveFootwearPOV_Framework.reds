@@ -5,94 +5,55 @@ module ImmersiveFootwearPOV
 // Compile-time & runtime presence detection for 1st-person and outfit frameworks
 // =============================================================================
 
-@if(ModuleExists("TrueFirstPerson"))
 public class FrameworkDetector {
   /**
    * Checks whether True First Person (TFP) module is compiled and present.
-   * @return True if TrueFirstPerson module exists.
+   * @return True if TrueFirstPerson module exists, false otherwise.
    */
-  public static func IsTFPPresent() -> Bool {
-    return true;
-  }
+  @if(ModuleExists("TrueFirstPerson"))
+  public static func IsTFPPresent() -> Bool { return true; }
+
+  @if(!ModuleExists("TrueFirstPerson"))
+  public static func IsTFPPresent() -> Bool { return false; }
 }
 
-@if(!ModuleExists("TrueFirstPerson"))
-public class FrameworkDetector {
-  /**
-   * Checks whether True First Person (TFP) module is compiled and present.
-   * @return False when TrueFirstPerson module is absent.
-   */
-  public static func IsTFPPresent() -> Bool {
-    return false;
-  }
-}
-
-@if(ModuleExists("EquipmentEx"))
 public class EquipmentExDetector {
   /**
    * Checks whether Equipment-EX module is compiled and present.
-   * @return True if EquipmentEx module exists.
+   * @return True if EquipmentEx module exists, false otherwise.
    */
-  public static func IsPresent() -> Bool {
-    return true;
-  }
+  @if(ModuleExists("EquipmentEx"))
+  public static func IsPresent() -> Bool { return true; }
+
+  @if(!ModuleExists("EquipmentEx"))
+  public static func IsPresent() -> Bool { return false; }
 }
 
-@if(!ModuleExists("EquipmentEx"))
-public class EquipmentExDetector {
-  /**
-   * Checks whether Equipment-EX module is compiled and present.
-   * @return False when EquipmentEx module is absent.
-   */
-  public static func IsPresent() -> Bool {
-    return false;
-  }
-}
-
-@if(ModuleExists("ImmersiveThirdPersonMove360"))
 public class ITPDetector {
   /**
-   * Checks whether Immersive Third Person (ITP) module is compiled and present.
+   * Checks whether Immersive Third Person (ITP) is compiled or available at runtime.
    * @param gameInstance The active GameInstance.
-   * @return True if ImmersiveThirdPersonMove360 module exists.
+   * @return True if ImmersiveThirdPersonMove360 module exists or ITP runtime controller detects presence.
    */
-  public static func IsPresent(gameInstance: GameInstance) -> Bool {
-    return true;
-  }
-}
+  @if(ModuleExists("ImmersiveThirdPersonMove360"))
+  public static func IsPresent(gameInstance: GameInstance) -> Bool { return true; }
 
-@if(!ModuleExists("ImmersiveThirdPersonMove360"))
-public class ITPDetector {
-  /**
-   * Checks whether Immersive Third Person (ITP) is available at runtime.
-   * @param gameInstance The active GameInstance.
-   * @return True if ITP runtime controller detects presence, false otherwise.
-   */
+  @if(!ModuleExists("ImmersiveThirdPersonMove360"))
   public static func IsPresent(gameInstance: GameInstance) -> Bool {
     return ITPController.IsITPPresent(gameInstance);
   }
 }
 
-@if(ModuleExists("NegotiableThirdPerson"))
 public class NTPDetector {
   /**
    * Checks whether Negotiable Third Person (NTP) module is compiled and present.
-   * @return True if NegotiableThirdPerson module exists.
+   * @return True if NegotiableThirdPerson module exists, false otherwise.
    */
-  public static func IsPresent() -> Bool {
-    return true;
-  }
-}
+  @if(ModuleExists("NegotiableThirdPerson"))
+  public static func IsPresent() -> Bool { return true; }
 
-@if(!ModuleExists("NegotiableThirdPerson"))
-public class NTPDetector {
-  /**
-   * Checks whether Negotiable Third Person (NTP) module is compiled and present.
-   * @return False when NegotiableThirdPerson module is absent.
-   */
-  public static func IsPresent() -> Bool {
-    return false;
-  }
+  @if(!ModuleExists("NegotiableThirdPerson"))
+  public static func IsPresent() -> Bool { return false; }
 }
 
 // -----------------------------------------------------------------------------
