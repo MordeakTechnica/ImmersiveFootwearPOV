@@ -152,12 +152,15 @@ public class FootwearCalibratorCamera extends ScriptableSystem {
 
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
     if IsDefined(player) && wasActive {
-      if ITPController.IsITPPresent(gi) {
+      let restoredTpp: Bool = false;
+      if ITPController.IsITPPresent(gi) && ITPController.IsTPPActive(player, true) {
         let tppCam: ref<CameraComponent> = player.FindComponentByName(n"tppCamera") as CameraComponent;
         if IsDefined(tppCam) {
           tppCam.Activate(0.0, false);
+          restoredTpp = true;
         };
-      } else {
+      };
+      if !restoredTpp {
         let fppCam: ref<CameraComponent> = player.GetFPPCameraComponent();
         if IsDefined(fppCam) {
           fppCam.Activate(0.0, false);

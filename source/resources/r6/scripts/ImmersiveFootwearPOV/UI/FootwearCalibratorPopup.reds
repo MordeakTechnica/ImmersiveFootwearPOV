@@ -15,6 +15,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
   private let m_closingForUnlock: Bool;
   private let m_hiddenDone: Bool;
   private let m_uiContextPushed: Bool;
+  private let m_closeOnInit: Bool;
 
   private let m_panel: ref<inkCanvas>;
   private let m_shoeTitle: ref<inkText>;
@@ -62,6 +63,11 @@ public class FootwearCalibratorPopup extends InGamePopup {
 
   public func CloseForUnlock() -> Void {
     this.m_closingForUnlock = true;
+    this.ResetUIContext();
+    if !this.IsInitialized() {
+      this.m_closeOnInit = true;
+      return;
+    };
     this.Close();
   }
 
@@ -103,7 +109,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
     };
     let uiSystem: ref<UISystem> = GameInstance.GetUISystem(this.GetGame());
     if IsDefined(uiSystem) {
-      uiSystem.PopGameContext(UIGameContext.ModalPopup);
+      uiSystem.PopGameContext(UIGameContext.ModalPopup, true);
     };
     this.m_uiContextPushed = false;
   }
@@ -139,6 +145,10 @@ public class FootwearCalibratorPopup extends InGamePopup {
     // Prevent default n"cancel" action (which is bound to both ESC and C on PC)
     // from closing the popup when user presses C to unlock the camera.
     this.m_closeAction = n"None";
+    if this.m_closeOnInit {
+      this.m_closeOnInit = false;
+      this.Close();
+    };
   }
 
   protected func CreateContainer() -> Void {
@@ -177,6 +187,18 @@ public class FootwearCalibratorPopup extends InGamePopup {
     super.OnHide();
     if IsDefined(this.m_host) {
       this.m_host.OnPopupHiding(this, this.m_closingForUnlock);
+    };
+    // Complete popup teardown on the same frame when unlocking camera so
+    // UINotifications (which captures right_stick_x at priority -1) clears immediately.
+    if this.m_closingForUnlock && !this.m_hiddenDone {
+      if IsDefined(this.m_transitionAnimProxy) && this.m_transitionAnimProxy.IsPlaying() {
+        this.m_transitionAnimProxy.Stop(true);
+      };
+      let root: ref<inkCompoundWidget> = this.GetRootCompoundWidget();
+      if IsDefined(root) {
+        root.SetVisible(false);
+      };
+      this.OnHideFinish(this.m_transitionAnimProxy);
     };
   }
 
@@ -420,8 +442,12 @@ public class FootwearCalibratorPopup extends InGamePopup {
 
     let cfg: ref<FootwearConfig> = system.GetConfig();
     let focusBoots: Bool = IsDefined(cfg) ? cfg.focusBootsInTPP : true;
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    let usingPad: Bool = IsDefined(player) && player.PlayerLastUsedPad();
+    let isPS5: Bool = usingPad && player.PlayerLastUsedPS5Pad();
     let toggleKeyLbl: String = IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.calibratorHotkey) : "NUM 1";
-    let unlockKeyLbl: String = IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.cameraUnlockKey) : "C";
+    let unlockKeyLbl: String = usingPad ? (isPS5 ? "R3" : "RS") : (IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.cameraUnlockKey) : "C");
+    let closeLbl: String = usingPad ? (isPS5 ? "CIRCLE" : "B") : "ESC";
 
     if IsDefined(this.m_btnUnlockCam) {
       this.m_btnUnlockCam.SetText("UNLOCK CAMERA [" + unlockKeyLbl + "]");
@@ -431,7 +457,11 @@ public class FootwearCalibratorPopup extends InGamePopup {
       this.m_btnFocusBoots.SetSelected(focusBoots);
     };
     if IsDefined(this.m_hintText) {
-      this.m_hintText.SetText("TOGGLE: [" + toggleKeyLbl + "]  •  UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [ESC]");
+      if usingPad {
+        this.m_hintText.SetText("UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [" + closeLbl + "]");
+      } else {
+        this.m_hintText.SetText("TOGGLE: [" + toggleKeyLbl + "]  •  UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [" + closeLbl + "]");
+      };
     };
 
     let itemID: ItemID = system.GetEquippedFootwearID();
@@ -732,8 +762,11 @@ public class FootwearCalibratorHudMirror {
       return;
     };
     let cfg: ref<FootwearConfig> = system.GetConfig();
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    let usingPad: Bool = IsDefined(player) && player.PlayerLastUsedPad();
+    let isPS5: Bool = usingPad && player.PlayerLastUsedPS5Pad();
     let toggleKeyLbl: String = IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.calibratorHotkey) : "NUM 1";
-    let unlockKeyLbl: String = IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.cameraUnlockKey) : "C";
+    let unlockKeyLbl: String = usingPad ? (isPS5 ? "R3" : "RS") : (IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.cameraUnlockKey) : "C");
 
     let itemID: ItemID = system.GetEquippedFootwearID();
     let hasFootwear: Bool = ItemID.IsValid(itemID);
@@ -742,7 +775,6 @@ public class FootwearCalibratorHudMirror {
     };
     if IsDefined(this.m_valuesText) {
       if hasFootwear {
-        let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
         let isTpp: Bool = IsDefined(player) && system.IsTPPActive(player);
         let hCm: String = FloatToStringPrec(system.GetCurrentHeelHeight() * 100.0, 1);
         let pCm: String = FloatToStringPrec(system.GetCurrentPlatformHeight() * 100.0, 1);
@@ -754,7 +786,11 @@ public class FootwearCalibratorHudMirror {
       };
     };
     if IsDefined(this.m_hintText) {
-      this.m_hintText.SetText("PRESS [" + unlockKeyLbl + "] TO RE-LOCK UI & EDIT   •   PRESS [" + toggleKeyLbl + "] TO CLOSE");
+      if usingPad {
+        this.m_hintText.SetText("PRESS [" + unlockKeyLbl + "] TO RE-LOCK UI, EDIT OR CLOSE");
+      } else {
+        this.m_hintText.SetText("PRESS [" + unlockKeyLbl + "] TO RE-LOCK UI & EDIT   •   PRESS [" + toggleKeyLbl + "] TO CLOSE");
+      };
     };
   }
 

@@ -10,6 +10,7 @@ All notable changes to this project are tracked in this file chronologically by 
 * **Dedicated Inspection Camera & TPP Perspective Accuracy (`FootwearCalibratorCamera`, `ITPController`, `ImmersiveFootwearPOVSystem`):**
   * Added transient `simple_free_camera.ent` inspection camera taking viewport ownership while locked (preventing ITP mouse-orbit interference), optional side-profile boot framing (`focusBootsInTPP`), and camera pose preservation across `C` unlock/re-lock toggles.
   * Updated `ITPController.IsTPPActive` to recognize active `FootwearCalibratorCamera`, refreshed perspective drift inside `ApplyLiveCalibration`, and updated popup/HUD telemetry (`EFFECTIVE LIFT`) to display platform offset in TPP and heel offset in FPP.
+  * Added full controller compatibility in Locked and Unlocked calibrator views: cleared `ModalPopup` (`PopGameContext(..., true)`) and synchronously finished popup hide teardown on unlock so `UINotifications` no longer steals right-stick camera look, bound `RS`/`R3` (`IK_Pad_RightThumb`) to lock/unlock (while suppressing `QuickMelee`), bound `B`/`Circle` to close when locked while allowing controller crouch/dodge when unlocked, restored FPP vs TPP accurately on camera release, and added Xbox/PS5 controller hints.
 
 ## [**`v2.4.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.3) — 2026-11-14
 ### `refactor(redscript): streamline services, UI descriptors, and conditional module detectors (v2.4.3)`

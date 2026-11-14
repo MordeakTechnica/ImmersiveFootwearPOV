@@ -121,12 +121,25 @@ public class FootwearCalibratorHost extends ScriptableSystem {
     if !IsDefined(host) || !host.IsOpen() {
       return false;
     };
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) && player.PlayerLastUsedPad() && host.IsCameraUnlocked() {
+      return false;
+    };
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(sys) {
       return false;
     };
     let cfg: ref<FootwearConfig> = sys.GetConfig();
     return IsDefined(cfg) && cfg.cameraUnlockKey == EnumInt(EInputKey.IK_C);
+  }
+
+  public static func ShouldConsumeUnlockQuickMelee(gi: GameInstance) -> Bool {
+    let host: ref<FootwearCalibratorHost> = FootwearCalibratorHost.GetInstance(gi);
+    if !IsDefined(host) || !host.IsOpen() || host.IsInPauseOrGameMenu(gi) {
+      return false;
+    };
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gi).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    return IsDefined(player) && player.PlayerLastUsedPad();
   }
 
   public static func OnFootwearUpdated(gi: GameInstance) -> Void {
@@ -419,6 +432,10 @@ public class FootwearCalibratorHost extends ScriptableSystem {
         if this.IsInPauseOrGameMenu(gi) {
           return;
         };
+        if key == EnumInt(EInputKey.IK_Pad_RightThumb) {
+          this.ToggleCameraLock();
+          return;
+        };
         if cfg.calibratorHotkey > 0 && key == cfg.calibratorHotkey {
           this.CloseCalibrator();
           return;
@@ -434,8 +451,12 @@ public class FootwearCalibratorHost extends ScriptableSystem {
       if !this.IsPopupOnTop(this.m_popup) {
         return;
       };
-      if key == EnumInt(EInputKey.IK_Escape) || (cfg.calibratorHotkey > 0 && key == cfg.calibratorHotkey) {
+      if key == EnumInt(EInputKey.IK_Escape) || key == EnumInt(EInputKey.IK_Pad_B_CIRCLE) || (cfg.calibratorHotkey > 0 && key == cfg.calibratorHotkey) {
         this.CloseCalibrator();
+        return;
+      };
+      if key == EnumInt(EInputKey.IK_Pad_RightThumb) && !this.IsInPauseOrGameMenu(gi) {
+        this.ToggleCameraLock();
         return;
       };
       if cfg.cameraUnlockKey > 0 && key == cfg.cameraUnlockKey {

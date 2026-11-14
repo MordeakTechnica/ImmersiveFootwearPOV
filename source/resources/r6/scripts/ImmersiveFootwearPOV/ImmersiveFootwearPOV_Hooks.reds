@@ -342,6 +342,12 @@ protected cb func OnAction(action: ListenerAction, consumer: ListenerActionConsu
     return false;
   };
 
+  if Equals(actionName, n"QuickMelee") && FootwearCalibratorHost.ShouldConsumeUnlockQuickMelee(gi) {
+    ListenerActionConsumer.Consume(consumer);
+    ListenerActionConsumer.DontSendReleaseEvent(consumer);
+    return false;
+  };
+
   let result: Bool = wrappedMethod(action, consumer);
   if !ListenerAction.IsButtonJustPressed(action) {
     return result;
