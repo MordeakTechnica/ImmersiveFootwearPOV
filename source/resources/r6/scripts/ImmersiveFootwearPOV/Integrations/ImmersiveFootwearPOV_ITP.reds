@@ -6,16 +6,120 @@ import ImmersiveThirdPerson.*
 // =============================================================================
 // Immersive Footwear POV - Immersive Third Person (ITP) Integration
 // Real-time Third-Person Character Elevation Driver
-// Primary: ITPApi.RequestGroundOffset (component-level, 0.1 mm precision)
+// Primary: Direct `n"root"` component SetLocalPosition (+1*H across root <- deformations <- shadow)
 // Fallback: Custom animgraph variable 'foot_elevation_offset'
 // =============================================================================
+
+public class TPPRootElevationTarget {
+  private let comp: wref<IPlacedComponent>;
+  private let hasBase: Bool;
+  private let baseX: Float;
+  private let baseY: Float;
+  private let baseZ: Float;
+  private let baseW: Float;
+  private let pendingRestore: Bool;
+
+  private static func IsFinite(v: Float) -> Bool {
+    return (v - v) == 0.0;
+  }
+
+  private func Resolve(player: ref<PlayerPuppet>) -> Bool {
+    if !IsDefined(player) {
+      return false;
+    };
+    if IsDefined(this.comp) && this.hasBase && Equals(this.comp.GetEntity(), player) {
+      return true;
+    };
+    if this.pendingRestore {
+      this.RestoreOffset();
+    };
+    this.hasBase = false;
+    this.pendingRestore = false;
+    this.comp = null;
+    let component: ref<IComponent> = player.FindComponentByName(n"root");
+    if !IsDefined(component) {
+      return false;
+    };
+    let animated: ref<AnimatedComponent> = component as AnimatedComponent;
+    let placed: ref<IPlacedComponent> = component as IPlacedComponent;
+    if !IsDefined(animated) || !IsDefined(placed) {
+      return false;
+    };
+    let pos: Vector4 = placed.GetLocalPosition();
+    if !TPPRootElevationTarget.IsFinite(pos.Z) || AbsF(pos.Z) > 2.0 {
+      return false;
+    };
+    this.baseX = TPPRootElevationTarget.IsFinite(pos.X) ? pos.X : 0.0;
+    this.baseY = TPPRootElevationTarget.IsFinite(pos.Y) ? pos.Y : 0.0;
+    this.baseZ = pos.Z;
+    this.baseW = TPPRootElevationTarget.IsFinite(pos.W) ? pos.W : 1.0;
+    this.hasBase = true;
+    this.comp = placed;
+    return true;
+  }
+
+  private func WriteZ(z: Float) -> Bool {
+    if !IsDefined(this.comp) || !TPPRootElevationTarget.IsFinite(z) {
+      return false;
+    };
+    let pos: Vector4 = this.comp.GetLocalPosition();
+    let x: Float = TPPRootElevationTarget.IsFinite(pos.X) ? pos.X : this.baseX;
+    let y: Float = TPPRootElevationTarget.IsFinite(pos.Y) ? pos.Y : this.baseY;
+    let w: Float = TPPRootElevationTarget.IsFinite(pos.W) ? pos.W : this.baseW;
+    this.comp.SetLocalPosition(new Vector4(x, y, z, w));
+    let back: Float = this.comp.GetLocalPosition().Z;
+    return TPPRootElevationTarget.IsFinite(back) && AbsF(back - z) <= 0.0001;
+  }
+
+  public func ApplyOffset(player: ref<PlayerPuppet>, offsetMeters: Float) -> Bool {
+    if !TPPRootElevationTarget.IsFinite(offsetMeters) {
+      return false;
+    };
+    if offsetMeters <= 0.00005 {
+      this.RestoreOffset();
+      return IsDefined(this.comp) || (IsDefined(player) && IsDefined(player.FindComponentByName(n"root") as IPlacedComponent));
+    };
+    if !this.Resolve(player) {
+      return false;
+    };
+    let want: Float = this.baseZ + offsetMeters;
+    let cur: Float = this.comp.GetLocalPosition().Z;
+    if !TPPRootElevationTarget.IsFinite(cur) || AbsF(cur - want) > 0.0001 {
+      if !this.WriteZ(want) {
+        return false;
+      };
+    };
+    this.pendingRestore = true;
+    return true;
+  }
+
+  public func RestoreOffset() -> Void {
+    if !this.pendingRestore {
+      return;
+    };
+    if IsDefined(this.comp) && this.hasBase {
+      let cur: Float = this.comp.GetLocalPosition().Z;
+      if !TPPRootElevationTarget.IsFinite(cur) || AbsF(cur - this.baseZ) > 0.0001 {
+        if this.WriteZ(this.baseZ) {
+          this.pendingRestore = false;
+        };
+      } else {
+        this.pendingRestore = false;
+      };
+    } else {
+      this.pendingRestore = false;
+      this.hasBase = false;
+    };
+  }
+}
 
 public class ITPController {
 
   /**
    * Sets dynamic vertical elevation on the player puppet for third-person perspective.
-   * Uses ITPApi.RequestGroundOffset when available so decimal/sub-cm values apply cleanly,
-   * and falls back to 'foot_elevation_offset' only if ITPApi is unavailable or refuses.
+   * Lifts only `n"root"` so linked `deformations` and `shadow` components inherit the same +1*H lift
+   * in lockstep without compounding or self-shadowing, while `shadow_platform_offset` plants the
+   * shadow-rig feet back to the floor. Falls back to `foot_elevation_offset` if `root` is missing.
    * @param player The local player puppet reference.
    * @param offsetMeters Elevation offset in meters (e.g. +0.085 for 8.5cm high platforms).
    * @return True if offset was successfully applied, false if player undefined.
@@ -27,23 +131,28 @@ public class ITPController {
     };
 
     let gi: GameInstance = player.GetGame();
+    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     let clampedOffset: Float = ShoeHeightParser.ClampPlatformHeight(offsetMeters);
-    let offsetMm: Float = clampedOffset * 1000.0;
-    let apiStatus: Int32 = ITPApiCalibratorAdapter.RequestGroundOffsetStatus(gi, offsetMm);
-    let usedApiGround: Bool = apiStatus >= 0;
+    if (clampedOffset - clampedOffset) != 0.0 {
+      clampedOffset = 0.0;
+    };
+    let rootTarget: ref<TPPRootElevationTarget> = IsDefined(sys) ? sys.GetRootElevationTarget() : null;
+    let usedRootLift: Bool = IsDefined(rootTarget) && rootTarget.ApplyOffset(player, clampedOffset);
 
     // Note: We deliberately do NOT set 'ifp_height_blend' here.
     // FPP heel height is managed by HeightController. Setting it here would clobber FPP stance upon ITP reset.
-    if usedApiGround {
-      // Clear skeletal fallback variable so ITP's component ground level owns 100% of the lift without double-lifting.
+    if usedRootLift {
+      // Clear skeletal fallback variable so direct root component elevation owns 100% of the lift.
       AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
+      // Counter-shift shadow rig feet/toes back down in Root Z to stay planted on the ground under lifted platform soles.
+      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", clampedOffset);
     } else {
       AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
+      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", 0.0);
     };
 
-    let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if IsDefined(sys) {
-      sys.LogITPElevationIfChanged(clampedOffset, usedApiGround, apiStatus);
+      sys.LogITPElevationIfChanged(clampedOffset, usedRootLift, usedRootLift ? 0 : -1);
     };
     return true;
   }
@@ -169,17 +278,12 @@ public class ITPApiCalibratorAdapter {
     };
   }
 
-  public static func RequestGroundOffsetStatus(gi: GameInstance, offsetMm: Float) -> Int32 {
+  public static func ReleaseGroundLease(gi: GameInstance) -> Void {
     let api: ref<ITPApi> = ITPApi.Get(gi);
     if !IsDefined(api) {
-      return -101;
+      return;
     };
-    let owner: CName = n"ImmersiveFootwearPOV";
-    if offsetMm <= 0.05 {
-      api.Release(owner, n"groundLevel");
-      return 0;
-    };
-    return api.RequestGroundOffset(owner, 100, 3.0, offsetMm);
+    api.Release(n"ImmersiveFootwearPOV", n"groundLevel");
   }
 
   public static func ReleaseLease(gi: GameInstance) -> Void {
@@ -190,12 +294,13 @@ public class ITPApiCalibratorAdapter {
     let owner: CName = n"ImmersiveFootwearPOV";
     api.Release(owner, n"camera");
     api.Release(owner, n"perspective");
+    api.Release(owner, n"groundLevel");
   }
 }
 
 @if(!ModuleExists("ImmersiveThirdPerson"))
 public class ITPApiCalibratorAdapter {
   public static func MaintainLease(gi: GameInstance, focusBoots: Bool) -> Void {}
-  public static func RequestGroundOffsetStatus(gi: GameInstance, offsetMm: Float) -> Int32 { return -100; }
+  public static func ReleaseGroundLease(gi: GameInstance) -> Void {}
   public static func ReleaseLease(gi: GameInstance) -> Void {}
 }

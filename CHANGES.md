@@ -2,8 +2,8 @@
 
 All notable changes to this project are tracked in this file chronologically by Git commit ID.
 
-## [**`v2.5.0-beta`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.5.0-beta) — 2026-11-14
-### `feat(ui): Codeware live shoe calibrator, dedicated boot-focus camera, and TPP slider/telemetry fixes (v2.5.0-beta)`
+## [**`v2.5.0-beta`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.5.0-beta) — 2026-11-15
+### `feat(ui): Codeware live shoe calibrator, dedicated boot-focus camera, and TPP shadow/elevation fixes (v2.5.0-beta)`
 * **Codeware Live Shoe Calibrator (`FootwearCalibratorHost`, `FootwearCalibratorPopup`, `FootwearTheme`):**
   * Added native `Codeware.UI.InGamePopup` live shoe calibrator with `Num 1` default toggle hotkey, `C` camera unlock/relock HUD mirror (`FootwearCalibratorHudMirror`), quick heel presets, and `RedWindows` fallback (`FootwearCalibratorWindow`) when `Codeware.UI` is absent.
   * Fixed slider track clicks and handle dragging (`FootwearSliderAxis`) by removing the pointer-drag gate on `OnSliderValueChanged` and committing snapped `0.1 cm` tenths cleanly on release (`SyncFromSliderProgress`), ensuring live TPP/FPP puppet height updates for both slider drags and step buttons (`-1`, `-.1`, `+.1`, `+1`).
@@ -11,7 +11,11 @@ All notable changes to this project are tracked in this file chronologically by 
   * Added transient `simple_free_camera.ent` inspection camera taking viewport ownership while locked (preventing ITP mouse-orbit interference), optional side-profile boot framing (`focusBootsInTPP`), and camera pose preservation across `C` unlock/re-lock toggles.
   * Updated `ITPController.IsTPPActive` to recognize active `FootwearCalibratorCamera`, refreshed perspective drift inside `ApplyLiveCalibration`, and updated popup/HUD telemetry (`EFFECTIVE LIFT`) to display platform offset in TPP and heel offset in FPP.
   * Added full controller compatibility in Locked and Unlocked calibrator views: cleared `ModalPopup` (`PopGameContext(..., true)`) and synchronously finished popup hide teardown on unlock so `UINotifications` no longer steals right-stick camera look, bound `RS`/`R3` (`IK_Pad_RightThumb`) to lock/unlock (while suppressing `QuickMelee`), bound `B`/`Circle` to close when locked while allowing controller crouch/dodge when unlocked, restored FPP vs TPP accurately on camera release, and added Xbox/PS5 controller hints.
-  * Routed ITP third-person elevation through `ITPApi.RequestGroundOffset` (`0.1 mm` component-level precision on `root`/`shadow`/`deformations`, clearing `foot_elevation_offset` to avoid double-lifting while keeping AnimGraph fallback if `ITPApi` is unavailable or refuses), added `0.75s` locomotion and `0.40s` calibrator lease renewals plus deduplicated `[ITP]` debug telemetry, and normalized comma decimal inputs (`,` -> `.`) in `FootwearCalibratorWindow`.
+  * Normalized comma decimal inputs (`,` -> `.`) in `FootwearCalibratorWindow` and deduplicated `[ITP]` debug telemetry.
+* **TPP Ground-Shadow Alignment & Path Tracing Self-Shadow Fix (`shadow_rig_{wa,ma}.animgraph`, `TPPRootElevationTarget`, `ITPController`, `ImmersiveFootwearPOVSystem`):**
+  * Added `IFP_Shadow_Platform_Blend` and `IFP_Shadow_Platform_Foot_Offset` nodes (driven by `shadow_platform_offset`) into `shadow_rig_wa.animgraph` and `shadow_rig_ma.animgraph` (and packed into `##_ITP_Immersive_Footwear_POV.archive`) to counter-shift `shadow_LeftFoot`, `shadow_LeftToeBase`, `shadow_RightFoot`, and `shadow_RightToeBase` downward in `Root` space so ground shadows stay planted on the floor under elevated soles.
+  * Replaced `ITPApi.RequestGroundOffset` with self-contained `TPPRootElevationTarget` lifting only `n"root"` (with entity ownership validation, `NaN`/finite guards, and clean baseline restoration on reset/rebind), eliminating compounded `+2*H`/`+3*H` transform offsets on `deformations`/`shadow` and preventing moving self-shadow patches under Path Tracing.
+  * Reduced locomotion perspective-drift polling interval to `0.15s` and re-asserted TPP `root` elevation every frame (`AbsF(cur - want) > 0.0001`), keeping `foot_elevation_offset` AnimGraph fallback intact when `root` is unavailable.
 
 ## [**`v2.4.3`**](https://github.com/mordeak/immersive-footwear-pov/releases/tag/v2.4.3) — 2026-11-14
 ### `refactor(redscript): streamline services, UI descriptors, and conditional module detectors (v2.4.3)`
