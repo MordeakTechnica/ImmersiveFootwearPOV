@@ -149,6 +149,19 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   }
 
   /**
+   * System detach cleanup. Restores any active root elevation offset and releases ITP lease before teardown.
+   */
+  private func OnDetach() -> Void {
+    if IsDefined(this.m_rootElevationTarget) {
+      this.m_rootElevationTarget.RestoreOffset();
+      this.m_rootElevationTarget = null;
+    };
+    ITPApiCalibratorAdapter.ReleaseGroundLease(this.GetGameInstance());
+    this.m_isInitialized = false;
+    this.m_hasTppInitialized = false;
+  }
+
+  /**
    * Resets per-session runtime state and evaluates initial equipped footwear for the player puppet.
    */
   private func ResetAndBindPlayerSession(player: ref<PlayerPuppet>) -> Void {
@@ -277,7 +290,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
    * @param timeDelta Frame delta time in seconds.
    */
   public func OnLocomotionUpdate(player: ref<PlayerPuppet>, timeDelta: Float) -> Void {
-    if !IsDefined(player) { return; };
+    if !IsDefined(player) || !player.IsAttached() || player.IsDead() { return; };
 
     let currentFrame: Uint64 = GameInstance.GetFrameNumber(player.GetGame());
     if currentFrame == this.m_lastLocoFrame {
@@ -286,7 +299,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_lastLocoFrame = currentFrame;
 
     this.m_driftCheckTimer += timeDelta;
-    if this.m_driftCheckTimer >= 0.15 {
+    if this.m_driftCheckTimer >= 0.50 {
       this.m_driftCheckTimer = 0.0;
       this.CheckPerspectiveDrift(player);
     };

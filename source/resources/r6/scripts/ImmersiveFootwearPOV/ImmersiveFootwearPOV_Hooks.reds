@@ -35,7 +35,11 @@ public class FootwearHooksHelper {
    * @param player Target player puppet entity.
    */
   public static func NotifyMenuClosed(player: ref<PlayerPuppet>) -> Void {
-    if !IsDefined(player) {
+    let reqHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
+    if IsDefined(reqHandler) && reqHandler.IsPreGame() {
+      return;
+    };
+    if !IsDefined(player) || !player.IsAttached() || player.IsDead() {
       return;
     };
     let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());
@@ -426,7 +430,7 @@ protected func OnUpdate(timeDelta: Float, stateContext: ref<StateContext>, scrip
     return;
   };
   let player: ref<PlayerPuppet> = scriptInterface.executionOwner as PlayerPuppet;
-  if !IsDefined(player) {
+  if !IsDefined(player) || !player.IsAttached() || player.IsDead() {
     return;
   };
   let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(player.GetGame());

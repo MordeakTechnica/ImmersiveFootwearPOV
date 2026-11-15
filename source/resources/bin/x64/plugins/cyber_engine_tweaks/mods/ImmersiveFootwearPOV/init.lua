@@ -12,14 +12,69 @@ local mod = {
     isFallbackActive = false,
     isOverlayOpen = false,
     cachedSys = nil,
+    cachedPreGame = nil,
+    checkedIFP = nil,
+    hasIFP = false,
+    ifpSyncedSys = false,
 }
 
---- Retrieve the singleton ImmersiveFootwearPOVSystem instance
+local function IsPreGame()
+    local ok, pre = pcall(function()
+        if not GetSingleton then
+            return true
+        end
+        local scenario = GetSingleton("inkMenuScenario")
+        local req = scenario and scenario:GetSystemRequestsHandler()
+        if not req then
+            return true
+        end
+        return req:IsPreGame()
+    end)
+    if not ok then
+        return true
+    end
+    return pre == true
+end
+
+local function IsPausedOrInMenu()
+    local ok, blocked = pcall(function()
+        if Game and Game.GetAllBlackboardDefs and Game.GetBlackboardSystem then
+            local defs = Game.GetAllBlackboardDefs()
+            local uiSys = defs and defs.UI_System
+            if uiSys then
+                local bb = Game.GetBlackboardSystem():Get(uiSys)
+                if bb and bb:GetBool(uiSys.IsInMenu) then
+                    return true
+                end
+            end
+        end
+        if Game and Game.GetTimeSystem then
+            local ts = Game.GetTimeSystem()
+            if ts and ts.IsPausedState and ts:IsPausedState() then
+                return true
+            end
+        end
+        return false
+    end)
+    return ok and blocked == true
+end
+
+--- Retrieve the singleton ImmersiveFootwearPOVSystem instance without leaking pre-game handles across sessions
 ---@return any
 local function GetSystem()
+    local preGame = IsPreGame()
+    if mod.cachedSys ~= nil and mod.cachedPreGame ~= preGame then
+        mod.cachedSys = nil
+        mod.ifpSyncedSys = false
+    end
     if not mod.cachedSys then
         pcall(function()
-            mod.cachedSys = Game.GetScriptableSystemsContainer():Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+            local container = Game and Game.GetScriptableSystemsContainer and Game.GetScriptableSystemsContainer()
+            if container then
+                mod.cachedSys = container:Get("ImmersiveFootwearPOV.ImmersiveFootwearPOVSystem")
+                mod.cachedPreGame = preGame
+                mod.ifpSyncedSys = false
+            end
         end)
     end
     return mod.cachedSys
@@ -124,38 +179,67 @@ end)
 
 local ifpBlendName = nil
 
-registerForEvent("onUpdate", function(delta)
-    local sys = GetSystem()
-    if not sys then return end
+registerForEvent("onShutdown", function()
+    mod.isOverlayOpen = false
+    mod.cachedSys = nil
+    mod.cachedPreGame = nil
+    mod.checkedIFP = nil
+    mod.hasIFP = false
+    mod.ifpSyncedSys = false
+    ifpBlendName = nil
+end)
 
-    local player = Game.GetPlayer()
-    if not player then return end
+registerForEvent("onUpdate", function(delta)
+    if IsPreGame() then
+        mod.cachedSys = nil
+        mod.cachedPreGame = true
+        mod.ifpSyncedSys = false
+        return
+    end
 
     if mod.checkedIFP == nil then
         local ifp = GetMod("ImmersiveFirstPerson") or GetMod("immersive_first_person")
         mod.hasIFP = (ifp ~= nil)
         mod.checkedIFP = true
-        if sys.SetIFPPresent then
-            sys:SetIFPPresent(mod.hasIFP)
-        end
     end
 
-    if mod.hasIFP and sys.GetActiveFppBlend then
-        if not ifpBlendName and CName and CName.new then
-            ifpBlendName = CName.new("ifp_height_blend")
-        end
-        local blend = sys:GetActiveFppBlend()
-        local effOffset = sys.GetActiveFppOffset and sys:GetActiveFppOffset() or 0.0
-        if ifpBlendName and AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
-            pcall(function()
-                AnimationControllerComponent.SetInputFloat(player, ifpBlendName, blend)
-            end)
-        end
-        if player.ImmersiveFirstPersonSetInteractionHeight then
-            pcall(function()
-                player:ImmersiveFirstPersonSetInteractionHeight(effOffset)
-            end)
-        end
+    local sys = GetSystem()
+    if not sys then return end
+
+    if not mod.ifpSyncedSys and sys.SetIFPPresent then
+        pcall(function()
+            sys:SetIFPPresent(mod.hasIFP)
+        end)
+        mod.ifpSyncedSys = true
+    end
+
+    if not mod.hasIFP or not sys.GetActiveFppBlend then
+        return
+    end
+
+    -- Never call Game.GetPlayer() during menus, pause screens, or loading/teardown frames
+    if IsPausedOrInMenu() then
+        return
+    end
+
+    local okPlayer, player = pcall(Game.GetPlayer)
+    if not okPlayer or not player then return end
+    if player.IsAttached and not player:IsAttached() then return end
+
+    if not ifpBlendName and CName and CName.new then
+        ifpBlendName = CName.new("ifp_height_blend")
+    end
+    local blend = sys:GetActiveFppBlend()
+    local effOffset = sys.GetActiveFppOffset and sys:GetActiveFppOffset() or 0.0
+    if ifpBlendName and AnimationControllerComponent and AnimationControllerComponent.SetInputFloat then
+        pcall(function()
+            AnimationControllerComponent.SetInputFloat(player, ifpBlendName, blend)
+        end)
+    end
+    if player.ImmersiveFirstPersonSetInteractionHeight then
+        pcall(function()
+            player:ImmersiveFirstPersonSetInteractionHeight(effOffset)
+        end)
     end
 end)
 

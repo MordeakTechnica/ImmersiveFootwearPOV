@@ -18,23 +18,31 @@ public class TPPRootElevationTarget {
   private let baseZ: Float;
   private let baseW: Float;
   private let pendingRestore: Bool;
+  private let hasLastAnimState: Bool;
+  private let lastAnimUsedRootLift: Bool;
+  private let lastAnimOffset: Float;
+  private let lastAnimEntityID: EntityID;
 
   private static func IsFinite(v: Float) -> Bool {
     return (v - v) == 0.0;
   }
 
   private func Resolve(player: ref<PlayerPuppet>) -> Bool {
-    if !IsDefined(player) {
+    if !IsDefined(player) || !player.IsAttached() || player.IsDead() {
       return false;
     };
-    if IsDefined(this.comp) && this.hasBase && Equals(this.comp.GetEntity(), player) {
-      return true;
+    if IsDefined(this.comp) && this.hasBase {
+      let compEnt: wref<Entity> = this.comp.GetEntity();
+      if IsDefined(compEnt) && Equals(compEnt.GetEntityID(), player.GetEntityID()) {
+        return true;
+      };
     };
     if this.pendingRestore {
       this.RestoreOffset();
     };
     this.hasBase = false;
     this.pendingRestore = false;
+    this.hasLastAnimState = false;
     this.comp = null;
     let component: ref<IComponent> = player.FindComponentByName(n"root");
     if !IsDefined(component) {
@@ -93,11 +101,39 @@ public class TPPRootElevationTarget {
     return true;
   }
 
+  public func SyncAnimInputsIfChanged(player: ref<PlayerPuppet>, usedRootLift: Bool, clampedOffset: Float) -> Void {
+    if !IsDefined(player) || !player.IsAttached() {
+      return;
+    };
+    let pid: EntityID = player.GetEntityID();
+    if this.hasLastAnimState
+      && Equals(this.lastAnimEntityID, pid)
+      && Equals(this.lastAnimUsedRootLift, usedRootLift)
+      && AbsF(this.lastAnimOffset - clampedOffset) <= 0.0001 {
+      return;
+    };
+    this.hasLastAnimState = true;
+    this.lastAnimEntityID = pid;
+    this.lastAnimUsedRootLift = usedRootLift;
+    this.lastAnimOffset = clampedOffset;
+    if usedRootLift {
+      // Clear skeletal fallback variable so direct root component elevation owns 100% of the lift.
+      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
+      // Counter-shift shadow rig feet/toes back down in Root Z to stay planted on the ground under lifted platform soles.
+      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", clampedOffset);
+    } else {
+      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
+      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", 0.0);
+    };
+  }
+
   public func RestoreOffset() -> Void {
+    this.hasLastAnimState = false;
     if !this.pendingRestore {
       return;
     };
-    if IsDefined(this.comp) && this.hasBase {
+    let compEnt: wref<Entity> = IsDefined(this.comp) ? this.comp.GetEntity() : null;
+    if IsDefined(this.comp) && this.hasBase && IsDefined(compEnt) && compEnt.IsAttached() {
       let cur: Float = this.comp.GetLocalPosition().Z;
       if !TPPRootElevationTarget.IsFinite(cur) || AbsF(cur - this.baseZ) > 0.0001 {
         if this.WriteZ(this.baseZ) {
@@ -109,6 +145,7 @@ public class TPPRootElevationTarget {
     } else {
       this.pendingRestore = false;
       this.hasBase = false;
+      this.comp = null;
     };
   }
 }
@@ -125,8 +162,11 @@ public class ITPController {
    * @return True if offset was successfully applied, false if player undefined.
    */
   public static func ApplyHeightOffset(player: ref<PlayerPuppet>, offsetMeters: Float) -> Bool {
-    if !IsDefined(player) {
-      FootwearRedLogger.LogError("ITP", "ApplyHeightOffset failed: player is undefined");
+    if !IsDefined(player) || !player.IsAttached() || player.IsDead() {
+      return false;
+    };
+    let reqHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
+    if IsDefined(reqHandler) && reqHandler.IsPreGame() {
       return false;
     };
 
@@ -141,7 +181,9 @@ public class ITPController {
 
     // Note: We deliberately do NOT set 'ifp_height_blend' here.
     // FPP heel height is managed by HeightController. Setting it here would clobber FPP stance upon ITP reset.
-    if usedRootLift {
+    if IsDefined(rootTarget) {
+      rootTarget.SyncAnimInputsIfChanged(player, usedRootLift, clampedOffset);
+    } else if usedRootLift {
       // Clear skeletal fallback variable so direct root component elevation owns 100% of the lift.
       AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
       // Counter-shift shadow rig feet/toes back down in Root Z to stay planted on the ground under lifted platform soles.
@@ -186,8 +228,12 @@ public class ITPController {
         return true;
       };
     };
+    let reqHandler: ref<inkISystemRequestsHandler> = GameInstance.GetSystemRequestsHandler();
+    if IsDefined(reqHandler) && reqHandler.IsPreGame() {
+      return false;
+    };
     let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(gameInstance).GetLocalPlayerMainGameObject() as PlayerPuppet;
-    if IsDefined(player) && IsDefined(player.FindComponentByName(n"tppCamera")) {
+    if IsDefined(player) && player.IsAttached() && IsDefined(player.FindComponentByName(n"tppCamera")) {
       return true;
     };
     return false;
