@@ -20,6 +20,8 @@ public class FootwearCalibratorPopup extends InGamePopup {
   private let m_panel: ref<inkCanvas>;
   private let m_shoeTitle: ref<inkText>;
   private let m_shoeSub: ref<inkText>;
+  private let m_statusBadge: ref<inkText>;
+  private let m_shoeIdMeta: ref<inkText>;
   private let m_controlsGroup: ref<inkCanvas>;
   private let m_emptyGroup: ref<inkCanvas>;
 
@@ -27,7 +29,6 @@ public class FootwearCalibratorPopup extends InGamePopup {
   private let m_btnFocusBoots: ref<FootwearPillButton>;
   private let m_btnSave: ref<FootwearPillButton>;
   private let m_btnRevert: ref<FootwearPillButton>;
-  private let m_btnClose: ref<FootwearPillButton>;
   private let m_btnEmptyClose: ref<FootwearPillButton>;
   private let m_ownedButtons: array<ref<FootwearPillButton>>;
 
@@ -37,9 +38,6 @@ public class FootwearCalibratorPopup extends InGamePopup {
   private let m_presetBtns: array<ref<FootwearPillButton>>;
   private let m_presetCm: array<Float>;
 
-  private let m_teleLift: ref<inkText>;
-  private let m_telePersp: ref<inkText>;
-  private let m_teleStatus: ref<inkText>;
   private let m_hintText: ref<inkText>;
 
   private let m_lastShoeKey: String;
@@ -165,7 +163,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
     panel.SetAnchor(inkEAnchor.TopLeft);
     panel.SetAnchorPoint(Vector2(0.0, 0.0));
     panel.SetMargin(inkMargin(64.0, 170.0, 0.0, 0.0));
-    panel.SetSize(Vector2(920.0, 916.0));
+    panel.SetSize(Vector2(860.0, 736.0));
     panel.SetInteractive(true);
     panel.Reparent(root);
 
@@ -218,8 +216,8 @@ public class FootwearCalibratorPopup extends InGamePopup {
   }
 
   private func BuildUI(panel: ref<inkCanvas>) -> Void {
-    let panelW: Float = 920.0;
-    let panelH: Float = 916.0;
+    let panelW: Float = 860.0;
+    let panelH: Float = 736.0;
     let padX: Float = 36.0;
     let innerW: Float = panelW - (padX * 2.0);
 
@@ -229,7 +227,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
     bg.SetInteractive(true);
     bg.Reparent(panel);
 
-    let frame: ref<inkImage> = FootwearTheme.Slice(n"outerFrame", n"cell_fg", n"MainColors.DarkRed", 0.90);
+    let frame: ref<inkImage> = FootwearTheme.Slice(n"outerFrame", n"cell_fg", n"MainColors.DarkRed", 0.85);
     frame.SetAnchor(inkEAnchor.Fill);
     frame.Reparent(panel);
 
@@ -237,46 +235,57 @@ public class FootwearCalibratorPopup extends InGamePopup {
     FootwearTheme.Line(panel, n"topAccentBar", 6.0, 0.0, panelW - 6.0, 3.0, n"MainColors.Red", 0.85);
 
     // Header
-    let eyebrow: ref<inkText> = FootwearTheme.Caps(n"eyebrow", 22, n"Semi-Bold", n"MainColors.Red");
+    let eyebrow: ref<inkText> = FootwearTheme.Caps(n"eyebrow", 20, n"Semi-Bold", n"MainColors.Red");
     eyebrow.SetAnchor(inkEAnchor.TopLeft);
     eyebrow.SetMargin(inkMargin(padX, 18.0, 0.0, 0.0));
-    eyebrow.SetText("IMMERSIVE FOOTWEAR POV  //  LIVE CALIBRATOR");
+    eyebrow.SetText("IMMERSIVE FOOTWEAR POV  //  CALIBRATOR");
     eyebrow.Reparent(panel);
+
+    let statusBadge: ref<inkText> = FootwearTheme.Caps(n"statusBadge", 20, n"Bold", n"MainColors.ActiveBlue");
+    statusBadge.SetAnchor(inkEAnchor.TopRight);
+    statusBadge.SetAnchorPoint(Vector2(1.0, 0.0));
+    statusBadge.SetMargin(inkMargin(0.0, 18.0, padX + 64.0, 0.0));
+    statusBadge.SetHAlign(inkEHorizontalAlign.Right);
+    statusBadge.SetText("");
+    statusBadge.Reparent(panel);
+    this.m_statusBadge = statusBadge;
 
     let title: ref<inkText> = FootwearTheme.Caps(n"shoeTitle", 34, n"Bold", n"MainColors.White");
     title.SetAnchor(inkEAnchor.TopLeft);
-    title.SetMargin(inkMargin(padX, 46.0, 0.0, 0.0));
-    title.SetSize(Vector2(innerW - 76.0, 42.0));
-    title.SetWrapping(false, innerW - 76.0);
+    title.SetMargin(inkMargin(padX, 44.0, 0.0, 0.0));
+    title.SetSize(Vector2(innerW - 68.0, 42.0));
+    title.SetWrapping(false, innerW - 68.0);
     title.SetText("LOADING FOOTWEAR...");
     title.Reparent(panel);
     this.m_shoeTitle = title;
 
     let sub: ref<inkText> = FootwearTheme.Label(n"shoeSub", 22, n"Regular", n"MainColors.MildRed");
     sub.SetAnchor(inkEAnchor.TopLeft);
-    sub.SetMargin(inkMargin(padX, 88.0, 0.0, 0.0));
-    sub.SetSize(Vector2(innerW - 76.0, 30.0));
-    sub.SetWrapping(false, innerW - 76.0);
+    sub.SetMargin(inkMargin(padX, 86.0, 0.0, 0.0));
+    sub.SetSize(Vector2(innerW, 28.0));
+    sub.SetWrapping(false, innerW);
     sub.SetText("");
     sub.Reparent(panel);
     this.m_shoeSub = sub;
 
     ArrayClear(this.m_ownedButtons);
-    ArrayPush(this.m_ownedButtons, FootwearPillButton.Create(panel, n"close", "X", panelW - padX - 54.0, 22.0, 54.0, 54.0, 26, this));
-    FootwearTheme.Line(panel, n"headerRule", padX, 132.0, innerW, 2.0, n"MainColors.DarkRed", 0.90);
+    let closeXBtn: ref<FootwearPillButton> = FootwearPillButton.Create(panel, n"close", "X", panelW - padX - 48.0, 18.0, 48.0, 48.0, 24, this);
+    closeXBtn.SetSubtle(true);
+    ArrayPush(this.m_ownedButtons, closeXBtn);
+    FootwearTheme.Line(panel, n"headerRule", padX, 122.0, innerW, 2.0, n"MainColors.DarkRed", 0.75);
 
     // Camera Lock & Focus Boots Row
-    let modeY: Float = 150.0;
+    let modeY: Float = 138.0;
     let halfW: Float = (innerW - 16.0) / 2.0;
-    this.m_btnUnlockCam = FootwearPillButton.Create(panel, n"toggleCamUnlock", "UNLOCK CAMERA", padX, modeY, halfW, 56.0, 26, this);
-    this.m_btnFocusBoots = FootwearPillButton.Create(panel, n"toggleFocusBoots", "FOCUS BOOTS: ON", padX + halfW + 16.0, modeY, halfW, 56.0, 26, this);
+    this.m_btnUnlockCam = FootwearPillButton.Create(panel, n"toggleCamUnlock", "UNLOCK CAMERA", padX, modeY, halfW, 52.0, 24, this);
+    this.m_btnFocusBoots = FootwearPillButton.Create(panel, n"toggleFocusBoots", "FOCUS BOOTS: ON", padX + halfW + 16.0, modeY, halfW, 52.0, 24, this);
 
     // Empty footwear notice (shown when V is barefoot / invalid ItemID)
     let emptyGroup: ref<inkCanvas> = new inkCanvas();
     emptyGroup.SetName(n"emptyGroup");
     emptyGroup.SetAnchor(inkEAnchor.TopLeft);
-    emptyGroup.SetMargin(inkMargin(padX, 240.0, 0.0, 0.0));
-    emptyGroup.SetSize(Vector2(innerW, 560.0));
+    emptyGroup.SetMargin(inkMargin(padX, 208.0, 0.0, 0.0));
+    emptyGroup.SetSize(Vector2(innerW, 430.0));
     emptyGroup.SetVisible(false);
     emptyGroup.Reparent(panel);
     this.m_emptyGroup = emptyGroup;
@@ -285,35 +294,36 @@ public class FootwearCalibratorPopup extends InGamePopup {
     emptyBg.SetAnchor(inkEAnchor.Fill);
     emptyBg.Reparent(emptyGroup);
 
-    let emptyHdr: ref<inkText> = FootwearTheme.Caps(n"emptyHdr", 34, n"Bold", n"MainColors.Yellow");
+    let emptyHdr: ref<inkText> = FootwearTheme.Caps(n"emptyHdr", 32, n"Bold", n"MainColors.Yellow");
     emptyHdr.SetAnchor(inkEAnchor.TopLeft);
-    emptyHdr.SetMargin(inkMargin(28.0, 48.0, 0.0, 0.0));
+    emptyHdr.SetMargin(inkMargin(28.0, 44.0, 0.0, 0.0));
     emptyHdr.SetText("NO FOOTWEAR EQUIPPED");
     emptyHdr.Reparent(emptyGroup);
 
-    let emptyMsg: ref<inkText> = FootwearTheme.Label(n"emptyMsg", 26, n"Regular", n"MainColors.White");
+    let emptyMsg: ref<inkText> = FootwearTheme.Label(n"emptyMsg", 24, n"Regular", n"MainColors.White");
     emptyMsg.SetAnchor(inkEAnchor.TopLeft);
-    emptyMsg.SetMargin(inkMargin(28.0, 108.0, 0.0, 0.0));
-    emptyMsg.SetSize(Vector2(innerW - 56.0, 140.0));
+    emptyMsg.SetMargin(inkMargin(28.0, 100.0, 0.0, 0.0));
+    emptyMsg.SetSize(Vector2(innerW - 56.0, 120.0));
     emptyMsg.SetWrapping(true, innerW - 56.0);
     emptyMsg.SetText("Equip a pair of shoes or boots in your Inventory or Wardrobe while this calibrator is open to adjust heel & platform elevation live.");
     emptyMsg.Reparent(emptyGroup);
 
-    this.m_btnEmptyClose = FootwearPillButton.Create(emptyGroup, n"close", "CLOSE [ESC]", 28.0, 280.0, 360.0, 60.0, 24, this);
+    this.m_btnEmptyClose = FootwearPillButton.Create(emptyGroup, n"close", "CLOSE [ESC]", 28.0, 250.0, 340.0, 56.0, 24, this);
 
     // Active controls container
     let ctrlGroup: ref<inkCanvas> = new inkCanvas();
     ctrlGroup.SetName(n"controlsGroup");
     ctrlGroup.SetAnchor(inkEAnchor.TopLeft);
-    ctrlGroup.SetMargin(inkMargin(padX, 226.0, 0.0, 0.0));
-    ctrlGroup.SetSize(Vector2(innerW, 616.0));
+    ctrlGroup.SetMargin(inkMargin(padX, 208.0, 0.0, 0.0));
+    ctrlGroup.SetSize(Vector2(innerW, 434.0));
     ctrlGroup.Reparent(panel);
     this.m_controlsGroup = ctrlGroup;
 
     this.m_heelAxis = FootwearSliderAxis.Create(
       ctrlGroup,
       n"heel",
-      "HEEL LIFT (FPP / SWAY / POSTURE)",
+      "HEEL LIFT",
+      "FPP & SWAY",
       0.0,
       0.0,
       innerW,
@@ -322,119 +332,98 @@ public class FootwearCalibratorPopup extends InGamePopup {
       this
     );
 
-    this.m_platAxis = FootwearSliderAxis.Create(
-      ctrlGroup,
-      n"platform",
-      "PLATFORM SOLE (TPP / PHOTO LIFT)",
-      0.0,
-      148.0,
-      innerW,
-      FootwearHeightLimits.GetMaxPlatformCm(),
-      0.0,
-      this
-    );
-
-    // Quick Heel Presets Row
-    let presetHdr: ref<inkText> = FootwearTheme.Caps(n"presetHdr", 22, n"Semi-Bold", n"MainColors.MildRed");
-    presetHdr.SetAnchor(inkEAnchor.TopLeft);
-    presetHdr.SetMargin(inkMargin(0.0, 298.0, 0.0, 0.0));
-    presetHdr.SetText("QUICK HEEL PRESETS (IMMEDIATE)");
-    presetHdr.Reparent(ctrlGroup);
+    // Compact inline preset chips directly below Heel Lift
+    let presetY: Float = 148.0;
+    let presetLbl: ref<inkText> = FootwearTheme.Caps(n"presetHdr", 20, n"Semi-Bold", n"MainColors.MildRed");
+    presetLbl.SetAnchor(inkEAnchor.TopLeft);
+    presetLbl.SetMargin(inkMargin(6.0, presetY + 8.0, 0.0, 0.0));
+    presetLbl.SetOpacity(0.65);
+    presetLbl.SetText("PRESETS:");
+    presetLbl.Reparent(ctrlGroup);
 
     ArrayClear(this.m_presetBtns);
     ArrayClear(this.m_presetCm);
-    ArrayPush(this.m_presetCm, 0.0);
     ArrayPush(this.m_presetCm, 4.0);
     ArrayPush(this.m_presetCm, 8.0);
     ArrayPush(this.m_presetCm, 12.0);
     ArrayPush(this.m_presetCm, 16.0);
 
     let presetLabels: array<String>;
-    ArrayPush(presetLabels, "FLAT 0");
-    ArrayPush(presetLabels, "LOW 4");
-    ArrayPush(presetLabels, "MID 8");
-    ArrayPush(presetLabels, "HIGH 12");
-    ArrayPush(presetLabels, "MAX 16");
+    ArrayPush(presetLabels, "4 CM");
+    ArrayPush(presetLabels, "8 CM");
+    ArrayPush(presetLabels, "12 CM");
+    ArrayPush(presetLabels, "16 CM");
 
     let presetActions: array<CName>;
-    ArrayPush(presetActions, n"preset0");
     ArrayPush(presetActions, n"preset1");
     ArrayPush(presetActions, n"preset2");
     ArrayPush(presetActions, n"preset3");
     ArrayPush(presetActions, n"preset4");
 
+    let pStartX: Float = 132.0;
     let pGap: Float = 12.0;
-    let pW: Float = (innerW - (pGap * 4.0)) / 5.0;
+    let pW: Float = (innerW - pStartX - (pGap * 3.0)) / 4.0;
     let i: Int32 = 0;
-    while i < 5 {
+    while i < 4 {
       let btn: ref<FootwearPillButton> = FootwearPillButton.Create(
         ctrlGroup,
         presetActions[i],
         presetLabels[i],
-        Cast<Float>(i) * (pW + pGap),
-        334.0,
+        pStartX + (Cast<Float>(i) * (pW + pGap)),
+        presetY,
         pW,
-        54.0,
-        24,
+        42.0,
+        22,
         this
       );
+      btn.SetSubtle(true);
       ArrayPush(this.m_presetBtns, btn);
       i += 1;
     };
 
-    // Telemetry card strip
-    let teleY: Float = 408.0;
-    let teleH: Float = 96.0;
-    let teleBg: ref<inkRectangle> = FootwearTheme.Rect(n"teleBg", n"MainColors.DarkRed", 0.22);
-    teleBg.SetAnchor(inkEAnchor.TopLeft);
-    teleBg.SetMargin(inkMargin(0.0, teleY, 0.0, 0.0));
-    teleBg.SetSize(Vector2(innerW, teleH));
-    teleBg.Reparent(ctrlGroup);
+    this.m_platAxis = FootwearSliderAxis.Create(
+      ctrlGroup,
+      n"platform",
+      "PLATFORM SOLE",
+      "TPP & PHOTO",
+      0.0,
+      206.0,
+      innerW,
+      FootwearHeightLimits.GetMaxPlatformCm(),
+      0.0,
+      this
+    );
 
-    FootwearTheme.Line(ctrlGroup, n"teleTop", 0.0, teleY, innerW, 2.0, n"MainColors.DarkRed", 0.80);
-
-    let colW: Float = innerW / 3.0;
-    this.m_teleLift = this.BuildTelemetryCol(ctrlGroup, n"colLift", 18.0, teleY + 12.0, "EFFECTIVE LIFT", n"MainColors.ActiveBlue");
-    this.m_telePersp = this.BuildTelemetryCol(ctrlGroup, n"colPersp", colW + 14.0, teleY + 12.0, "VIEW MODE", n"MainColors.White");
-    this.m_teleStatus = this.BuildTelemetryCol(ctrlGroup, n"colStatus", (colW * 2.0) + 14.0, teleY + 12.0, "STATE", n"MainColors.Yellow");
-
-    // Primary footer actions
-    let footY: Float = 524.0;
+    // Primary 2-button footer actions (Close lives at top-right [X] + ESC/<key> hint)
+    let footY: Float = 366.0;
     let footGap: Float = 16.0;
-    let footW: Float = (innerW - (footGap * 2.0)) / 3.0;
-    this.m_btnSave = FootwearPillButton.Create(ctrlGroup, n"saveOverride", "SAVE OVERRIDE", 0.0, footY, footW, 64.0, 26, this);
-    this.m_btnRevert = FootwearPillButton.Create(ctrlGroup, n"revertDefault", "REVERT DEFAULT", footW + footGap, footY, footW, 64.0, 26, this);
-    this.m_btnClose = FootwearPillButton.Create(ctrlGroup, n"close", "CLOSE [ESC]", (footW + footGap) * 2.0, footY, footW, 64.0, 24, this);
+    let footW: Float = (innerW - footGap) / 2.0;
+    this.m_btnSave = FootwearPillButton.Create(ctrlGroup, n"saveOverride", "SAVE OVERRIDE", 0.0, footY, footW, 60.0, 26, this);
+    this.m_btnRevert = FootwearPillButton.Create(ctrlGroup, n"revertDefault", "REVERT DEFAULT", footW + footGap, footY, footW, 60.0, 24, this);
+    this.m_btnRevert.SetSubtle(true);
 
-    // Footer keybind hint strip
-    let hintText: ref<inkText> = FootwearTheme.Caps(n"hintText", 22, n"Regular", n"MainColors.MildRed");
+    // Bottom footer separator + quiet close keybind hint (left) & muted TDBID (right)
+    FootwearTheme.Line(panel, n"footerRule", padX, 656.0, innerW, 1.0, n"MainColors.DarkRed", 0.55);
+
+    let hintText: ref<inkText> = FootwearTheme.Caps(n"hintText", 20, n"Regular", n"MainColors.MildRed");
     hintText.SetAnchor(inkEAnchor.TopLeft);
-    hintText.SetMargin(inkMargin(padX, 858.0, 0.0, 0.0));
+    hintText.SetMargin(inkMargin(padX, 678.0, 0.0, 0.0));
+    hintText.SetOpacity(0.85);
     hintText.SetText("");
     hintText.Reparent(panel);
     this.m_hintText = hintText;
-  }
 
-  private func BuildTelemetryCol(
-    parent: ref<inkCompoundWidget>,
-    name: CName,
-    x: Float,
-    y: Float,
-    caption: String,
-    valColor: CName
-  ) -> ref<inkText> {
-    let cap: ref<inkText> = FootwearTheme.Caps(StringToName(NameToString(name) + "Cap"), 20, n"Semi-Bold", n"MainColors.MildRed");
-    cap.SetAnchor(inkEAnchor.TopLeft);
-    cap.SetMargin(inkMargin(x, y, 0.0, 0.0));
-    cap.SetText(caption);
-    cap.Reparent(parent);
-
-    let val: ref<inkText> = FootwearTheme.Caps(StringToName(NameToString(name) + "Val"), 30, n"Bold", valColor);
-    val.SetAnchor(inkEAnchor.TopLeft);
-    val.SetMargin(inkMargin(x, y + 32.0, 0.0, 0.0));
-    val.SetText("--");
-    val.Reparent(parent);
-    return val;
+    let idMeta: ref<inkText> = FootwearTheme.Label(n"shoeIdMeta", 18, n"Regular", n"MainColors.MildRed");
+    idMeta.SetAnchor(inkEAnchor.TopRight);
+    idMeta.SetAnchorPoint(Vector2(1.0, 0.0));
+    idMeta.SetMargin(inkMargin(0.0, 680.0, padX, 0.0));
+    idMeta.SetSize(Vector2(470.0, 24.0));
+    idMeta.SetWrapping(false, 470.0);
+    idMeta.SetHAlign(inkEHorizontalAlign.Right);
+    idMeta.SetOpacity(0.45);
+    idMeta.SetText("");
+    idMeta.Reparent(panel);
+    this.m_shoeIdMeta = idMeta;
   }
 
   public func RefreshFromSystem(forceAxes: Bool) -> Void {
@@ -464,14 +453,11 @@ public class FootwearCalibratorPopup extends InGamePopup {
       this.m_btnFocusBoots.SetText(focusBoots ? "FOCUS BOOTS: ON" : "FOCUS BOOTS: OFF");
       this.m_btnFocusBoots.SetSelected(focusBoots);
     };
-    if IsDefined(this.m_btnClose) {
-      this.m_btnClose.SetText("CLOSE [" + closeHintLbl + "]");
-    };
     if IsDefined(this.m_btnEmptyClose) {
       this.m_btnEmptyClose.SetText("CLOSE [" + closeHintLbl + "]");
     };
     if IsDefined(this.m_hintText) {
-      this.m_hintText.SetText("UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [" + closeHintLbl + "]");
+      this.m_hintText.SetText("CLOSE: [" + closeHintLbl + "]");
     };
 
     let itemID: ItemID = system.GetEquippedFootwearID();
@@ -492,6 +478,12 @@ public class FootwearCalibratorPopup extends InGamePopup {
       if IsDefined(this.m_shoeSub) {
         this.m_shoeSub.SetText("Equip shoes or boots in inventory for live adjustments.");
       };
+      if IsDefined(this.m_statusBadge) {
+        this.m_statusBadge.SetText("");
+      };
+      if IsDefined(this.m_shoeIdMeta) {
+        this.m_shoeIdMeta.SetText("");
+      };
       return;
     };
 
@@ -505,8 +497,8 @@ public class FootwearCalibratorPopup extends InGamePopup {
     if IsDefined(this.m_shoeTitle) {
       this.m_shoeTitle.SetText(StrLen(displayName) > 0 ? displayName : shoeKey);
     };
-    if IsDefined(this.m_shoeSub) {
-      this.m_shoeSub.SetText("SOURCE: [" + system.GetSettingsSource() + "]  •  " + shoeKey);
+    if IsDefined(this.m_shoeIdMeta) {
+      this.m_shoeIdMeta.SetText("ID: " + shoeKey);
     };
 
     let heelCm: Float = system.GetCurrentHeelHeight() * 100.0;
@@ -538,24 +530,25 @@ public class FootwearCalibratorPopup extends InGamePopup {
     let player: ref<PlayerPuppet> = this.GetPlayer();
     let isTpp: Bool = IsDefined(player) && system.IsTPPActive(player);
     let effCm: Float = (isTpp ? system.GetEffectivePlatformOffset() : system.GetEffectiveOffset()) * 100.0;
-    if IsDefined(this.m_teleLift) {
-      this.m_teleLift.SetText("+" + FloatToStringPrec(effCm, 1) + " cm");
+    let viewLbl: String = isTpp ? "TPP" : "FPP";
+
+    if IsDefined(this.m_shoeSub) {
+      this.m_shoeSub.SetText(
+        "Source: " + system.GetSettingsSource()
+        + "  •  Active Lift: +" + FloatToStringPrec(effCm, 1) + " cm (" + viewLbl + ")"
+      );
     };
 
-    if IsDefined(this.m_telePersp) {
-      this.m_telePersp.SetText(isTpp ? "TPP (ITP)" : "FPP");
-    };
-
-    if IsDefined(this.m_teleStatus) {
+    if IsDefined(this.m_statusBadge) {
       if system.IsSuppressed() {
-        FootwearTheme.Paint(this.m_teleStatus, n"MainColors.Yellow");
-        this.m_teleStatus.SetText("SUPPRESSED");
+        FootwearTheme.Paint(this.m_statusBadge, n"MainColors.Yellow");
+        this.m_statusBadge.SetText("SUPPRESSED");
       } else if system.HasDirtyOverride() {
-        FootwearTheme.Paint(this.m_teleStatus, n"MainColors.Yellow");
-        this.m_teleStatus.SetText("UNSAVED LIVE");
+        FootwearTheme.Paint(this.m_statusBadge, n"MainColors.Yellow");
+        this.m_statusBadge.SetText("UNSAVED LIVE");
       } else {
-        FootwearTheme.Paint(this.m_teleStatus, n"MainColors.ActiveBlue");
-        this.m_teleStatus.SetText("LIVE SYNCED");
+        FootwearTheme.Paint(this.m_statusBadge, n"MainColors.ActiveBlue");
+        this.m_statusBadge.SetText("LIVE SYNCED");
       };
     };
 
@@ -589,11 +582,6 @@ public class FootwearCalibratorPopup extends InGamePopup {
       this.m_platAxis.SetValueCm(appliedPlatCm, false, false);
     };
 
-    if IsDefined(this.m_shoeSub) {
-      let itemID: ItemID = system.GetEquippedFootwearID();
-      let shoeKey: String = ItemID.IsValid(itemID) ? TDBID.ToStringDEBUG(ItemID.GetTDBID(itemID)) : "";
-      this.m_shoeSub.SetText("SOURCE: [" + system.GetSettingsSource() + "]  •  " + shoeKey);
-    };
     this.UpdatePresetHighlights(appliedHeelCm);
     this.UpdateTelemetry(system);
   }

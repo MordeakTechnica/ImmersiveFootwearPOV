@@ -97,6 +97,7 @@ public class FootwearPillButton {
   private let m_disabled: Bool;
   private let m_hovered: Bool;
   private let m_highlightAccent: Bool;
+  private let m_subtle: Bool;
 
   public static func Create(
     parent: ref<inkCompoundWidget>,
@@ -173,6 +174,14 @@ public class FootwearPillButton {
     this.RefreshVisuals();
   }
 
+  public func SetSubtle(subtle: Bool) -> Void {
+    if Equals(this.m_subtle, subtle) {
+      return;
+    };
+    this.m_subtle = subtle;
+    this.RefreshVisuals();
+  }
+
   public func SetDisabled(disabled: Bool) -> Void {
     if Equals(this.m_disabled, disabled) {
       return;
@@ -232,11 +241,22 @@ public class FootwearPillButton {
       return;
     };
 
+    if this.m_subtle {
+      FootwearTheme.Paint(this.m_fill, n"MainColors.Black");
+      this.m_fill.SetOpacity(0.32);
+      FootwearTheme.Paint(this.m_frame, n"MainColors.DarkRed");
+      this.m_frame.SetOpacity(0.30);
+      FootwearTheme.Paint(this.m_text, n"MainColors.MildRed");
+      this.m_text.SetOpacity(0.92);
+      return;
+    };
+
     FootwearTheme.Paint(this.m_fill, n"MainColors.DarkRed");
     this.m_fill.SetOpacity(0.28);
     FootwearTheme.Paint(this.m_frame, n"MainColors.Red");
     this.m_frame.SetOpacity(0.62);
     FootwearTheme.Paint(this.m_text, n"MainColors.MildRed");
+    this.m_text.SetOpacity(1.0);
   }
 
   protected cb func OnButtonHoverOver(evt: ref<inkPointerEvent>) -> Bool {
@@ -275,6 +295,7 @@ public class FootwearNumberInput extends HubTextInput {
     let inputHeight: Float = 40.0;
     let textPadding: Vector2 = Vector2(10.0, (inputHeight - Cast<Float>(fontSize)) / 2.0 - 2.0);
     this.m_text.SetFontSize(fontSize);
+    FootwearTheme.Paint(this.m_text.GetRootWidget(), n"MainColors.Yellow");
     this.m_root.SetHeight(inputHeight);
     this.m_wrapper.SetMargin(inkMargin(textPadding.X, textPadding.Y, textPadding.X, 0.0));
 
@@ -372,6 +393,7 @@ public class FootwearSliderAxis {
     parent: ref<inkCompoundWidget>,
     axisId: CName,
     title: String,
+    subtitle: String,
     x: Float,
     y: Float,
     width: Float,
@@ -391,25 +413,35 @@ public class FootwearSliderAxis {
     block.SetAnchor(inkEAnchor.TopLeft);
     block.SetAnchorPoint(Vector2(0.0, 0.0));
     block.SetMargin(inkMargin(x, y, 0.0, 0.0));
-    block.SetSize(Vector2(width, 132.0));
+    block.SetSize(Vector2(width, 136.0));
     block.Reparent(parent);
 
     // Subtle dark recessed axis backdrop
-    let card: ref<inkImage> = FootwearTheme.Slice(n"cardBg", n"cell_bg", n"MainColors.Black", 0.42);
+    let card: ref<inkImage> = FootwearTheme.Slice(n"cardBg", n"cell_bg", n"MainColors.Black", 0.38);
     card.SetAnchor(inkEAnchor.Fill);
     card.Reparent(block);
 
-    let cardLine: ref<inkImage> = FootwearTheme.Slice(n"cardBorder", n"cell_fg", n"MainColors.DarkRed", 0.65);
+    let cardLine: ref<inkImage> = FootwearTheme.Slice(n"cardBorder", n"cell_fg", n"MainColors.DarkRed", 0.45);
     cardLine.SetAnchor(inkEAnchor.Fill);
     cardLine.Reparent(block);
 
-    // Header row: axis title on left, editable manual cm input + unit + quick reset on right
-    let titleLabel: ref<inkText> = FootwearTheme.Caps(n"axisTitle", 28, n"Semi-Bold", n"MainColors.Red");
+    // Header row: crisp white title + muted role tag on left, manual cm input + reset on right
+    let titleLabel: ref<inkText> = FootwearTheme.Caps(n"axisTitle", 28, n"Bold", n"MainColors.White");
     titleLabel.SetAnchor(inkEAnchor.TopLeft);
     titleLabel.SetAnchorPoint(Vector2(0.0, 0.0));
     titleLabel.SetMargin(inkMargin(22.0, 14.0, 0.0, 0.0));
     titleLabel.SetText(title);
     titleLabel.Reparent(block);
+
+    if StrLen(subtitle) > 0 {
+      let subLabel: ref<inkText> = FootwearTheme.Caps(n"axisSubtitle", 20, n"Semi-Bold", n"MainColors.MildRed");
+      subLabel.SetAnchor(inkEAnchor.TopLeft);
+      subLabel.SetAnchorPoint(Vector2(0.0, 0.0));
+      subLabel.SetMargin(inkMargin(234.0, 20.0, 0.0, 0.0));
+      subLabel.SetOpacity(0.65);
+      subLabel.SetText(subtitle);
+      subLabel.Reparent(block);
+    };
 
     let input: ref<FootwearNumberInput> = FootwearNumberInput.CreateCompact();
     input.SetName(StringToName(NameToString(axisId) + "Input"));
@@ -418,26 +450,29 @@ public class FootwearSliderAxis {
     input.SetWidth(116.0);
     input.GetRootWidget().SetAnchor(inkEAnchor.TopRight);
     input.GetRootWidget().SetAnchorPoint(Vector2(1.0, 0.0));
-    input.GetRootWidget().SetMargin(inkMargin(0.0, 11.0, 174.0, 0.0));
+    input.GetRootWidget().SetMargin(inkMargin(0.0, 12.0, 174.0, 0.0));
     input.Reparent(block);
     axis.m_input = input;
     axis.SetInputTextSafe(FloatToStringPrec(axis.m_valueCm, 1));
     input.RegisterToCallback(n"OnInput", axis, n"OnInputChanged");
     input.RegisterToCallback(n"OnCommit", axis, n"OnInputCommitted");
 
-    let unitLabel: ref<inkText> = FootwearTheme.Caps(n"axisUnit", 24, n"Semi-Bold", n"MainColors.MildRed");
+    let unitLabel: ref<inkText> = FootwearTheme.Caps(n"axisUnit", 22, n"Semi-Bold", n"MainColors.MildRed");
     unitLabel.SetAnchor(inkEAnchor.TopRight);
     unitLabel.SetAnchorPoint(Vector2(1.0, 0.0));
-    unitLabel.SetMargin(inkMargin(0.0, 17.0, 130.0, 0.0));
+    unitLabel.SetMargin(inkMargin(0.0, 20.0, 130.0, 0.0));
+    unitLabel.SetOpacity(0.75);
     unitLabel.SetText("CM");
     unitLabel.Reparent(block);
     axis.m_valueText = unitLabel;
 
     let resetAction: CName = Equals(axisId, n"heel") ? n"resetHeel" : n"resetPlatform";
-    ArrayPush(axis.m_buttons, FootwearPillButton.Create(block, resetAction, "0.0", width - 114.0, 12.0, 94.0, 38.0, 24, owner));
+    let resetBtn: ref<FootwearPillButton> = FootwearPillButton.Create(block, resetAction, "0.0", width - 114.0, 13.0, 94.0, 38.0, 22, owner);
+    resetBtn.SetSubtle(true);
+    ArrayPush(axis.m_buttons, resetBtn);
 
     // Controls row: [-1] [-.1] [=== Slider ===] [+.1] [+1]
-    let rowY: Float = 66.0;
+    let rowY: Float = 72.0;
     let stepW: Float = 72.0;
     let stepH: Float = 46.0;
     let gap: Float = 8.0;
@@ -451,10 +486,18 @@ public class FootwearSliderAxis {
     let incFine: CName = Equals(axisId, n"heel") ? n"heelIncFine" : n"platIncFine";
     let incCoarse: CName = Equals(axisId, n"heel") ? n"heelIncCoarse" : n"platIncCoarse";
 
-    ArrayPush(axis.m_buttons, FootwearPillButton.Create(block, decCoarse, "-1", padX, rowY, stepW, stepH, 24, owner));
-    ArrayPush(axis.m_buttons, FootwearPillButton.Create(block, decFine, "-.1", padX + stepW + gap, rowY, stepW, stepH, 24, owner));
-    ArrayPush(axis.m_buttons, FootwearPillButton.Create(block, incFine, "+.1", sliderX + sliderW + gap, rowY, stepW, stepH, 24, owner));
-    ArrayPush(axis.m_buttons, FootwearPillButton.Create(block, incCoarse, "+1", sliderX + sliderW + (gap * 2.0) + stepW, rowY, stepW, stepH, 24, owner));
+    let btnDecC: ref<FootwearPillButton> = FootwearPillButton.Create(block, decCoarse, "-1", padX, rowY, stepW, stepH, 24, owner);
+    let btnDecF: ref<FootwearPillButton> = FootwearPillButton.Create(block, decFine, "-.1", padX + stepW + gap, rowY, stepW, stepH, 24, owner);
+    let btnIncF: ref<FootwearPillButton> = FootwearPillButton.Create(block, incFine, "+.1", sliderX + sliderW + gap, rowY, stepW, stepH, 24, owner);
+    let btnIncC: ref<FootwearPillButton> = FootwearPillButton.Create(block, incCoarse, "+1", sliderX + sliderW + (gap * 2.0) + stepW, rowY, stepW, stepH, 24, owner);
+    btnDecC.SetSubtle(true);
+    btnDecF.SetSubtle(true);
+    btnIncF.SetSubtle(true);
+    btnIncC.SetSubtle(true);
+    ArrayPush(axis.m_buttons, btnDecC);
+    ArrayPush(axis.m_buttons, btnDecF);
+    ArrayPush(axis.m_buttons, btnIncF);
+    ArrayPush(axis.m_buttons, btnIncC);
 
     let sliderArea: ref<inkCanvas> = new inkCanvas();
     sliderArea.SetName(n"slidingArea");
