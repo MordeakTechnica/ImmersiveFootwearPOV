@@ -3,6 +3,9 @@ module ImmersiveFootwearPOV
 @if(ModuleExists("Codeware.UI"))
 import Codeware.UI.*
 
+@if(ModuleExists("Codeware.UI.TextInput"))
+import Codeware.UI.TextInput.*
+
 // =============================================================================
 // Immersive Footwear POV - Native Cyberpunk UI Primitives
 // Shared visual styling, pill buttons, and live slider axes built directly on
@@ -265,6 +268,87 @@ public class FootwearPillButton {
 }
 
 @if(ModuleExists("Codeware.UI"))
+public class FootwearNumberInput extends HubTextInput {
+  protected func CreateWidgets() {
+    super.CreateWidgets();
+    let fontSize: Int32 = 28;
+    let inputHeight: Float = 40.0;
+    let textPadding: Vector2 = Vector2(10.0, (inputHeight - Cast<Float>(fontSize)) / 2.0 - 2.0);
+    this.m_text.SetFontSize(fontSize);
+    this.m_root.SetHeight(inputHeight);
+    this.m_wrapper.SetMargin(inkMargin(textPadding.X, textPadding.Y, textPadding.X, 0.0));
+
+    let grid: inkMargin = inkMargin(6.0, 6.0, 6.0, 6.0);
+    if IsDefined(this.m_bg) {
+      this.m_bg.SetTexturePart(n"cell_bg");
+      this.m_bg.SetNineSliceGrid(grid);
+      this.m_bg.SetOpacity(0.75);
+    };
+    if IsDefined(this.m_fill) {
+      this.m_fill.SetTexturePart(n"cell_bg");
+      this.m_fill.SetNineSliceGrid(grid);
+    };
+    if IsDefined(this.m_frame) {
+      this.m_frame.SetTexturePart(n"cell_fg");
+      this.m_frame.SetNineSliceGrid(grid);
+      FootwearTheme.Paint(this.m_frame, n"MainColors.Red");
+      this.m_frame.SetOpacity(0.68);
+    };
+    if IsDefined(this.m_hover) {
+      this.m_hover.SetTexturePart(n"cell_fg");
+      this.m_hover.SetNineSliceGrid(grid);
+      FootwearTheme.Paint(this.m_hover, n"MainColors.ActiveBlue");
+    };
+    if IsDefined(this.m_focus) {
+      this.m_focus.SetTexturePart(n"cell_fg");
+      this.m_focus.SetNineSliceGrid(grid);
+      FootwearTheme.Paint(this.m_focus, n"MainColors.Yellow");
+    };
+  }
+
+  private static func IsNumericChar(ch: String) -> Bool {
+    return Equals(ch, "0") || Equals(ch, "1") || Equals(ch, "2") || Equals(ch, "3")
+      || Equals(ch, "4") || Equals(ch, "5") || Equals(ch, "6") || Equals(ch, "7")
+      || Equals(ch, "8") || Equals(ch, "9") || Equals(ch, ".") || Equals(ch, ",");
+  }
+
+  protected func ProcessInputEvent(event: ref<inkKeyInputEvent>) {
+    if Equals(event.GetKey(), EInputKey.IK_Enter) {
+      this.CallCustomCallback(n"OnCommit");
+      GameInstance.GetInkSystem().SetFocus(null);
+      return;
+    };
+    if !event.IsControlDown() && !event.IsAltDown() && event.IsCharacter() {
+      if !FootwearNumberInput.IsNumericChar(event.GetCharacter()) {
+        return;
+      };
+    };
+    super.ProcessInputEvent(event);
+  }
+
+  protected cb func OnReleaseKey(event: ref<inkPointerEvent>) {
+    if !this.m_isDisabled && !this.m_isFocused && event.IsAction(n"click") {
+      this.m_selectAllOnFocus = true;
+      this.RequestSetFocus();
+      event.Handle();
+      return;
+    };
+    super.OnReleaseKey(event);
+  }
+
+  protected cb func OnFocusLost(event: ref<inkEvent>) {
+    super.OnFocusLost(event);
+    this.CallCustomCallback(n"OnCommit");
+  }
+
+  public static func CreateCompact() -> ref<FootwearNumberInput> {
+    let self: ref<FootwearNumberInput> = new FootwearNumberInput();
+    self.CreateInstance();
+    return self;
+  }
+}
+
+@if(ModuleExists("Codeware.UI"))
 public class FootwearSliderAxis {
   private let m_axisId: CName;
   private let m_owner: wref<FootwearCalibratorPopup>;
@@ -273,8 +357,10 @@ public class FootwearSliderAxis {
   private let m_valueCm: Float;
   private let m_sliderW: Float;
   private let m_suppressCallback: Bool;
+  private let m_suppressInput: Bool;
   private let m_isHovered: Bool;
 
+  private let m_input: ref<FootwearNumberInput>;
   private let m_valueText: ref<inkText>;
   private let m_fillBar: ref<inkRectangle>;
   private let m_handle: ref<inkRectangle>;
@@ -317,7 +403,7 @@ public class FootwearSliderAxis {
     cardLine.SetAnchor(inkEAnchor.Fill);
     cardLine.Reparent(block);
 
-    // Header row: axis title on left, crisp readout + quick reset on right
+    // Header row: axis title on left, editable manual cm input + unit + quick reset on right
     let titleLabel: ref<inkText> = FootwearTheme.Caps(n"axisTitle", 28, n"Semi-Bold", n"MainColors.Red");
     titleLabel.SetAnchor(inkEAnchor.TopLeft);
     titleLabel.SetAnchorPoint(Vector2(0.0, 0.0));
@@ -325,14 +411,27 @@ public class FootwearSliderAxis {
     titleLabel.SetText(title);
     titleLabel.Reparent(block);
 
-    let valLabel: ref<inkText> = FootwearTheme.Label(n"axisValue", 36, n"Bold", n"MainColors.Yellow");
-    valLabel.SetAnchor(inkEAnchor.TopRight);
-    valLabel.SetAnchorPoint(Vector2(1.0, 0.0));
-    valLabel.SetMargin(inkMargin(0.0, 10.0, 132.0, 0.0));
-    valLabel.SetHAlign(inkEHorizontalAlign.Right);
-    valLabel.SetText(FloatToStringPrec(axis.m_valueCm, 1) + " cm");
-    valLabel.Reparent(block);
-    axis.m_valueText = valLabel;
+    let input: ref<FootwearNumberInput> = FootwearNumberInput.CreateCompact();
+    input.SetName(StringToName(NameToString(axisId) + "Input"));
+    input.SetDefaultText("0.0");
+    input.SetMaxLength(6);
+    input.SetWidth(116.0);
+    input.GetRootWidget().SetAnchor(inkEAnchor.TopRight);
+    input.GetRootWidget().SetAnchorPoint(Vector2(1.0, 0.0));
+    input.GetRootWidget().SetMargin(inkMargin(0.0, 11.0, 174.0, 0.0));
+    input.Reparent(block);
+    axis.m_input = input;
+    axis.SetInputTextSafe(FloatToStringPrec(axis.m_valueCm, 1));
+    input.RegisterToCallback(n"OnInput", axis, n"OnInputChanged");
+    input.RegisterToCallback(n"OnCommit", axis, n"OnInputCommitted");
+
+    let unitLabel: ref<inkText> = FootwearTheme.Caps(n"axisUnit", 24, n"Semi-Bold", n"MainColors.MildRed");
+    unitLabel.SetAnchor(inkEAnchor.TopRight);
+    unitLabel.SetAnchorPoint(Vector2(1.0, 0.0));
+    unitLabel.SetMargin(inkMargin(0.0, 17.0, 130.0, 0.0));
+    unitLabel.SetText("CM");
+    unitLabel.Reparent(block);
+    axis.m_valueText = unitLabel;
 
     let resetAction: CName = Equals(axisId, n"heel") ? n"resetHeel" : n"resetPlatform";
     ArrayPush(axis.m_buttons, FootwearPillButton.Create(block, resetAction, "0.0", width - 114.0, 12.0, 94.0, 38.0, 24, owner));
@@ -450,9 +549,93 @@ public class FootwearSliderAxis {
     this.NudgeTenths(FootwearSliderAxis.ToTenths(deltaCm));
   }
 
+  public func IsInputFocused() -> Bool {
+    return IsDefined(this.m_input) && this.m_input.IsFocused();
+  }
+
+  public func ClearInputFocus() -> Void {
+    if this.IsInputFocused() {
+      GameInstance.GetInkSystem().SetFocus(null);
+    };
+  }
+
+  private func SetInputTextSafe(text: String) -> Void {
+    if !IsDefined(this.m_input) || Equals(this.m_input.GetText(), text) {
+      return;
+    };
+    this.m_suppressInput = true;
+    this.m_input.SetText(text);
+    this.m_suppressInput = false;
+  }
+
+  private static func HasDigit(str: String) -> Bool {
+    let i: Int32 = 0;
+    let len: Int32 = StrLen(str);
+    while i < len {
+      let ch: String = StrMid(str, i, 1);
+      if Equals(ch, "0") || Equals(ch, "1") || Equals(ch, "2") || Equals(ch, "3")
+        || Equals(ch, "4") || Equals(ch, "5") || Equals(ch, "6") || Equals(ch, "7")
+        || Equals(ch, "8") || Equals(ch, "9") {
+        return true;
+      };
+      i += 1;
+    };
+    return false;
+  }
+
+  private func ApplyTypedText(commit: Bool) -> Void {
+    if !IsDefined(this.m_input) {
+      return;
+    };
+    let raw: String = this.m_input.GetText();
+    let normalized: String = StrReplace(raw, ",", ".");
+    if !FootwearSliderAxis.HasDigit(normalized) {
+      if commit {
+        this.SetInputTextSafe(FloatToStringPrec(this.m_valueCm, 1));
+      };
+      return;
+    };
+
+    let parsed: Float = FootwearSliderAxis.SnapTenths(ClampF(StringToFloat(normalized), 0.0, this.m_maxCm));
+    let changed: Bool = AbsF(parsed - this.m_valueCm) > 0.01;
+    this.m_valueCm = parsed;
+
+    let norm: Float = ClampF(parsed / this.m_maxCm, 0.0, 1.0);
+    if IsDefined(this.m_fillBar) {
+      this.m_fillBar.SetSize(Vector2(MaxF(0.0, this.m_sliderW * norm), 14.0));
+    };
+    if IsDefined(this.m_sliderCtrl) && AbsF(this.m_sliderCtrl.GetProgress() - norm) > 0.001 {
+      this.m_suppressCallback = true;
+      this.m_sliderCtrl.ChangeProgress(norm);
+      this.m_suppressCallback = false;
+    };
+    if commit {
+      this.SetInputTextSafe(FloatToStringPrec(this.m_valueCm, 1));
+    };
+    if IsDefined(this.m_owner) && (changed || commit) {
+      this.m_owner.OnAxisValue(this.m_axisId, this.m_valueCm, commit);
+    };
+  }
+
+  protected cb func OnInputChanged(widget: wref<inkWidget>) -> Bool {
+    if this.m_suppressInput {
+      return false;
+    };
+    this.ApplyTypedText(false);
+    return false;
+  }
+
+  protected cb func OnInputCommitted(widget: wref<inkWidget>) -> Bool {
+    if this.m_suppressInput {
+      return false;
+    };
+    this.ApplyTypedText(true);
+    return false;
+  }
+
   private func UpdateReadoutAndFill(norm: Float) -> Void {
-    if IsDefined(this.m_valueText) {
-      this.m_valueText.SetText(FloatToStringPrec(this.m_valueCm, 1) + " cm");
+    if !this.IsInputFocused() {
+      this.SetInputTextSafe(FloatToStringPrec(this.m_valueCm, 1));
     };
     if IsDefined(this.m_fillBar) {
       this.m_fillBar.SetSize(Vector2(MaxF(0.0, this.m_sliderW * ClampF(norm, 0.0, 1.0)), 14.0));
@@ -491,6 +674,7 @@ public class FootwearSliderAxis {
     if this.m_suppressCallback {
       return false;
     };
+    this.ClearInputFocus();
     this.SyncFromSliderProgress(progress, false);
     return false;
   }
@@ -506,6 +690,7 @@ public class FootwearSliderAxis {
 
   protected cb func OnAreaRelease(evt: ref<inkPointerEvent>) -> Bool {
     if evt.IsAction(n"click") {
+      this.ClearInputFocus();
       if IsDefined(this.m_sliderCtrl) {
         this.SyncFromSliderProgress(this.m_sliderCtrl.GetProgress(), true);
       } else if IsDefined(this.m_owner) {

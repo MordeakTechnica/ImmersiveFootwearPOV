@@ -27,6 +27,8 @@ public class FootwearCalibratorPopup extends InGamePopup {
   private let m_btnFocusBoots: ref<FootwearPillButton>;
   private let m_btnSave: ref<FootwearPillButton>;
   private let m_btnRevert: ref<FootwearPillButton>;
+  private let m_btnClose: ref<FootwearPillButton>;
+  private let m_btnEmptyClose: ref<FootwearPillButton>;
   private let m_ownedButtons: array<ref<FootwearPillButton>>;
 
   private let m_heelAxis: ref<FootwearSliderAxis>;
@@ -59,6 +61,11 @@ public class FootwearCalibratorPopup extends InGamePopup {
 
   public func IsFinishedHidden() -> Bool {
     return this.m_hiddenDone;
+  }
+
+  public func IsInputFocused() -> Bool {
+    return (IsDefined(this.m_heelAxis) && this.m_heelAxis.IsInputFocused())
+      || (IsDefined(this.m_platAxis) && this.m_platAxis.IsInputFocused());
   }
 
   public func CloseForUnlock() -> Void {
@@ -292,7 +299,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
     emptyMsg.SetText("Equip a pair of shoes or boots in your Inventory or Wardrobe while this calibrator is open to adjust heel & platform elevation live.");
     emptyMsg.Reparent(emptyGroup);
 
-    ArrayPush(this.m_ownedButtons, FootwearPillButton.Create(emptyGroup, n"close", "CLOSE CALIBRATOR", 28.0, 280.0, 300.0, 60.0, 26, this));
+    this.m_btnEmptyClose = FootwearPillButton.Create(emptyGroup, n"close", "CLOSE [ESC]", 28.0, 280.0, 360.0, 60.0, 24, this);
 
     // Active controls container
     let ctrlGroup: ref<inkCanvas> = new inkCanvas();
@@ -397,7 +404,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
     let footW: Float = (innerW - (footGap * 2.0)) / 3.0;
     this.m_btnSave = FootwearPillButton.Create(ctrlGroup, n"saveOverride", "SAVE OVERRIDE", 0.0, footY, footW, 64.0, 26, this);
     this.m_btnRevert = FootwearPillButton.Create(ctrlGroup, n"revertDefault", "REVERT DEFAULT", footW + footGap, footY, footW, 64.0, 26, this);
-    ArrayPush(this.m_ownedButtons, FootwearPillButton.Create(ctrlGroup, n"close", "CLOSE", (footW + footGap) * 2.0, footY, footW, 64.0, 26, this));
+    this.m_btnClose = FootwearPillButton.Create(ctrlGroup, n"close", "CLOSE [ESC]", (footW + footGap) * 2.0, footY, footW, 64.0, 24, this);
 
     // Footer keybind hint strip
     let hintText: ref<inkText> = FootwearTheme.Caps(n"hintText", 22, n"Regular", n"MainColors.MildRed");
@@ -448,6 +455,7 @@ public class FootwearCalibratorPopup extends InGamePopup {
     let toggleKeyLbl: String = IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.calibratorHotkey) : "NUM 1";
     let unlockKeyLbl: String = usingPad ? (isPS5 ? "R3" : "RS") : (IsDefined(cfg) ? FootwearTheme.KeyDisplayLabel(cfg.cameraUnlockKey) : "C");
     let closeLbl: String = usingPad ? (isPS5 ? "CIRCLE" : "B") : "ESC";
+    let closeHintLbl: String = (!usingPad && NotEquals(toggleKeyLbl, "---")) ? (closeLbl + " / " + toggleKeyLbl) : closeLbl;
 
     if IsDefined(this.m_btnUnlockCam) {
       this.m_btnUnlockCam.SetText("UNLOCK CAMERA [" + unlockKeyLbl + "]");
@@ -456,12 +464,14 @@ public class FootwearCalibratorPopup extends InGamePopup {
       this.m_btnFocusBoots.SetText(focusBoots ? "FOCUS BOOTS: ON" : "FOCUS BOOTS: OFF");
       this.m_btnFocusBoots.SetSelected(focusBoots);
     };
+    if IsDefined(this.m_btnClose) {
+      this.m_btnClose.SetText("CLOSE [" + closeHintLbl + "]");
+    };
+    if IsDefined(this.m_btnEmptyClose) {
+      this.m_btnEmptyClose.SetText("CLOSE [" + closeHintLbl + "]");
+    };
     if IsDefined(this.m_hintText) {
-      if usingPad {
-        this.m_hintText.SetText("UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [" + closeLbl + "]");
-      } else {
-        this.m_hintText.SetText("TOGGLE: [" + toggleKeyLbl + "]  •  UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [" + closeLbl + "]");
-      };
+      this.m_hintText.SetText("UNLOCK CAMERA: [" + unlockKeyLbl + "]  •  CLOSE: [" + closeHintLbl + "]");
     };
 
     let itemID: ItemID = system.GetEquippedFootwearID();
@@ -589,6 +599,9 @@ public class FootwearCalibratorPopup extends InGamePopup {
   }
 
   public func OnPopupAction(action: CName) -> Void {
+    if IsDefined(this.m_heelAxis) { this.m_heelAxis.ClearInputFocus(); };
+    if IsDefined(this.m_platAxis) { this.m_platAxis.ClearInputFocus(); };
+
     let gi: GameInstance = this.GetGame();
     let system: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
     if !IsDefined(system) {

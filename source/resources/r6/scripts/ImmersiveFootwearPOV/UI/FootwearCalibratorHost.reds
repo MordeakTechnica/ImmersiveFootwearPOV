@@ -451,7 +451,14 @@ public class FootwearCalibratorHost extends ScriptableSystem {
       if !this.IsPopupOnTop(this.m_popup) {
         return;
       };
-      if key == EnumInt(EInputKey.IK_Escape) || key == EnumInt(EInputKey.IK_Pad_B_CIRCLE) || (cfg.calibratorHotkey > 0 && key == cfg.calibratorHotkey) {
+      if key == EnumInt(EInputKey.IK_Escape) || key == EnumInt(EInputKey.IK_Pad_B_CIRCLE) {
+        this.CloseCalibrator();
+        return;
+      };
+      if this.IsPopupInputFocused(this.m_popup) {
+        return;
+      };
+      if cfg.calibratorHotkey > 0 && key == cfg.calibratorHotkey {
         this.CloseCalibrator();
         return;
       };
@@ -539,6 +546,16 @@ public class FootwearCalibratorHost extends ScriptableSystem {
   @if(!ModuleExists("Codeware.UI"))
   private func IsPopupFinishedHidden(popup: ref<FootwearCalibratorPopup>) -> Bool {
     return true;
+  }
+
+  @if(ModuleExists("Codeware.UI"))
+  private func IsPopupInputFocused(popup: ref<FootwearCalibratorPopup>) -> Bool {
+    return IsDefined(popup) && popup.IsInputFocused();
+  }
+
+  @if(!ModuleExists("Codeware.UI"))
+  private func IsPopupInputFocused(popup: ref<FootwearCalibratorPopup>) -> Bool {
+    return false;
   }
 
   @if(ModuleExists("Codeware.UI"))
