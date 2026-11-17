@@ -47,7 +47,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
   private let m_driftCheckTimer: Float;
   private let m_lastItpLoggedMm: Float;
   private let m_lastItpLoggedMode: Int32;
-  private let m_rootElevationTarget: ref<TPPRootElevationTarget>;
   private let m_swayContext: ref<SwayContextData>;
   private let m_lastStrideFrame: Uint64;
   private let m_lastLocoFrame: Uint64;
@@ -108,7 +107,6 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_elevationCoordinator = ElevationActuatorCoordinator.Create();
     this.m_strideController = StrideController.Create();
     this.m_telemetry = FootwearTelemetryLogger.Create();
-    this.m_rootElevationTarget = new TPPRootElevationTarget();
   }
 
   private func GetEquipmentState() -> ref<FootwearEquipmentState> { this.EnsureServices(); return this.m_equipmentState; }
@@ -146,16 +144,18 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.InitConfigAndRCF();
     this.EnsurePresetsAndOverridesLoaded();
     FootwearWindowsController.StartTick(this.GetGameInstance());
+    let player: ref<PlayerPuppet> = GameInstance.GetPlayerSystem(this.GetGameInstance()).GetLocalPlayerMainGameObject() as PlayerPuppet;
+    if IsDefined(player) && player.IsAttached() {
+      this.CheckPerspectiveDrift(player);
+      this.UpdateEquippedFootwear(player);
+      this.QueuePostRestoreTick();
+    };
   }
 
   /**
-   * System detach cleanup. Restores any active root elevation offset and releases ITP lease before teardown.
+   * System detach cleanup. Releases any active ITP lease before teardown.
    */
   private func OnDetach() -> Void {
-    if IsDefined(this.m_rootElevationTarget) {
-      this.m_rootElevationTarget.RestoreOffset();
-      this.m_rootElevationTarget = null;
-    };
     ITPApiCalibratorAdapter.ReleaseGroundLease(this.GetGameInstance());
     this.m_isInitialized = false;
     this.m_hasTppInitialized = false;
@@ -169,16 +169,13 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_isInitialized = false;
     this.m_hasTppInitialized = false;
     this.m_driftCheckTimer = 0.0;
-    if IsDefined(this.m_rootElevationTarget) {
-      this.m_rootElevationTarget.RestoreOffset();
-    };
-    this.m_rootElevationTarget = new TPPRootElevationTarget();
     ITPApiCalibratorAdapter.ReleaseGroundLease(player.GetGame());
     this.m_lastItpLoggedMode = -1;
     this.m_lastItpLoggedMm = -1.0;
     this.m_activeNtpElevation = 0.0;
     this.GetSuppressionController().Reset();
     this.EnsurePresetsAndOverridesLoaded();
+    this.CheckPerspectiveDrift(player);
     this.UpdateEquippedFootwear(player);
     this.QueuePostRestoreTick();
     FootwearWindowsController.StartTick(this.GetGameInstance());
@@ -350,6 +347,9 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_isInitialized = true;
     this.GetTelemetry().LogFootwearUpdateIfChanged(state);
 
+    if !this.m_hasTppInitialized {
+      this.CheckPerspectiveDrift(player);
+    };
     this.RecalculateEffectiveOffset(player);
     this.LogTFPState(player);
     this.NotifyFootwearChanged(state.equippedFootwearID, state.currentHeelHeight, state.currentPlatformHeight, state.activeSource);
@@ -482,15 +482,8 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     return this.GetEffectivePlatformOffset();
   }
 
-  public func GetRootElevationTarget() -> ref<TPPRootElevationTarget> {
-    if !IsDefined(this.m_rootElevationTarget) {
-      this.m_rootElevationTarget = new TPPRootElevationTarget();
-    };
-    return this.m_rootElevationTarget;
-  }
-
   /**
-   * Re-asserts active third-person root elevation and shadow counter-offset each frame in TPP.
+   * Re-asserts active third-person skeletal elevation each frame in TPP.
    */
   public func RenewTPPElevationLease(player: ref<PlayerPuppet>) -> Void {
     if !IsDefined(player) || !this.m_lastTppActive {
@@ -518,7 +511,7 @@ public class ImmersiveFootwearPOVSystem extends ScriptableSystem {
     this.m_lastItpLoggedMode = mode;
     this.m_lastItpLoggedMm = mm;
     let cm: Float = offsetMeters * 100.0;
-    let driver: String = usedRootLift ? "Direct root SetLocalPosition" : "AnimGraph foot_elevation_offset (fallback)";
+    let driver: String = usedRootLift ? "Direct SetLocalPosition" : "AnimGraph foot_elevation_offset";
     FootwearRedLogger.LogDebug("ITP", s"ApplyHeightOffset: \(cm) cm (\(mm) mm) | Driver: \(driver) | Status: \(status)");
   }
 

@@ -6,157 +6,17 @@ import ImmersiveThirdPerson.*
 // =============================================================================
 // Immersive Footwear POV - Immersive Third Person (ITP) Integration
 // Real-time Third-Person Character Elevation Driver
-// Primary: Direct `n"root"` component SetLocalPosition (+1*H across root <- deformations <- shadow)
-// Fallback: Custom animgraph variable 'foot_elevation_offset'
+// Primary: Custom animgraph variable 'foot_elevation_offset' (skeletal Root/Hips lift)
+//          Keeps visible meshes, deformations, and shadow_rig synchronized in skeletal space.
 // =============================================================================
-
-public class TPPRootElevationTarget {
-  private let comp: wref<IPlacedComponent>;
-  private let hasBase: Bool;
-  private let baseX: Float;
-  private let baseY: Float;
-  private let baseZ: Float;
-  private let baseW: Float;
-  private let pendingRestore: Bool;
-  private let hasLastAnimState: Bool;
-  private let lastAnimUsedRootLift: Bool;
-  private let lastAnimOffset: Float;
-  private let lastAnimEntityID: EntityID;
-
-  private static func IsFinite(v: Float) -> Bool {
-    return (v - v) == 0.0;
-  }
-
-  private func Resolve(player: ref<PlayerPuppet>) -> Bool {
-    if !IsDefined(player) || !player.IsAttached() || player.IsDead() {
-      return false;
-    };
-    if IsDefined(this.comp) && this.hasBase {
-      let compEnt: wref<Entity> = this.comp.GetEntity();
-      if IsDefined(compEnt) && Equals(compEnt.GetEntityID(), player.GetEntityID()) {
-        return true;
-      };
-    };
-    if this.pendingRestore {
-      this.RestoreOffset();
-    };
-    this.hasBase = false;
-    this.pendingRestore = false;
-    this.hasLastAnimState = false;
-    this.comp = null;
-    let component: ref<IComponent> = player.FindComponentByName(n"root");
-    if !IsDefined(component) {
-      return false;
-    };
-    let animated: ref<AnimatedComponent> = component as AnimatedComponent;
-    let placed: ref<IPlacedComponent> = component as IPlacedComponent;
-    if !IsDefined(animated) || !IsDefined(placed) {
-      return false;
-    };
-    let pos: Vector4 = placed.GetLocalPosition();
-    if !TPPRootElevationTarget.IsFinite(pos.Z) || AbsF(pos.Z) > 2.0 {
-      return false;
-    };
-    this.baseX = TPPRootElevationTarget.IsFinite(pos.X) ? pos.X : 0.0;
-    this.baseY = TPPRootElevationTarget.IsFinite(pos.Y) ? pos.Y : 0.0;
-    this.baseZ = pos.Z;
-    this.baseW = TPPRootElevationTarget.IsFinite(pos.W) ? pos.W : 1.0;
-    this.hasBase = true;
-    this.comp = placed;
-    return true;
-  }
-
-  private func WriteZ(z: Float) -> Bool {
-    if !IsDefined(this.comp) || !TPPRootElevationTarget.IsFinite(z) {
-      return false;
-    };
-    let pos: Vector4 = this.comp.GetLocalPosition();
-    let x: Float = TPPRootElevationTarget.IsFinite(pos.X) ? pos.X : this.baseX;
-    let y: Float = TPPRootElevationTarget.IsFinite(pos.Y) ? pos.Y : this.baseY;
-    let w: Float = TPPRootElevationTarget.IsFinite(pos.W) ? pos.W : this.baseW;
-    this.comp.SetLocalPosition(new Vector4(x, y, z, w));
-    let back: Float = this.comp.GetLocalPosition().Z;
-    return TPPRootElevationTarget.IsFinite(back) && AbsF(back - z) <= 0.0001;
-  }
-
-  public func ApplyOffset(player: ref<PlayerPuppet>, offsetMeters: Float) -> Bool {
-    if !TPPRootElevationTarget.IsFinite(offsetMeters) {
-      return false;
-    };
-    if offsetMeters <= 0.00005 {
-      this.RestoreOffset();
-      return IsDefined(this.comp) || (IsDefined(player) && IsDefined(player.FindComponentByName(n"root") as IPlacedComponent));
-    };
-    if !this.Resolve(player) {
-      return false;
-    };
-    let want: Float = this.baseZ + offsetMeters;
-    let cur: Float = this.comp.GetLocalPosition().Z;
-    if !TPPRootElevationTarget.IsFinite(cur) || AbsF(cur - want) > 0.0001 {
-      if !this.WriteZ(want) {
-        return false;
-      };
-    };
-    this.pendingRestore = true;
-    return true;
-  }
-
-  public func SyncAnimInputsIfChanged(player: ref<PlayerPuppet>, usedRootLift: Bool, clampedOffset: Float) -> Void {
-    if !IsDefined(player) || !player.IsAttached() {
-      return;
-    };
-    let pid: EntityID = player.GetEntityID();
-    if this.hasLastAnimState
-      && Equals(this.lastAnimEntityID, pid)
-      && Equals(this.lastAnimUsedRootLift, usedRootLift)
-      && AbsF(this.lastAnimOffset - clampedOffset) <= 0.0001 {
-      return;
-    };
-    this.hasLastAnimState = true;
-    this.lastAnimEntityID = pid;
-    this.lastAnimUsedRootLift = usedRootLift;
-    this.lastAnimOffset = clampedOffset;
-    if usedRootLift {
-      // Clear skeletal fallback variable so direct root component elevation owns 100% of the lift.
-      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
-      // Counter-shift shadow rig feet/toes back down in Root Z to stay planted on the ground under lifted platform soles.
-      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", clampedOffset);
-    } else {
-      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
-      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", 0.0);
-    };
-  }
-
-  public func RestoreOffset() -> Void {
-    this.hasLastAnimState = false;
-    if !this.pendingRestore {
-      return;
-    };
-    let compEnt: wref<Entity> = IsDefined(this.comp) ? this.comp.GetEntity() : null;
-    if IsDefined(this.comp) && this.hasBase && IsDefined(compEnt) && compEnt.IsAttached() {
-      let cur: Float = this.comp.GetLocalPosition().Z;
-      if !TPPRootElevationTarget.IsFinite(cur) || AbsF(cur - this.baseZ) > 0.0001 {
-        if this.WriteZ(this.baseZ) {
-          this.pendingRestore = false;
-        };
-      } else {
-        this.pendingRestore = false;
-      };
-    } else {
-      this.pendingRestore = false;
-      this.hasBase = false;
-      this.comp = null;
-    };
-  }
-}
 
 public class ITPController {
 
   /**
-   * Sets dynamic vertical elevation on the player puppet for third-person perspective.
-   * Lifts only `n"root"` so linked `deformations` and `shadow` components inherit the same +1*H lift
-   * in lockstep without compounding or self-shadowing, while `shadow_platform_offset` plants the
-   * shadow-rig feet back to the floor. Falls back to `foot_elevation_offset` if `root` is missing.
+   * Sets dynamic vertical elevation on the player puppet for third-person perspective
+   * via the skeletal animgraph variable 'foot_elevation_offset'.
+   * Driving elevation in skeletal space keeps n"root", attached skinned meshes (RT/PT self-cast shadows),
+   * and shadow_rig synchronized without component SetLocalPosition desync.
    * @param player The local player puppet reference.
    * @param offsetMeters Elevation offset in meters (e.g. +0.085 for 8.5cm high platforms).
    * @return True if offset was successfully applied, false if player undefined.
@@ -176,27 +36,81 @@ public class ITPController {
     if (clampedOffset - clampedOffset) != 0.0 {
       clampedOffset = 0.0;
     };
-    let rootTarget: ref<TPPRootElevationTarget> = IsDefined(sys) ? sys.GetRootElevationTarget() : null;
-    let usedRootLift: Bool = IsDefined(rootTarget) && rootTarget.ApplyOffset(player, clampedOffset);
 
     // Note: We deliberately do NOT set 'ifp_height_blend' here.
     // FPP heel height is managed by HeightController. Setting it here would clobber FPP stance upon ITP reset.
-    if IsDefined(rootTarget) {
-      rootTarget.SyncAnimInputsIfChanged(player, usedRootLift, clampedOffset);
-    } else if usedRootLift {
-      // Clear skeletal fallback variable so direct root component elevation owns 100% of the lift.
-      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", 0.0);
-      // Counter-shift shadow rig feet/toes back down in Root Z to stay planted on the ground under lifted platform soles.
-      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", clampedOffset);
-    } else {
-      AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
-      AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", 0.0);
-    };
+    AnimationControllerComponent.SetInputFloat(player, n"foot_elevation_offset", clampedOffset);
+    AnimationControllerComponent.SetInputFloat(player, n"shadow_platform_offset", 0.0);
+    ITPController.SyncShadowProxyForTPP(player, clampedOffset > 0.00005);
 
     if IsDefined(sys) {
-      sys.LogITPElevationIfChanged(clampedOffset, usedRootLift, usedRootLift ? 0 : -1);
+      sys.LogITPElevationIfChanged(clampedOffset, false, 0);
     };
     return true;
+  }
+
+  /**
+   * Suppresses redundant player shadow proxy meshes during elevated TPP so they cannot
+   * overlap V's lifted visible meshes and cast self-shadow patches onto V's body or clothes.
+   * Restores default shadow casting and visibility when returning to FPP or 0.0m elevation.
+   */
+  public static func SyncShadowProxyForTPP(player: ref<PlayerPuppet>, suppressShadowProxy: Bool) -> Void {
+    if !IsDefined(player) || !player.IsAttached() {
+      return;
+    };
+    let targetEnabled: Bool = !suppressShadowProxy;
+    let targetMode: shadowsShadowCastingMode = suppressShadowProxy ? shadowsShadowCastingMode.Never : shadowsShadowCastingMode.Default;
+    let components: array<ref<IComponent>> = player.GetComponents();
+    let i: Int32 = 0;
+    let count: Int32 = ArraySize(components);
+    while i < count {
+      let comp: ref<IComponent> = components[i];
+      if IsDefined(comp) {
+        let compName: String = StrLower(NameToString(comp.GetName()));
+        if StrContains(compName, "shadow") {
+          let morph: ref<entMorphTargetSkinnedMeshComponent> = comp as entMorphTargetSkinnedMeshComponent;
+          if IsDefined(morph) {
+            let changed: Bool = false;
+            if !Equals(morph.castShadows, targetMode) {
+              morph.castShadows = targetMode;
+              changed = true;
+            };
+            if !Equals(morph.castLocalShadows, targetMode) {
+              morph.castLocalShadows = targetMode;
+              changed = true;
+            };
+            if !Equals(morph.isEnabled, targetEnabled) {
+              morph.Toggle(targetEnabled);
+              changed = true;
+            };
+            if changed {
+              morph.RefreshAppearance();
+            };
+          } else {
+            let skinned: ref<entSkinnedMeshComponent> = comp as entSkinnedMeshComponent;
+            if IsDefined(skinned) {
+              let changed: Bool = false;
+              if !Equals(skinned.castShadows, targetMode) {
+                skinned.castShadows = targetMode;
+                changed = true;
+              };
+              if !Equals(skinned.castLocalShadows, targetMode) {
+                skinned.castLocalShadows = targetMode;
+                changed = true;
+              };
+              if !Equals(skinned.isEnabled, targetEnabled) {
+                skinned.Toggle(targetEnabled);
+                changed = true;
+              };
+              if changed {
+                skinned.RefreshAppearance();
+              };
+            };
+          };
+        };
+      };
+      i += 1;
+    };
   }
 
   /**
