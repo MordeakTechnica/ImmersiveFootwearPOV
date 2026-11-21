@@ -67,7 +67,7 @@ public class ITPController {
       let comp: ref<IComponent> = components[i];
       if IsDefined(comp) {
         let compName: String = StrLower(NameToString(comp.GetName()));
-        if StrContains(compName, "shadow") {
+        if StrContains(compName, "full_shadow") || StrContains(compName, "player_shadow") {
           let morph: ref<entMorphTargetSkinnedMeshComponent> = comp as entMorphTargetSkinnedMeshComponent;
           if IsDefined(morph) {
             let changed: Bool = false;
@@ -173,6 +173,10 @@ public class ITPController {
     if FootwearCalibratorCamera.IsCalibratorCamActive(player.GetGame()) {
       return true;
     };
+    let itpState: Int32 = ITPApiCalibratorAdapter.QueryThirdPersonState(player.GetGame());
+    if itpState >= 0 {
+      return itpState > 0;
+    };
     let camSys: ref<CameraSystem> = GameInstance.GetCameraSystem(player.GetGame());
     if !IsDefined(camSys) {
       return false;
@@ -223,6 +227,21 @@ public class ITPController {
 
 @if(ModuleExists("ImmersiveThirdPerson"))
 public class ITPApiCalibratorAdapter {
+  public static func QueryThirdPersonState(gi: GameInstance) -> Int32 {
+    let container: ref<ScriptableSystemsContainer> = GameInstance.GetScriptableSystemsContainer(gi);
+    if IsDefined(container) {
+      let bridge: ref<TPPCameraVisibleRenderBridge> = container.Get(n"TPPCameraVisibleRenderBridge") as TPPCameraVisibleRenderBridge;
+      if IsDefined(bridge) {
+        return bridge.TppRepresentationActive() ? 1 : 0;
+      };
+    };
+    let api: ref<ITPApi> = ITPApi.Get(gi);
+    if IsDefined(api) && api.IsReady() {
+      return api.PerspectiveMode() != 0 ? 1 : 0;
+    };
+    return -1;
+  }
+
   public static func MaintainLease(gi: GameInstance, focusBoots: Bool) -> Void {
     let api: ref<ITPApi> = ITPApi.Get(gi);
     if !IsDefined(api) {
@@ -260,6 +279,7 @@ public class ITPApiCalibratorAdapter {
 
 @if(!ModuleExists("ImmersiveThirdPerson"))
 public class ITPApiCalibratorAdapter {
+  public static func QueryThirdPersonState(gi: GameInstance) -> Int32 { return -1; }
   public static func MaintainLease(gi: GameInstance, focusBoots: Bool) -> Void {}
   public static func ReleaseGroundLease(gi: GameInstance) -> Void {}
   public static func ReleaseLease(gi: GameInstance) -> Void {}
