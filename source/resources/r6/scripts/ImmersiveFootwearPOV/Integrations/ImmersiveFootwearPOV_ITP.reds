@@ -50,16 +50,15 @@ public class ITPController {
   }
 
   /**
-   * Suppresses redundant player shadow proxy meshes during elevated TPP so they cannot
-   * overlap V's lifted visible meshes and cast self-shadow patches onto V's body or clothes.
-   * Restores default shadow casting and visibility when returning to FPP or 0.0m elevation.
+   * Suppresses local/self-cast shadows on player shadow proxy meshes during elevated TPP
+   * while preserving `castShadows = Default` so V's ground shadow remains visible.
+   * Restores `castLocalShadows = Default` when returning to FPP or 0.0m elevation.
    */
   public static func SyncShadowProxyForTPP(player: ref<PlayerPuppet>, suppressShadowProxy: Bool) -> Void {
     if !IsDefined(player) || !player.IsAttached() {
       return;
     };
-    let targetEnabled: Bool = !suppressShadowProxy;
-    let targetMode: shadowsShadowCastingMode = suppressShadowProxy ? shadowsShadowCastingMode.Never : shadowsShadowCastingMode.Default;
+    let targetLocalMode: shadowsShadowCastingMode = suppressShadowProxy ? shadowsShadowCastingMode.Never : shadowsShadowCastingMode.Default;
     let components: array<ref<IComponent>> = player.GetComponents();
     let i: Int32 = 0;
     let count: Int32 = ArraySize(components);
@@ -71,38 +70,42 @@ public class ITPController {
           let morph: ref<entMorphTargetSkinnedMeshComponent> = comp as entMorphTargetSkinnedMeshComponent;
           if IsDefined(morph) {
             let changed: Bool = false;
-            if !Equals(morph.castShadows, targetMode) {
-              morph.castShadows = targetMode;
+            if !Equals(morph.castShadows, shadowsShadowCastingMode.Default) {
+              morph.castShadows = shadowsShadowCastingMode.Default;
               changed = true;
             };
-            if !Equals(morph.castLocalShadows, targetMode) {
-              morph.castLocalShadows = targetMode;
+            if !Equals(morph.castLocalShadows, targetLocalMode) {
+              morph.castLocalShadows = targetLocalMode;
               changed = true;
             };
-            if !Equals(morph.isEnabled, targetEnabled) {
-              morph.Toggle(targetEnabled);
+            if !morph.isEnabled {
+              morph.Toggle(true);
               changed = true;
             };
             if changed {
+              morph.Toggle(false);
+              morph.Toggle(true);
               morph.RefreshAppearance();
             };
           } else {
             let skinned: ref<entSkinnedMeshComponent> = comp as entSkinnedMeshComponent;
             if IsDefined(skinned) {
               let changed: Bool = false;
-              if !Equals(skinned.castShadows, targetMode) {
-                skinned.castShadows = targetMode;
+              if !Equals(skinned.castShadows, shadowsShadowCastingMode.Default) {
+                skinned.castShadows = shadowsShadowCastingMode.Default;
                 changed = true;
               };
-              if !Equals(skinned.castLocalShadows, targetMode) {
-                skinned.castLocalShadows = targetMode;
+              if !Equals(skinned.castLocalShadows, targetLocalMode) {
+                skinned.castLocalShadows = targetLocalMode;
                 changed = true;
               };
-              if !Equals(skinned.isEnabled, targetEnabled) {
-                skinned.Toggle(targetEnabled);
+              if !skinned.isEnabled {
+                skinned.Toggle(true);
                 changed = true;
               };
               if changed {
+                skinned.Toggle(false);
+                skinned.Toggle(true);
                 skinned.RefreshAppearance();
               };
             };
