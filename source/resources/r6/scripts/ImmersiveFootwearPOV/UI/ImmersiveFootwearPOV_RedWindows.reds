@@ -272,6 +272,8 @@ public class FootwearWindowsController {
         binding.ApplyOverlayRule(win, cfg);
         if !binding.alwaysOverlayOnly && IsDefined(cfg) && cfg.hudPinned {
           win.Show();
+        } else {
+          win.Hide();
         };
         binding.EnsureGeometry(gi, win, cfg);
       };
@@ -303,8 +305,6 @@ public class FootwearWindowsController {
     };
     FootwearCalibratorCamera.Disengage(gi, true);
     ITPController.ReleaseCalibratorTPPLease(gi);
-    RedWindowsAPI.SetPauseMode(gi, RWPause.Config);
-    RedWindowsAPI.SetScrim(gi, 0.35);
     system.FlushPendingOverrideSave();
     FootwearWindowsController.SaveGeometryImmediate(gi);
   }
@@ -399,9 +399,6 @@ public class FootwearWindowsController {
     };
 
     if Equals(kind, FootwearWindowKind.Calibrator) {
-      win.SetSkinStyle(RWSkinStyle.Popup);
-      RedWindowsAPI.SetPauseMode(gi, RWPause.Never);
-      RedWindowsAPI.SetScrim(gi, 0.0);
       let sys: ref<ImmersiveFootwearPOVSystem> = ImmersiveFootwearPOVSystem.GetInstance(gi);
       let cfg: ref<FootwearConfig> = IsDefined(sys) ? sys.GetConfig() : null;
       let focusBoots: Bool = IsDefined(cfg) ? cfg.focusBootsInTPP : true;
@@ -409,16 +406,8 @@ public class FootwearWindowsController {
       FootwearCalibratorCamera.Engage(gi, focusBoots, false);
     };
 
-    win.ShowForced();
+    win.Show();
     binding.RenderContent(gi, win);
-
-    if Equals(kind, FootwearWindowKind.Calibrator) {
-      let bb: ref<IBlackboard> = GameInstance.GetBlackboardSystem(gi).Get(GetAllBlackboardDefs().UI_System);
-      let inMenu: Bool = IsDefined(bb) && bb.GetBool(GetAllBlackboardDefs().UI_System.IsInMenu);
-      if !inMenu {
-        RedWindowsAPI.OpenFor(gi, win);
-      };
-    };
   }
 
   public static func IsCalibratorOpen(gi: GameInstance) -> Bool {
@@ -436,16 +425,10 @@ public class FootwearWindowsController {
     };
     FootwearCalibratorCamera.Disengage(gi, true);
     ITPController.ReleaseCalibratorTPPLease(gi);
-    RedWindowsAPI.SetPauseMode(gi, RWPause.Config);
-    RedWindowsAPI.SetScrim(gi, 0.35);
     FootwearWindowsController.SaveGeometryImmediate(gi);
     let calibWin: ref<RWWindow> = RedWindowsAPI.Window(gi, n"IFP_Calibrator", "Immersive Footwear POV — Shoe Calibrator");
     if IsDefined(calibWin) {
       calibWin.Hide();
-    };
-    let mgr: ref<RWManager> = RWManager.Get(gi);
-    if IsDefined(mgr) && mgr.IsSolo() && RedWindowsAPI.IsOverlay(gi) {
-      mgr.CloseOverlayFor(n"IFP_Calibrator");
     };
   }
 
