@@ -1,0 +1,85 @@
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_main.png[/img]
+[size=3][i]Real-Time First-Person, Third-Person (ITP), & Photo Mode Height Elevation for High Heels & Platform Boots[/i][/size]
+
+[color=#00f0ff][b]100% Native REDscript & TweakXL[/b][/color]  •  [color=#aaaaaa]Supports Vanilla Slots, Wardrobe/Transmog, & Equipment-EX[/color]
+
+[line]
+
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_overview.png[/img]
+In vanilla Cyberpunk 2077, equipping 12 cm stilettos or chunky platform boots doesn't change V's height—causing soles to sink into the pavement and your first-person eye-line to remain at barefoot height.
+
+[b]Immersive Footwear POV[/b] reads TweakDB tags (or community/user calibrations) for your equipped footwear and dynamically elevates V's skeleton, camera stance, third-person puppet, and Photo Mode pose in real time.
+
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_key_features.png[/img]
+[list]
+[*][b]Immersive First Person Height:[/b] Automatically raises V's eye level and stance in first-person based on the heel height of your shoes (supports [i]Immersive First Person[/i]).
+[*][b]Third-Person Platform Lift:[/b] Lifts V cleanly in third-person ([i]Immersive Third Person[/i] and [i]Negotiable Third Person[/i]) so thick platform soles rest naturally on the ground instead of sinking into the pavement.
+[*][b]Photo Mode Support:[/b] Automatically adjusts V's height in Photo Mode so platform boots and chunky soles sit flush on the floor.
+[*][b]Heel-Based Movement Adjustment:[/b] Adds subtle, natural hip sway and movement while walking in heels, scaling gently with low, mid, and high heels.
+[*][b]Integrated Live Shoe Calibrator UI:[/b] Includes a built-in in-game menu ([b]Num 1[/b] default key) to fine-tune and save custom heel and platform heights while viewing your character up close.
+[*][b]Smart Automatic Reset:[/b] Smoothly returns V to normal height when getting into vehicles, sitting on chairs or beds, talking in story scenes, climbing ladders, or swimming.
+[/list]
+
+[line]
+
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_downloads.png[/img]
+[list]
+[*][b]Immersive Footwear POV (Main Mod):[/b] Core REDscript mod, RCF settings, Live Shoe Calibrator, First-Person & Photo Mode elevation, and community presets. (Choose this if you only play FPP / Photo Mode).
+[*][b]Immersive Footwear POV - ITP Elevation:[/b] AnimGraph archive ([code]##_ITP_Immersive_Footwear_POV.archive[/code]) required for real-time Third-Person ([i]Immersive Third Person[/i]) elevation.
+[*][b]Immersive Footwear POV - AllInOne:[/b] Contains both the Main Mod and the ITP Elevation archive in a single package.
+[/list]
+
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_requirements.png[/img]
+[b]Required Dependencies:[/b]
+[list]
+[*][url=https://www.nexusmods.com/cyberpunk2077/mods/2380]RED4ext[/url]
+[*][url=https://www.nexusmods.com/cyberpunk2077/mods/1511]redscript[/url]
+[*][url=https://www.nexusmods.com/cyberpunk2077/mods/4198]ArchiveXL[/url]
+[*][url=https://www.nexusmods.com/cyberpunk2077/mods/4197]TweakXL[/url]
+[*]RedFunctions, Redscript Configuration Framework (RCF), & RedLogger (DigitalVixen Mod Suite)
+[/list]
+
+[b]Recommended / Optional Integrations:[/b]
+[list]
+[*][url=https://www.nexusmods.com/cyberpunk2077/mods/7780]Codeware[/url] — Powers the native Live Shoe Calibrator popup & manual cm inputs
+[*]RedWindows — Powers the Diagnostics HUD and fallback Calibrator window
+[*][url=https://www.nexusmods.com/cyberpunk2077/mods/6945]Equipment-EX[/url] — Full support for Equipment-EX feet/outfit layers
+[*][i]Immersive First Person[/i] / [i]Immersive Third Person[/i] / [i]Negotiable Third Person[/i]
+[/list]
+
+[line]
+
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_calibrate.png[/img]
+[list=1]
+[*]Equip your shoes (via Inventory, Vanilla Wardrobe, or Equipment-EX).
+[*]Press [b]Num 1[/b] (or open via Pause Menu → Mods → Immersive Footwear POV) to open the [b]Live Shoe Calibrator[/b].
+[*]In Third-Person (or with Boot Focus), adjust [b]Platform Sole (cm)[/b] until the front sole sits flush on the ground.
+[*]In First-Person, adjust [b]Heel Height (cm)[/b] to match your desired eye-line elevation.
+[*]Click [b]SAVE OVERRIDE[/b] to persist your calibration permanently to [code]user_shoe_overrides.json[/code].
+[/list]
+
+[line]
+
+[img]https://cdn.jsdelivr.net/gh/MordeakTechnica/ImmersiveFootwearPOV@master/docs/nexus_docs/images/header_modders.png[/img]
+Adding support to your custom shoe mod takes less than a minute—just append 1 or 2 tags to your item's TweakXL [code].yaml[/code]:
+
+[code]Items.Your_Custom_Shoe_Item:
+  $base: Items.GenericFootClothing
+  tags: !append-once
+    - "HeelHeight_012"       # Total heel elevation: 12 cm (FPP eye-line & stance)
+    - "PlatformHeight_004"   # Front sole thickness: 4 cm (TPP & Photo Mode puppet lift)[/code]
+
+[spoiler=Click for Supported Tag Formats & Examples]
+[b]Supported Number Formats (up to 40 cm Heel / 30 cm Platform; FPP IFP capped at 25 cm):[/b]
+[list]
+[*][b]Centimeters (Recommended):[/b] [code]HeelHeight_008[/code] (8 cm), [code]HeelHeight_012[/code] (12 cm), [code]PlatformHeight_004[/code] (4 cm)
+[*][b]Millimeters:[/b] [code]HeelHeight_80[/code] (80 mm), [code]PlatformHeight_40[/code] (40 mm)
+[*][b]Decimal Meters:[/b] [code]HeelHeight_0.08[/code] (0.08 m), [code]PlatformHeight_0.04[/code] (0.04 m)
+[/list]
+
+[b]Supported Tag Aliases:[/b]
+[list]
+[*][b]Heel:[/b] [code]HeelHeight_XXX[/code], [code]Heel_XXX[/code], [code]ShoeHeel_XXX[/code], [code]ShoeHeight_XXX[/code], [code]FootwearHeight_XXX[/code]
+[*][b]Platform:[/b] [code]PlatformHeight_XXX[/code], [code]Platform_XXX[/code], [code]ShoePlatform_XXX[/code]
+[/list]
+[/spoiler]
