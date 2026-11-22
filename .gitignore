@@ -10,10 +10,12 @@ releases
 examples/
 examples
 
-# Tools and automation scripts
-tools/*
-!tools/animgraph_toolkit/
-!tools/preset_variant_expander/
+# Tools, project files, and internal docs/plans
+.projectFiles/
+patches/
+plans/
+research/
+tools/
 scratch/
 pro-requests/
 
