@@ -33,3 +33,6 @@ build/
 dist/
 *.spec
 
+# Large raw WolvenKit JSON dumps (>100 MB GitHub limit)
+source/raw/base/gameplay/anim_graphs/player_base.animgraph.json
+

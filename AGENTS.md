@@ -18,3 +18,6 @@
 - **Logging**: Use native `FTLog`, `FTLogWarning`, and `FTLogError`. Never use `LogChannel(...)` or third-party logger dependencies directly in core modules.
 - **Dependency Resilience**: Use `@if(ModuleExists(...))` at the method level for detector checks (`IsPresent()`), and at the import/class level when importing or referencing types from optional mod integrations (`RedWindows`, `RedscriptConfigFramework`, `RedFunctions`, `RedLogger`, `EquipmentEx`, `TrueFirstPerson`, `NegotiableThirdPerson`).
 - **SOLID Architecture**: Keep 100% of gameplay, elevation, camera, and locomotion math in REDscript; keep CET strictly as a dormant configuration/calibration fallback.
+
+## 4. Git Hygiene & Large Files
+- **GitHub 100 MB File Limit**: Always check file sizes before staging/committing and add files approaching or exceeding GitHub's 100 MB limit (such as `source/raw/base/gameplay/anim_graphs/player_base.animgraph.json`) to `.gitignore` instead of committing them directly.
